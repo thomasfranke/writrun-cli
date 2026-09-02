@@ -1,0 +1,29 @@
+name: release readiness
+
+# `main` is the branch releases are cut from, so every push to it —
+# including one that lands without a pull request — gets a
+# releasability verdict here.
+#
+# The cut itself deliberately stays local (`make release`): the stamp
+# commit cannot be pushed to a protected main by GITHUB_TOKEN, and the
+# tokens that could are the dependency this project rejects. The script
+# re-runs these same guards before tagging.
+#
+# YAML here is wiring only; the job executes what the suite already
+# owns.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: script suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: bash tests/run.sh

@@ -1,0 +1,20 @@
+name: tests
+
+# This repository's own suite. Pull requests only — main has a pipeline
+# of its own (release-readiness.yml), re-verifying the branch releases
+# are cut from on every push to it.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: script suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: bash tests/run.sh

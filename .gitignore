@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Go — build and test artifacts
+/writ
+/bin/
+/dist/
+*.test
+*.out
+coverage.*
+
+# Machine-local agent scratch (never committed)
+.claude/
+
+# Editors
+.idea/
+.vscode/
+*.swp
