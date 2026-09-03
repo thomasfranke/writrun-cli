@@ -1,0 +1,150 @@
+name: writrun progress
+
+# The forge's in-flight events, written where they belong: the task's
+# status line on the base branch (Stage 2), then the mirrored Issue's
+# label projected *from that write* (Stage 3) — one derivation, never
+# two. One workflow because they answer the same events; two jobs
+# because they are two stages, gated separately, and the mirror runs
+# after the recording so it reads what the machinery just wrote.
+#
+# Every step's logic lives in .writrun/scripts/, where the test suite's
+# integration tier executes it — YAML here only wires events onto
+# scripts. The edge table is flip_task_status.sh and
+# product/stage-2-pull-requests/statuses.md; the projection is
+# rederive_labels.sh via project_pr_tasks.sh.
+#
+# Trust posture, and it differs by event:
+#   - pull_request_target: safe by construction — jobs run base-branch
+#     code and the PR's fields travel through env as data.
+#   - pull_request_review: GITHUB_SHA points at PR-controlled code, so
+#     every checkout below pins the default branch explicitly — a bare
+#     checkout would execute the PR's own tree with credentials on
+#     disk. And a fork PR's review delivers a read-only token, so this
+#     workflow skips fork reviews; the state heals at the next _target
+#     event (converted_to_draft, ready_for_review, closed all still
+#     fire).
+# Pushes made with GITHUB_TOKEN trigger no workflow runs, which is what
+# keeps the recording from looping.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, converted_to_draft, review_requested, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  gate:
+    name: adoption stage
+    runs-on: ubuntu-latest
+    # The stage gates the whole workflow rather than each job, and it is
+    # a job rather than a first step so a project below the stage starts
+    # no runner at all. It always succeeds: a job that did not run is not
+    # a failure, and stage_gate.sh says which of the two happened. Two
+    # outputs because the two jobs below sit at different stages.
+    if: github.event_name == 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      record: ${{ steps.gate2.outputs.run }}
+      mirror: ${{ steps.gate3.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - id: gate2
+        run: bash .writrun/scripts/stage-2-pull-requests/stage_gate.sh 2
+      - id: gate3
+        run: bash .writrun/scripts/stage-2-pull-requests/stage_gate.sh 3
+
+  record:
+    name: status on main
+    needs: gate
+    if: needs.gate.outputs.record == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # Default branch only — never the PR's code (see the header note).
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Apply the event to the task's status line
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          # pull_request_review carries its verdict here; every
+          # pull_request_target event leaves it empty.
+          REVIEW_STATE: ${{ github.event.review.state }}
+        run: |
+          set -euo pipefail
+          if [ -n "${REVIEW_STATE}" ]; then
+            # Only a changes_requested review moves anything; approvals
+            # and comments say nothing about who the blocker is.
+            [ "${REVIEW_STATE}" = "changes_requested" ] || {
+              echo "review '${REVIEW_STATE}' moves no status"; exit 0; }
+            bash .writrun/scripts/stage-2-pull-requests/apply_pr_event.sh changes_requested
+          else
+            bash .writrun/scripts/stage-2-pull-requests/apply_pr_event.sh \
+              "${{ github.event.action }}"
+          fi
+
+      - name: Commit
+        env:
+          BASE_REF: ${{ github.event.repository.default_branch }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          git diff --quiet -- work/tasks && { echo "nothing moved"; exit 0; }
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add work/tasks
+          # The subject is a constant, held in one place both workflows
+          # call (docs/technical/README.md#pr_title_style).
+          git commit \
+            -m "$(bash .writrun/scripts/stage-2-pull-requests/commit_subject.sh forge)" \
+            -m "Pull request #${PR_NUMBER}, event ${{ github.event.action }}."
+          # Another recording may have landed between checkout and here.
+          # Rebase onto it rather than force: this is an addition to the
+          # branch's history, never a replacement of it.
+          git pull --rebase origin "$BASE_REF"
+          git push origin "HEAD:${BASE_REF}"
+
+  reflect:
+    name: mirror follows the file
+    needs: [gate, record]
+    # After the recording, so the projection reads what it wrote. A
+    # skipped record (a stage below 2 never reaches 3) or a no-op one
+    # both leave a readable queue, so only cancellation stops this.
+    #
+    # Except on a merged close, which this workflow does not answer at
+    # all: `record` already stands down there (the merge recording owns
+    # that move), and projecting anyway would read a checkout that may
+    # predate the recording commit writrun-approve.yml is pushing at that
+    # very moment — a third writer of one label, racing the two that were
+    # already racing (docs/technical/decisions/github-issues/, 0060).
+    if: >
+      !cancelled() && needs.gate.outputs.mirror == 'true'
+      && github.event.pull_request.merged != true
+    runs-on: ubuntu-latest
+    steps:
+      # Default branch, freshly after the record job's push — the file
+      # is the truth the mirror restates.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Project the carried tasks onto their mirrors
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          bash .writrun/scripts/stage-3-github-issues/project_pr_tasks.sh \
+            "${{ github.repository }}"

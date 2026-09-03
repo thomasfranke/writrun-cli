@@ -1,0 +1,80 @@
+name: writrun issues
+
+# Mirrors the task queue into GitHub Issues. The file under work/tasks/ is
+# the authority — the Issue is a projection of it, for people who read the
+# queue in a browser rather than in a diff.
+#
+# Every step's logic lives in .writrun/scripts/, where the test suite's
+# integration tier executes it — YAML here only wires events onto scripts.
+# The reasoning (one-direction sync, reconciliation over per-event
+# handlers, ownership, deferral for unrecognized authors) is documented in
+# mirror_issues.sh itself.
+#
+# Runs on pull_request_target so it holds `issues: write` even for a fork
+# PR. That trigger is safe here because the PR's code is never checked out
+# or executed: the checkout below takes the BASE branch — which is what
+# actions/checkout does by default on pull_request_target — and only to
+# obtain the script; the PR's files are read out of the API's own patch
+# text and parsed as data.
+
+# `ready_for_review` is here because drafts are skipped by the script: a
+# draft PR is derivation still under review in the working session — its
+# tasks are not public queue entries yet, and mirroring them would
+# announce work nobody has agreed to track.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, closed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  gate:
+    name: adoption stage
+    runs-on: ubuntu-latest
+    # The level gates the whole workflow rather than each job, and it is a
+    # job rather than a first step so a project below the level starts no
+    # runner at all. It always succeeds: a job that did not run is not a
+    # failure, and stage_gate.sh says which of the two happened.
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: bash .writrun/scripts/stage-2-pull-requests/stage_gate.sh 3
+
+  mirror:
+    needs: gate
+    # Every close except the one that merged. A merged close is
+    # writrun-approve.yml's alone — it is the workflow that writes the
+    # queue, so it is the only one that can label a mirror from a queue
+    # that already holds what the merge decided. Two workflows answering
+    # it wrote the same label from two sources, and the one derived from
+    # the merge's own diff kept winning by finishing first
+    # (docs/technical/decisions/github-issues/, 0060). A close *without*
+    # a merge is still this workflow's: it retires the mirrors of a pull
+    # request that carried no assent, and no queue write follows it.
+    if: >
+      needs.gate.outputs.run == 'true'
+      && github.event.pull_request.merged != true
+    runs-on: ubuntu-latest
+    steps:
+      # Base branch only — never the PR's code (see the header note).
+      - uses: actions/checkout@v4
+
+      - name: Reconcile the mirror
+        # The PR's fields go through env, never inline interpolation —
+        # a fork controls some of them.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_STATE: ${{ github.event.pull_request.state }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_HTML_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          bash .writrun/scripts/stage-3-github-issues/mirror_issues.sh \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.number }}"

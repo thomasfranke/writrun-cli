@@ -1,0 +1,16 @@
+{
+  "stage": 3,
+  "stage_1": {
+    "decisions_style": "chronological",
+    "product_layout": "by-feature",
+    "provenance_ledger": false,
+    "spec_required": "when-warranted"
+  },
+  "stage_2": {
+    "agent_coauthor": false,
+    "auto_commit": true,
+    "auto_pr": true,
+    "auto_push": true,
+    "pr_title_style": "bracketed"
+  }
+}
