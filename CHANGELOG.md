@@ -12,8 +12,8 @@ computed by `make release`, never typed — see
 
 ## Unreleased
 
-Nothing has been tagged yet. The root [`VERSION`](VERSION) reads `v0.0.0`,
-which is the state before the first cut; the first release is `v0.0.1`.
+Nothing has been tagged yet. The root [`VERSION`](VERSION) reads `v0.0.00`,
+which is the state before the first cut; the first release is `v0.0.01`.
 
 ### Added
 

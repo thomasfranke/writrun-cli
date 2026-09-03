@@ -22,7 +22,7 @@ git config user.email t@example.com
 git config user.name Test
 git add -A >/dev/null
 git commit -qm baseline
-git tag -a v0.0.1 -m v0.0.1
+git tag -a v0.0.01 -m v0.0.01
 git init -q --bare "$WORK/origin.git"
 git remote add origin "$WORK/origin.git"
 git push -q origin main
@@ -37,11 +37,11 @@ unset MAKE
 
 out=$(make release minor 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
-   [ "$(cat VERSION)" = "v0.0.2" ] &&
-   git log -1 --format=%s | grep -q 'chore(release): v0.0.2' &&
-   git tag --list | grep -qx 'v0.0.2' &&
-   git ls-remote --tags origin | grep -q 'refs/tags/v0.0.2' &&
-   grep -q 'gh release create v0.0.2' "$WORK/gh.log"; then
+   [ "$(cat VERSION)" = "v0.0.02" ] &&
+   git log -1 --format=%s | grep -q 'chore(release): v0.0.02' &&
+   git tag --list | grep -qx 'v0.0.02' &&
+   git ls-remote --tags origin | grep -q 'refs/tags/v0.0.02' &&
+   grep -q 'gh release create v0.0.02' "$WORK/gh.log"; then
   echo "ok    a real make release cuts, tests, commits, tags, pushes, publishes"; pass=$((pass + 1))
 else
   echo "FAIL  a real make release cuts, tests, commits, tags, pushes, publishes"

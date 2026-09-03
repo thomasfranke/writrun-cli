@@ -4,7 +4,7 @@
 # ready for scripts/release.sh. A local bare `origin` makes the push
 # real, and the script's two collaborators are stubbed — `make` (via
 # $MAKE) and `gh` (via PATH) — both appending their invocations to
-# $WORK/calls.log. The stamp file exists and is committed as v0.0.0.
+# $WORK/calls.log. The stamp file exists and is committed as v0.0.00.
 #
 # Each case sources this and runs standalone, or under tests/run.sh.
 
@@ -22,7 +22,7 @@ release_setup() {
   git symbolic-ref HEAD refs/heads/main
   git config user.email t@example.com
   git config user.name Test
-  printf 'v0.0.0\n' > VERSION
+  printf 'v0.0.00\n' > VERSION
   git add -A >/dev/null
   git commit -qm baseline
   git init -q --bare "$WORK/origin.git"
