@@ -15,7 +15,7 @@ in.
 
 `writrun` is that porcelain: the methodology's **optional client, never
 its dependency**, in its own repository by the methodology's own
-decision. This project runs on WritRun itself.
+decision.
 
 ## Where to find what
 
@@ -23,8 +23,6 @@ decision. This project runs on WritRun itself.
 |---|---|
 | [`product/`](product/README.md) | What `writrun` does, command by command. The source of truth the implementation is checked against. |
 | [`technical/`](technical/README.md) | How it is built and distributed. |
-| [`work/tasks/`](../work/tasks/README.md) | The queue — the gap between these docs and the code. |
-| [`work/specs/`](../work/specs/README.md) | The detail of one change; history, not the present. |
 
 ## The relationship that defines everything
 

@@ -10,8 +10,7 @@
 # suite, and only after that commit, tag, push, and publish the GitHub
 # Release with notes generated from the conventional commits.
 #
-# The stamp is the root VERSION file — .writrun/VERSION records the
-# adopted WritRun kit's version, never this project's.
+# The stamp is the root VERSION file.
 #
 # The cut also writes CHANGELOG.md and stages it beside the stamp, so
 # one commit carries the number and what earned it. That file is

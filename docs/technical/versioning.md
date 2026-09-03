@@ -11,8 +11,8 @@
   digits.** Same scheme as WritRun's own tags, deliberately: this client
   pins one of them and reads it back, so a client numbering itself
   differently from what it pins reads as two schemes where there is one.
-- `.writrun/VERSION` is the adopted WritRun kit's version, never this
-  project's. The root `VERSION` is this project's.
+- The root `VERSION` file is the stamp — this project's version and
+  nothing else's.
 - **The history lands in the repository, not only on the forge.** The
   cut writes [`CHANGELOG.md`](../../CHANGELOG.md) at the root, newest
   first, and stages it with the stamp so one commit carries the number

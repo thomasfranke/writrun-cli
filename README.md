@@ -66,6 +66,5 @@ human-friendly handle on them.
 
 ## Status
 
-Docs-first, by the methodology it serves: `docs/product/` defines every
-command, and the implementation follows through WritRun's own pipeline.
-This project runs on WritRun itself.
+Docs-first: `docs/product/` defines every command, and the
+implementation is checked against it.

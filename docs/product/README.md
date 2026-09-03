@@ -20,6 +20,4 @@ maintainer, a contributor, a stakeholder.
   belongs in [`technical/`](../technical/README.md).
 - Each rule is checkable: a reader can answer "does this repo comply —
   yes or no" without interpretation.
-- Changes arrive by authoring (rule first, work derived from it) or by
-  loop closure (shipped with the task, listed in its spec's Proposed
-  changes) — and a human writes or reviews either before it merges.
+- A human writes or reviews every change here before it merges.
