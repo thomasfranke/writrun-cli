@@ -1,9 +1,15 @@
 # Contributing to writrun-cli
 
-Thanks for being here. `writrun` is the porcelain for
-[WritRun](https://github.com/thomasfranke/writrun) — one binary that wraps
-the methodology's own scripts and files into human-shaped commands. It
-packages; it never decides.
+Thanks for being here. `writrun` is a command-line client: one binary
+that wraps [WritRun](https://github.com/thomasfranke/writrun)'s own
+scripts and files into human-shaped commands. It packages; it never
+decides.
+
+**Two repositories, two jobs.** The methodology — its rules, its skills,
+its schemas — is developed at
+[`thomasfranke/writrun`](https://github.com/thomasfranke/writrun), and a
+change to what WritRun *means* belongs there. This repository is the
+porcelain over it, and everything below is about this one.
 
 Not sure whether an idea fits, or where to start? Open an issue and ask.
 Asking early is usually faster than guessing — for both of us.
@@ -11,85 +17,51 @@ Asking early is usually faster than guessing — for both of us.
 ## Before you start
 
 - **Read [`docs/about.md`](docs/about.md).** It carries what this project
-  is reaching for and, more usefully, its non-goals. If one of them strikes
-  you as wrong, that is worth hearing — open an issue and make the case.
-- **Read the rules you are changing.**
-  [`docs/product/`](docs/product/README.md) defines every command and is the
-  source of truth the implementation is checked against.
-  [`docs/technical/`](docs/technical/README.md) covers how it is built, and
-  [`decisions.md`](docs/technical/decisions.md) records the *why* and what
-  was rejected.
-- **This repository runs on WritRun itself.** Its `work/` queue is where its
-  own work is tracked, and [`AGENTS.md`](AGENTS.md) is the entry point for
-  anyone — human or agent — arriving at a task.
+  is reaching for and, more usefully, its non-goals. If one of them
+  strikes you as wrong, that is worth hearing — open an issue and make
+  the case.
+- **[`docs/product/`](docs/product/README.md) is the source of truth**
+  the implementation is checked against: every command, rule by rule, in
+  non-technical language. If your change contradicts a rule there, that
+  is a conversation for an issue, not a surprise in a pull request.
+- **[`docs/technical/`](docs/technical/README.md)** covers how it is
+  built, tested, versioned and distributed, and
+  [`decisions.md`](docs/technical/decisions.md) records the *why* and
+  what was rejected.
 
-## The four relationships that decide every change
+**This project is docs-first.** `docs/product/` names every command
+before any of them exists; the binary follows. A pull request that adds
+behaviour no chapter describes is proposing a rule, and that is worth
+saying out loud rather than reviewing as code.
 
-A change that breaks one of these is out of scope no matter how convenient.
-[`docs/about.md`](docs/about.md) is where they live; they are repeated here
-because they are what a review looks for first.
+## The four relationships that decide scope
 
-- **Wraps, never reimplements.** Every check is the operated repository's
-  own. If the binary and the scripts disagree, the scripts are right.
-- **Packages, never decides.** No command makes a call a human or an agent
-  had not already made. There is no approve command.
-- **Launches agents, never is one.**
-- **Pins, never tracks.** [`.writrun/VERSION`](.writrun/VERSION) records the
-  one WritRun tag this client targets. Before changing anything that reads
-  the operated repository's layout, check that tag's own docs rather than
-  the shape you remember.
+A change that breaks one of these is out of scope no matter how
+convenient. They live in [`docs/about.md`](docs/about.md); they are
+repeated here because they are what a review looks for first.
 
-## The work is defined in tasks and specs
-
-[`work/tasks/`](work/tasks/README.md) is **the queue** — what to do, when,
-and what blocks it. [`work/specs/`](work/specs/README.md) is **the
-detail** — scope, steps, criteria, edge cases.
-
-**Nothing is "planned" in prose:** it is either a task in the queue or it
-does not exist yet.
-
-- **See what is available**, rather than browsing the folder:
-
-  ```bash
-  bash .writrun/skills/writrun-select-next-task/list_tasks.sh
-  ```
-
-  It prints what is eligible, what must be resumed first, and what is held
-  back with the reason. **You may take any task it lists as available** —
-  the order shown is a suggestion to you. An agent is bound by it, so that
-  repeated sessions agree; you are not.
-- **Take a task only when it is `ready`.** That status is written from the
-  fact that every spec it references is `approved`. A `backlog` task has not
-  passed the approval gate, so it is not authorized work.
-- **Trivial work does not become a task** — a typo or a one-line fix goes
-  straight to a commit.
-- **Taking a task means opening its draft pull request, before the work
-  starts.** A branch on your machine is invisible to everyone else, and the
-  draft is the event the machinery answers by writing `in-progress`. It
-  reserves nothing; it reports.
-- **The task's status line is never yours to write.** The machinery owns
-  it. What you write is the task's `completed` date, by hand, when the work
-  is done.
-- **Close the loop:** fill the spec's **Outcome** with what was actually
-  built and anything that diverged, and why. Do not edit the
-  Proposed-changes sections to match reality after the fact.
-- **Update the permanent docs in the same change** — `docs/product/` if
-  behaviour changed, `docs/technical/` if machinery did. A spec is a
-  historical record, not where current behaviour is documented.
-
-The full flow, the front-matter schemas, and the order the checks run in are
-in [`AGENTS.md`](AGENTS.md) and the
-[`.writrun/skills/`](.writrun/README.md) it points at. The generator script
-scaffolds a new task or spec correctly rather than relying on getting the
-schema right from memory.
+- **Wraps, never reimplements.** Every check a command runs is the
+  operated repository's own `.writrun/` script, as a child process —
+  nothing reimplemented in Go, nothing embedded in the binary. If the
+  binary and the scripts disagree, the scripts are right.
+- **Packages, never decides.** No command makes a call a human or an
+  agent had not already made. There is no approve command, and nothing
+  merges.
+- **Launches agents, never is one.** `writrun work` starts one;
+  `writrun` never reasons about a task's content.
+- **Pins, never tracks.** Each release targets exactly one WritRun tag.
+  Before changing anything that reads the operated repository's layout,
+  check that tag's own docs rather than the shape you remember — the
+  methodology's contract is alpha and moves without notice.
 
 ## Development setup
 
-**The binary is Go**, one static build, standard library first — see
+**The binary is Go** — one static build, standard library first, no CLI
+framework until a command proves one necessary. Entry point in
+`cmd/writrun/`, everything else `internal/`; nothing is exported for
+import, because the public contract is the command line. See
 [`runtime.md`](docs/technical/runtime.md) and
-[`layout.md`](docs/technical/layout.md). No package manager beyond the Go
-toolchain, and nothing is exported for import: the public contract is the
-command line.
+[`layout.md`](docs/technical/layout.md).
 
 **The release path is bash**, and it has a suite:
 
@@ -99,62 +71,74 @@ make test-integration    # one tier
 make test-release        # one suite directory
 ```
 
-Any case file also runs on its own. Each builds a throwaway repository and
-asserts an exit code, on git, `bash` and POSIX `awk`/`sed` — the same
-constraints as the scripts it exercises. **If you change a script, add the
-case that would have caught the change being wrong.**
+Any case file also runs on its own. Each builds a throwaway repository
+and asserts an exit code, on git, `bash` and POSIX `awk`/`sed` — the
+same constraints as the scripts it exercises. Test on macOS's stock
+`/usr/bin/awk`, not just whatever is on your `$PATH`. **If you change a
+script, add the case that would have caught the change being wrong.**
 [`testing.md`](docs/technical/testing.md) has the layout.
 
 ## How contributions reach the project
 
-Nobody needs write access. **Fork the repository, work on a branch in your
-fork, and open a pull request against `main`.**
+Nobody needs write access. **Fork the repository, work on a branch in
+your fork, and open a pull request against `main`.**
 
-Merging is restricted to the maintainer. That is not a comment on trust — a
-permanent doc never merges on agent or single-reviewer approval alone, and
-keeping that responsibility in one place is the simplest way to honour it.
+Merging is restricted to the maintainer. That is not a comment on trust:
+a permanent doc never merges on single-reviewer approval alone, and
+keeping that responsibility in one place is the simplest way to honour
+it.
 
-**Keep your fork in sync.** Branch from an up-to-date `main`, or your pull
-request is reviewed against a moving target.
+**Keep your fork in sync.** Branch from an up-to-date `main`, or your
+pull request is reviewed against a moving target.
 
 ## Workflow
 
-**Trunk-based.** `main` is the only long-lived branch and is always green —
-this repository's choice, per
-[`.writrun/conventions/branches.md`](.writrun/conventions/branches.md).
+**Trunk-based.** `main` is the only long-lived branch and is always
+green. Everything merges to `main` continuously.
 
-1. Branch off the latest `main`, named per the conventions above. Rebase on
-   `main` rather than merging it in — it keeps the squash clean.
-2. Write commits, branch names and pull request titles per
-   [`.writrun/conventions/`](.writrun/conventions/README.md): Conventional
-   Commits with this repository's types and scopes, and squash-only merges.
-   **That folder is this project's own convention, not the methodology's.**
-3. Open the pull request against `main` and fill in
-   [the template](.writrun/templates/pull_request_template.md).
-4. **English everywhere:** prose, commits, documentation.
+1. Branch off the latest `main`, named `<type>/short-name` —
+   `fix/broken-anchor`, `docs/release-chapter`. Rebase on `main` rather
+   than merging it in; it keeps the squash clean.
+2. **Commit subjects are [Conventional
+   Commits](https://www.conventionalcommits.org/)**: `type(scope):
+   imperative summary`. Types are `docs`, `feat`, `fix`, `refactor`,
+   `chore`. The scope is optional and names the subsystem — `product`,
+   `technical`, `release`, `tests`, `ci` — omitted when a change
+   genuinely spans the repository.
+3. Open the pull request against `main`. Say what changed and why, and
+   name anything a reviewer should re-read by hand rather than trust the
+   diff for.
+4. **Merge is squash-only.** A messy branch history is fine; the commit
+   landing on `main` is not.
+5. **English everywhere:** prose, commits, documentation.
 
-CI verifies the methodology, not the code: whether the change kept its
-promises to the docs. Whether the code works is the suite's answer, and both
-run on every pull request.
+Update the docs in the same pull request that changes the behaviour they
+describe — `docs/product/` when a rule moves, `docs/technical/` when the
+machinery does, and a dated entry in
+[`decisions.md`](docs/technical/decisions.md) when a choice was made
+that a future reader will ask about. Entries there are append-only:
+never edit one, add the next.
 
-Releases are tags on `main`. Cut one with `make release` — the number is
-computed from the latest tag, never typed. The vocabulary and what the cut
-stamps are in [`versioning.md`](docs/technical/versioning.md).
+## Releases
 
-**While alpha, any part of the contract may move without notice.** Each
-release targets exactly one WritRun tag and nothing else.
+Tags on `main`, cut with `make release`. The number is computed from the
+latest tag, never typed, and the vocabulary is WritRun's rather than
+SemVer's — `minor` bumps the third digit, `major` the middle one,
+`epoch` the first. `CHANGELOG.md` is written by the cut and **never
+edited by hand**. The whole path, and why it is shaped that way, is
+[`versioning.md`](docs/technical/versioning.md).
 
 ## Licence, and why there is no CLA
 
 `writrun-cli` is [MIT-0](LICENSE) — MIT with no attribution requirement.
 **There is no CLA to sign.** Inbound equals outbound: by opening a pull
-request you offer your contribution under the same MIT-0 terms as the rest
-of the project, and you keep the copyright to your own work.
+request you offer your contribution under the same MIT-0 terms as the
+rest of the project, and you keep the copyright to your own work.
 
 That is deliberate, not an oversight. A CLA exists to let a project
-relicense contributed code, usually for a commercial edition. This project
-has none and no plan for one, so there is nothing a CLA would secure and no
-reason to ask you for a signature.
+relicense contributed code, usually for a commercial edition. This
+project has none and no plan for one, so there is nothing a CLA would
+secure and no reason to ask you for a signature.
 
 ## Code of conduct
 
