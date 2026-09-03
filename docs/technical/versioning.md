@@ -1,22 +1,24 @@
 # Versioning
 
 - The version number is computed, never typed: `make release` (default
-  `minor`; also `major`, `epoch`) stamps the root `VERSION`, runs the
-  suite, then commits, tags, pushes, and publishes the GitHub Release
-  with generated notes. The whole path lives in
-  [`scripts/release.sh`](../../scripts/release.sh).
+  `minor`; also `major`, `epoch`) computes the next number from the
+  latest tag, writes the changelog, runs the suite, then commits, tags,
+  pushes, and publishes the GitHub Release with generated notes. The
+  whole path lives in [`scripts/release.sh`](../../scripts/release.sh).
 - `minor` bumps the third digit, `major` the middle one, `epoch` the
   first — WritRun's own vocabulary, not SemVer's.
 - **The first release is `v0.0.01`, and the third field stays two
   digits.** Same scheme as WritRun's own tags, deliberately: this client
   pins one of them and reads it back, so a client numbering itself
   differently from what it pins reads as two schemes where there is one.
-- The root `VERSION` file is the stamp — this project's version and
-  nothing else's.
+- **The tag is the only place the number is written.** No `VERSION`
+  file exists: a stamp is a second copy of what the tag already says,
+  wrong the moment a cut fails between the two writes.
 - **The history lands in the repository, not only on the forge.** The
   cut writes [`CHANGELOG.md`](../../CHANGELOG.md) at the root, newest
-  first, and stages it with the stamp so one commit carries the number
-  and what earned it. The entries are the conventional subjects between
+  first, and commits it — the release commit the tag then lands on, so
+  the number and what earned it travel together. The entries are the
+  conventional subjects between
   the last tag and `HEAD`, read with `git` — the same material the
   forge's generated notes read; what changes is that a checkout answers
   "what changed" without leaving it.

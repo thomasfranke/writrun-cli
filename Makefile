@@ -27,8 +27,8 @@ test-integration:
 	exit $$fail
 
 # Cut a release: `make release` (= minor), or `make release minor|major|epoch`.
-# The whole path — compute, stamp, test, commit, tag, push, publish —
-# lives in the script.
+# The whole path — compute, changelog, test, commit, tag, push,
+# publish — lives in the script.
 .PHONY: release minor major epoch
 release:
 	@MAKE="$(MAKE)" bash scripts/release.sh $(filter epoch major minor,$(MAKECMDGOALS))

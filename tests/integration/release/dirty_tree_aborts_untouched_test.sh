@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 . "$(dirname "$0")/../../release_lib.sh"
 
-# A dirty tree aborts before anything happens: no stamp, no call, no tag.
+# A dirty tree aborts before anything happens: no call, no tag.
 release_setup
-printf 'uncommitted\n' >> VERSION
+printf 'uncommitted\n' >> README.md
 out=$(bash "$RELEASE_SH" 2>&1); code=$?
 if [ "$code" -ne 0 ] &&
    printf '%s' "$out" | grep -q 'not clean' &&

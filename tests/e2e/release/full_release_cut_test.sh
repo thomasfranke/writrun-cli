@@ -37,7 +37,6 @@ unset MAKE
 
 out=$(make release minor 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
-   [ "$(cat VERSION)" = "v0.0.02" ] &&
    git log -1 --format=%s | grep -q 'chore(release): v0.0.02' &&
    git tag --list | grep -qx 'v0.0.02' &&
    grep -q '^## v0.0.02' CHANGELOG.md &&
