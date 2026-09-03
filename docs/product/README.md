@@ -9,9 +9,10 @@ maintainer, a contributor, a stakeholder.
 | # | Chapter | Answers |
 |---|---|---|
 | 1 | [`rules.md`](rules.md) | What holds for every command: where it runs, what it never does, how it reports. |
-| 2 | [`adoption.md`](adoption.md) | `init`, `update`, `doctor` — installing the kit and keeping it current. |
+| 2 | [`adoption.md`](adoption.md) | `init`, `update`, `doctor`, `uninstall` — installing the kit, keeping it current, and removing it. |
 | 3 | [`queue.md`](queue.md) | `list`, `work` — reading the queue and launching an agent on it. |
 | 4 | [`pull-requests.md`](pull-requests.md) | `author`, `take`, `finish`, `amend` — the four flows that end in a pull request. |
+| 5 | [`reports.md`](reports.md) | `report` — recording an observation before it is lost. |
 
 ## Rules for this folder
 
