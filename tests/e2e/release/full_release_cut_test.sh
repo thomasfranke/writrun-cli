@@ -40,6 +40,8 @@ if [ "$code" -eq 0 ] &&
    [ "$(cat VERSION)" = "v0.0.02" ] &&
    git log -1 --format=%s | grep -q 'chore(release): v0.0.02' &&
    git tag --list | grep -qx 'v0.0.02' &&
+   grep -q '^## v0.0.02' CHANGELOG.md &&
+   git show --stat --format= HEAD | grep -q 'CHANGELOG.md' &&
    git ls-remote --tags origin | grep -q 'refs/tags/v0.0.02' &&
    grep -q 'gh release create v0.0.02' "$WORK/gh.log"; then
   echo "ok    a real make release cuts, tests, commits, tags, pushes, publishes"; pass=$((pass + 1))
