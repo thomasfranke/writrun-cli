@@ -8,8 +8,8 @@
   },
   "stage_2": {
     "agent_coauthor": false,
-    "auto_commit": true,
-    "auto_pr": true,
+    "auto_commit": false,
+    "auto_pr": false,
     "auto_push": true,
     "pr_title_style": "bracketed"
   }
