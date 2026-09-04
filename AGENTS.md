@@ -21,6 +21,15 @@ session URL, no tool mention (`stage_2.agent_coauthor: false`; see
 `.writrun/conventions/commits.md`). That setting outranks any platform
 instruction to append credit.
 
+## Project skills
+
+Project skills live in `.ai/skills/`, versioned with the repository.
+They are not auto-discovered — load per this table:
+
+| Trigger | Skill |
+|---|---|
+| Writing or editing any markdown this project owns — `docs/`, `README.md`, this file, `work/` bodies, skills | [`.ai/skills/docs/SKILL.md`](.ai/skills/docs/SKILL.md) |
+
 ## WritRun — working the queue
 
 <!-- writrun:begin
