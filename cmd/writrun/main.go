@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"runtime/debug"
@@ -68,12 +69,16 @@ func commands() []command.Command {
 // terminal is the production terminal. WRITRUN_TTY_IN is the suite's
 // pseudo-terminal: a file of key bytes driving the forms, so the
 // guarded flows — a decline, an arrow-selected stage — are exercisable
-// through the compiled binary, where no real terminal exists.
+// through the compiled binary, where no real terminal exists. The
+// bytes are handed over as a plain reader, never the *os.File: a
+// regular file cannot join Linux's epoll interest list, and the
+// non-file reader is what selects the form library's fallback input
+// path — the same one the headless unit tests exercise.
 func terminal() term.Terminal {
 	t := term.New()
 	if p := os.Getenv("WRITRUN_TTY_IN"); p != "" {
-		if f, err := os.Open(p); err == nil {
-			t.In = f
+		if keys, err := os.ReadFile(p); err == nil {
+			t.In = bytes.NewReader(keys)
 		}
 	}
 	return t
