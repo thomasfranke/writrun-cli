@@ -1,7 +1,7 @@
 ---
 id: spec-0002
 task_ref: task-0002
-status: approved
+status: implemented
 created: 2026-09-03T22:30:35Z
 ---
 
@@ -51,8 +51,8 @@ pinned source; one case per acceptance criterion.
 
 ## Definition of Done
 
-- [ ] A fresh repository adopted end-to-end by the command matches a hand adoption of the same tag.
-- [ ] Suite green.
+- [x] A fresh repository adopted end-to-end by the command matches a hand adoption of the same tag.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -64,4 +64,22 @@ pinned source; one case per acceptance criterion.
 
 ## Outcome
 
-_(fill after execution)_
+Shipped as specified. `writrun init` lives in
+`internal/command/initcmd/`: refusals first (adopted repository via the
+frame's need, dirty tree, foreign commit-msg hook), then the shallow
+clone of the pinned tag into a temp directory, the arrow-selected or
+`--stage`-answered stage, the whole plan rendered and confirmed, and
+only then the writes — copy minus owned files, vocabulary extracted
+from Conventional history and contributing guide onto both
+`conventions/commits.md` and `check_observance.sh` (shipped defaults
+kept and said so when neither exists), `AGENTS.md` grafted by
+appending the fenced section, the hook installed reading TYPES/SCOPES
+at commit time, the stage written into `settings.json`, the fetched
+tag into `.writrun/VERSION`. The chosen stage's checks run on the
+spot; gaps are named and never block. 59 unit tests, 10 integration
+cases (one per acceptance criterion plus the edge cases, a keys-file
+pseudo-terminal driving the decline and the arrow selection), and an
+e2e case proving the adoption byte-identical to a hand copy of the
+tag; coverage over `internal/` at 89% against the 85% gate. Two
+seams for the suite: `WRITRUN_SOURCE` points the fetch at a local
+clone, `WRITRUN_TTY_IN` feeds the forms.

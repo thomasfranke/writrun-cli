@@ -143,7 +143,7 @@ func resolveNeed(f Frame, need Need, ctx *Ctx) (int, bool) {
 			return 1, true
 		}
 		if adopted {
-			fmt.Fprintf(f.Stderr, "writrun: already adopted — .writrun/ exists at %s\n", root)
+			fmt.Fprintf(f.Stderr, "writrun: already adopted — .writrun/ exists at %s; writrun update refreshes an adopted kit\n", root)
 			return 1, true
 		}
 	}
