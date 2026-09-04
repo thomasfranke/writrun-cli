@@ -1,0 +1,26 @@
+---
+id: task-0004
+status: backlog
+blocked_reason: null
+taken_by: null
+spec_ref: [spec-0004]
+doc_ref: product/adoption/doctor.md
+origin: rule
+priority: medium
+depends_on: [task-0001]
+milestone: null
+created: 2026-09-03T22:30:18Z
+queued: null
+completed: null
+merged: null
+provenance: []
+---
+
+# Report repository health with writrun doctor
+
+**References:** [product/adoption/doctor.md](../../docs/product/adoption/doctor.md) · [spec-0004](../specs/spec-0004-doctor-command.md)
+
+Report whether the repository still satisfies what the methodology
+assumes, grouped by stage and judged only up to the declared one —
+files at stage 1, the forge at stage 2, Issues at stage 3. Report
+only; never repair.

@@ -1,0 +1,234 @@
+name: writrun check
+
+# Read-only, no secrets, no write permission. Runs identically whether the
+# pull request came from a branch in this repository or from a fork — it is
+# the guarantee half of the flow, and it must never depend on being able to
+# write anything.
+#
+# Every step's logic lives in .writrun/scripts/, where the test suite's
+# integration tier executes it — YAML here only wires events to scripts.
+# The reasoning for each check is documented in its script.
+
+# `edited` is here for the two jobs that read the PR body: declaring
+# "Derived work: none" and naming the pull request an amendment suspends
+# are both body edits — those checks must rerun when one happens, not
+# wait for a push.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gate:
+    name: adoption stage
+    runs-on: ubuntu-latest
+    # The level gates the whole workflow rather than each job, and it is a
+    # job rather than a first step so a project below the level starts no
+    # runner at all. It always succeeds: a job that did not run is not a
+    # failure, and stage_gate.sh says which of the two happened.
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: bash .writrun/scripts/stage-2-pull-requests/stage_gate.sh 2
+
+  lifecycle:
+    name: task and spec transitions
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # check_state.sh diffs against the base branch, so the history
+          # both refs need must be present.
+          fetch-depth: 0
+
+      - name: Front matter is canonical
+        # The lifecycle rules below read front matter line-based; this
+        # step is what makes that legitimate — the canonical shape is
+        # enforced here, not assumed there. Reasoning in the script.
+        run: bash .writrun/skills/writrun-check-front-matter/check_front_matter.sh
+
+      - name: The shapes the docs show are canonical too
+        # The step above holds the queue's own files. This one holds the
+        # front matter the prose *shows*, with the same script — an
+        # example is documentation that lies with a straight face, and it
+        # is what a newcomer copies first.
+        run: bash .writrun/scripts/stage-2-pull-requests/check_doc_shapes.sh
+
+      - name: Check lifecycle transitions
+        # The head branch name reaches rule K through the environment,
+        # never inline interpolation — a fork controls the string, and the
+        # script only ever prefix-matches it against `report/`.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          bash .writrun/skills/writrun-check-task-state/check_state.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+      - name: Verify the review behind recorded approvals
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_recorded_approvals.sh \
+            "origin/${{ github.base_ref }}...HEAD" \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.number }}"
+
+  deltas:
+    name: promised doc deltas
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: A promised path resolves under docs/
+        # Before the companions step, and before the completion gate both
+        # feed: a path that is not a documentation path cannot
+        # meaningfully be asked whether its companion is present, so
+        # shape is judged before relations.
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_promise_paths.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+      - name: A promise includes its mandatory companions
+        # The entry gate to the step below's completion gate: this one
+        # judges a promise's own completeness where the spec is created or
+        # amended, so the step below fires less — never differently. The
+        # order is the order the cheap fix comes in.
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_promise_companions.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+      - name: Check spec deltas
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_promised_deltas.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+  impact:
+    name: queue impact
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Name the queued tasks this doc change touches
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_queue_impact.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+  ids:
+    name: queue ids are unique
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check compares what the range adds against what the base
+          # branch already holds, so both ends must be present.
+          fetch-depth: 0
+
+      - name: No id another change already claims
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_unique_ids.sh \
+            "origin/${{ github.base_ref }}...HEAD" \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.number }}"
+
+  derived:
+    name: derived work declared
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check derived work
+        # The body goes through env, never inline interpolation — it is
+        # attacker-controlled text on a fork PR.
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_derived_work.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+  amendment:
+    name: an amendment names what it suspends
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check reads each spec's status at both ends of the range,
+          # so the history both ends need must be present.
+          fetch-depth: 0
+
+      - name: An amendment under an open pull request names it
+        # The body carries the reference, and adding it is a body edit —
+        # which is why `edited` is in this workflow's trigger list. It
+        # goes through env, never inline interpolation: attacker-
+        # controlled text on a fork PR. Reasoning in the script.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_amendment_reference.sh \
+            "origin/${{ github.base_ref }}...HEAD" \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.number }}"
+
+  observance:
+    name: the settings are observed
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The credit check reads the commits the range adds, so the
+          # history both ends need must be present.
+          fetch-depth: 0
+
+      - name: The title and the commits obey what the settings declare
+        # A conduct flag binds the agent, and what leaves a trace is
+        # checked rather than trusted. Title and body go through env,
+        # never inline interpolation — both are attacker-controlled text
+        # on a fork PR. Reasoning in the script.
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_observance.sh \
+            "origin/${{ github.base_ref }}...HEAD"
+
+  settings:
+    name: settings are canonical
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The settings file holds the shape a line-based reader sees
+        # read_setting.sh reads this file line by line; the restriction
+        # that makes that legitimate — two levels and nothing deeper — is
+        # enforced here, not assumed there. Same relationship
+        # check_front_matter.sh has with the front matter.
+        run: bash .writrun/scripts/stage-2-pull-requests/check_settings.sh

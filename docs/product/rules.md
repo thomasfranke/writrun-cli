@@ -30,7 +30,20 @@ already defines; it never decides in the methodology's place.
 - A command that would change the repository or the forge shows what it
   will do and asks for confirmation first. `--yes` skips the prompt for
   automated use.
+- Where stdin is a terminal, a question is navigated, not typed: arrow
+  keys move, Enter confirms — a stage, a task, a yes. Typing is
+  required only for free text, such as a title.
+- Every question has a flag that answers it, so automation never meets
+  a prompt. Without a terminal, an unanswered question aborts instead
+  of hanging.
 - A failing check stops the command at that check. Nothing later runs,
   nothing partial is left behind, and the failure names the check.
+- A failure after the first write — a branch pushed, a file created —
+  names the exact command that resumes the flow.
 - Exit status is zero only when the command did what it said it would.
 - Output is plain text, readable in a terminal without a pager.
+- Color appears only where stdout is a terminal; `NO_COLOR` set or
+  `--no-color` given disables it.
+- `--version` names the client's version and the WritRun tag it pins.
+- `--help` prints one line per command and where the docs live; it
+  restates nothing.

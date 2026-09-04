@@ -26,8 +26,8 @@ Asking early is usually faster than guessing — for both of us.
   is a conversation for an issue, not a surprise in a pull request.
 - **[`docs/technical/`](docs/technical/README.md)** covers how it is
   built, tested, versioned and distributed, and
-  [`decisions.md`](docs/technical/decisions.md) records the *why* and
-  what was rejected.
+  [`decisions/`](docs/technical/decisions/README.md) records the *why*
+  and what was rejected.
 
 **This project is docs-first.** `docs/product/` names every command
 before any of them exists; the binary follows. A pull request that adds
@@ -41,7 +41,7 @@ convenient. They live in [`docs/about.md`](docs/about.md); they are
 repeated here because they are what a review looks for first.
 
 - **Wraps, never reimplements.** Every check a command runs is the
-  operated repository's own `.writrun/` script, as a child process —
+  adopted repository's own `.writrun/` script, as a child process —
   nothing reimplemented in Go, nothing embedded in the binary. If the
   binary and the scripts disagree, the scripts are right.
 - **Packages, never decides.** No command makes a call a human or an
@@ -50,18 +50,18 @@ repeated here because they are what a review looks for first.
 - **Launches agents, never is one.** `writrun work` starts one;
   `writrun` never reasons about a task's content.
 - **Pins, never tracks.** Each release targets exactly one WritRun tag.
-  Before changing anything that reads the operated repository's layout,
+  Before changing anything that reads the adopted repository's layout,
   check that tag's own docs rather than the shape you remember — the
   methodology's contract is alpha and moves without notice.
 
 ## Development setup
 
-**The binary is Go** — one static build, standard library first, no CLI
-framework until a command proves one necessary. Entry point in
+**The binary is Go** — one static build, standard library for flags and
+dispatch, `charmbracelet/huh` for the prompts. Entry point in
 `cmd/writrun/`, everything else `internal/`; nothing is exported for
 import, because the public contract is the command line. See
-[`runtime.md`](docs/technical/runtime.md) and
-[`layout.md`](docs/technical/layout.md).
+[`runtime/`](docs/technical/runtime/README.md) and
+[`layout/`](docs/technical/layout/README.md).
 
 **The release path is bash**, and it has a suite:
 
@@ -76,7 +76,7 @@ and asserts an exit code, on git, `bash` and POSIX `awk`/`sed` — the
 same constraints as the scripts it exercises. Test on macOS's stock
 `/usr/bin/awk`, not just whatever is on your `$PATH`. **If you change a
 script, add the case that would have caught the change being wrong.**
-[`testing.md`](docs/technical/testing.md) has the layout.
+[`testing/`](docs/technical/testing/README.md) has the layout.
 
 ## How contributions reach the project
 
@@ -115,18 +115,17 @@ green. Everything merges to `main` continuously.
 Update the docs in the same pull request that changes the behaviour they
 describe — `docs/product/` when a rule moves, `docs/technical/` when the
 machinery does, and a dated entry in
-[`decisions.md`](docs/technical/decisions.md) when a choice was made
+[`decisions/`](docs/technical/decisions/README.md) when a choice was made
 that a future reader will ask about. Entries there are append-only:
 never edit one, add the next.
 
 ## Releases
 
 Tags on `main`, cut with `make release`. The number is computed from the
-latest tag, never typed, and the vocabulary is WritRun's rather than
-SemVer's — `minor` bumps the third digit, `major` the middle one,
-`epoch` the first. `CHANGELOG.md` is written by the cut and **never
-edited by hand**. The whole path, and why it is shaped that way, is
-[`versioning.md`](docs/technical/versioning.md).
+latest tag, never typed, and is SemVer — `patch` (the default), `minor`,
+`major`. `CHANGELOG.md` is written by the cut and **never edited by
+hand**. The whole path, and why it is shaped that way, is
+[`versioning/`](docs/technical/versioning/README.md).
 
 ## Licence, and why there is no CLA
 

@@ -5,7 +5,7 @@
 # never dropped — judging it is the door's job at the pull request, not
 # the tag's.
 release_setup
-git tag -a v0.0.01 -m v0.0.01
+git tag -a v0.1.0 -m v0.1.0
 git commit -q --allow-empty -m "wip: poke at it"
 git commit -q --allow-empty -m "fix: a real one"
 out=$(bash "$RELEASE_SH" 2>&1); code=$?

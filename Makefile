@@ -26,15 +26,15 @@ test-integration:
 	done; \
 	exit $$fail
 
-# Cut a release: `make release` (= minor), or `make release minor|major|epoch`.
-# The whole path — compute, stamp, test, commit, tag, push, publish —
-# lives in the script.
-.PHONY: release minor major epoch
+# Cut a release: `make release` (= patch), or `make release patch|minor|major`.
+# The whole path — compute, changelog, test, commit, tag, push,
+# publish — lives in the script.
+.PHONY: release patch minor major
 release:
-	@MAKE="$(MAKE)" bash scripts/release.sh $(filter epoch major minor,$(MAKECMDGOALS))
+	@MAKE="$(MAKE)" bash scripts/release.sh $(filter major minor patch,$(MAKECMDGOALS))
 
 # The bump words are goals only so `make release minor` parses — no-ops alone.
-minor major epoch:
+patch minor major:
 	@:
 
 # make test-unit / test-integration (a tier), or test-release, ... (one

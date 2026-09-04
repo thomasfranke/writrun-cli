@@ -2,7 +2,7 @@
 . "$(dirname "$0")/../../harness.sh"
 
 # The whole cut, for real: this repository's working tree copied whole,
-# `make release minor` run with the real make — so the real suite
+# `make release patch` run with the real make — so the real suite
 # executes inside — and the commit, the tag, and the push land on a
 # local bare origin. The forge is the one fake: `gh` is a PATH stub.
 # The env guard below is what stops the nested suite from cutting a
@@ -22,7 +22,7 @@ git config user.email t@example.com
 git config user.name Test
 git add -A >/dev/null
 git commit -qm baseline
-git tag -a v0.0.01 -m v0.0.01
+git tag -a v0.1.0 -m v0.1.0
 git init -q --bare "$WORK/origin.git"
 git remote add origin "$WORK/origin.git"
 git push -q origin main
@@ -35,15 +35,14 @@ export PATH="$WORK/stub-bin:$PATH"
 export WHITRUN_CLI_E2E_RUNNING=1
 unset MAKE
 
-out=$(make release minor 2>&1); code=$?
+out=$(make release patch 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
-   [ "$(cat VERSION)" = "v0.0.02" ] &&
-   git log -1 --format=%s | grep -q 'chore(release): v0.0.02' &&
-   git tag --list | grep -qx 'v0.0.02' &&
-   grep -q '^## v0.0.02' CHANGELOG.md &&
+   git log -1 --format=%s | grep -q 'chore(release): v0.1.1' &&
+   git tag --list | grep -qx 'v0.1.1' &&
+   grep -q '^## v0.1.1' CHANGELOG.md &&
    git show --stat --format= HEAD | grep -q 'CHANGELOG.md' &&
-   git ls-remote --tags origin | grep -q 'refs/tags/v0.0.02' &&
-   grep -q 'gh release create v0.0.02' "$WORK/gh.log"; then
+   git ls-remote --tags origin | grep -q 'refs/tags/v0.1.1' &&
+   grep -q 'gh release create v0.1.1' "$WORK/gh.log"; then
   echo "ok    a real make release cuts, tests, commits, tags, pushes, publishes"; pass=$((pass + 1))
 else
   echo "FAIL  a real make release cuts, tests, commits, tags, pushes, publishes"

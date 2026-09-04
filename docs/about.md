@@ -15,7 +15,7 @@ in.
 
 `writrun` is that porcelain: the methodology's **optional client, never
 its dependency**, in its own repository by the methodology's own
-decision. This project runs on WritRun itself.
+decision.
 
 ## Where to find what
 
@@ -23,8 +23,6 @@ decision. This project runs on WritRun itself.
 |---|---|
 | [`product/`](product/README.md) | What `writrun` does, command by command. The source of truth the implementation is checked against. |
 | [`technical/`](technical/README.md) | How it is built and distributed. |
-| [`work/tasks/`](../work/tasks/README.md) | The queue — the gap between these docs and the code. |
-| [`work/specs/`](../work/specs/README.md) | The detail of one change; history, not the present. |
 
 ## The relationship that defines everything
 
@@ -32,7 +30,7 @@ decision. This project runs on WritRun itself.
   repository's own. If the binary and the scripts disagree, the scripts
   are right.
 - **Packages, never decides.** No command makes a call a human or an
-  agent had not already made. There is no approve command.
+  agent had not already made ([rules](product/rules.md)).
 - **Launches agents, never is one.**
 - **Pins, never tracks.** The methodology's contract is alpha; each
   release targets one tag.
@@ -52,4 +50,7 @@ decision. This project runs on WritRun itself.
   scripts, the files stay the authority.
 - **Not an agent, and not an agent framework.**
 - **Not a forge client.** It uses the forge where the flows already do.
-- **Not an approval path.** Convenience ends where a gate begins.
+- **Not a machine interface.** No `--json`: automation calls the same
+  scripts the binary calls.
+- **Not an approval path.** What no command ever does:
+  [rules](product/rules.md).

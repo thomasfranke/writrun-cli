@@ -11,7 +11,7 @@ chmod +x "$WORK/stub-bin/gh"
 out=$(bash "$RELEASE_SH" 2>&1); code=$?
 if [ "$code" -ne 0 ] &&
    printf '%s' "$out" | grep -q 'gh must be installed and authenticated' &&
-   [ "$(cat VERSION)" = "v0.0.00" ] &&
+   [ -z "$(git status --porcelain)" ] &&
    [ -z "$(git tag --list)" ] &&
    [ ! -f "$WORK/calls.log" ]; then
   echo "ok    an unusable gh aborts with nothing mutated"; pass=$((pass + 1))
