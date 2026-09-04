@@ -3,20 +3,17 @@
 
 .PHONY: tests test test-unit test-integration
 
-# Everything — both tiers.
+# Everything — every tier: Go unit tests, then the bash suites.
 tests:
+	go test ./...
 	bash tests/run.sh
 
 # `make test` is the muscle-memory alias for the same thing.
 test: tests
 
+# unit is Go, table-driven, beside the code (technical/testing/tiers.md).
 test-unit:
-	@fail=0; \
-	for f in tests/unit/*/*_test.sh; do \
-	  [ -e "$$f" ] || continue; \
-	  bash "$$f" || fail=1; \
-	done; \
-	exit $$fail
+	go test ./...
 
 test-integration:
 	@fail=0; \

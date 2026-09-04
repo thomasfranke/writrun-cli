@@ -3,6 +3,10 @@ name: tests
 # This repository's own suite. Pull requests only — main has a pipeline
 # of its own (release-readiness.yml), re-verifying the branch releases
 # are cut from on every push to it.
+#
+# The order is technical/testing/ci.md's, stopping at the first
+# failure: gofmt → go vet → unit with the coverage gate → integration
+# → e2e.
 
 on:
   pull_request:
@@ -12,9 +16,31 @@ permissions:
 
 jobs:
   suite:
-    name: script suite
+    name: gofmt → vet → unit → integration → e2e
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run tests
-        run: bash tests/run.sh
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "gofmt would rewrite:"; echo "$unformatted"; exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: unit, with the coverage gate
+        run: |
+          go test -coverpkg=./internal/... -coverprofile=cover.out ./...
+          go tool cover -func=cover.out | awk '
+            $1 == "total:" {
+              sub(/%/, "", $3)
+              printf "coverage over internal/: %s%%\n", $3
+              if ($3 + 0 < 85) { print "below the 85% gate"; exit 1 }
+            }'
+      - name: integration
+        run: make test-integration
+      - name: e2e
+        run: make test-e2e
