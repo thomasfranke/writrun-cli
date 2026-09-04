@@ -35,13 +35,17 @@ func checkStages(root string, stage int, d Deps) []gap {
 		gaps = append(gaps, checkFiles(root)...)
 	}
 	if stage >= 2 {
-		gaps = append(gaps, checkForge(d)...)
-	}
-	if stage >= 3 {
-		if out, err := d.Gh("api", "repos/{owner}/{repo}", "--jq", ".has_issues"); err != nil {
-			gaps = append(gaps, gap{3, "whether Issues are enabled could not be read: " + firstLine(err.Error())})
-		} else if strings.TrimSpace(out) != "true" {
-			gaps = append(gaps, gap{3, "Issues are disabled — the mirror needs somewhere to land"})
+		forgeGaps, reachable := checkForge(d)
+		gaps = append(gaps, forgeGaps...)
+		// Same reason checkForge stops at the first gap: an unusable gh
+		// turns every further read into a restatement of the one fault
+		// already named.
+		if stage >= 3 && reachable {
+			if out, err := d.Gh("api", "repos/{owner}/{repo}", "--jq", ".has_issues"); err != nil {
+				gaps = append(gaps, gap{3, "whether Issues are enabled could not be read: " + firstLine(err.Error())})
+			} else if strings.TrimSpace(out) != "true" {
+				gaps = append(gaps, gap{3, "Issues are disabled — the mirror needs somewhere to land"})
+			}
 		}
 	}
 	return gaps
@@ -74,7 +78,7 @@ func checkFiles(root string) []gap {
 		gaps = append(gaps, gap{1, "AGENTS.md — the agents' entry point is missing"})
 	case !strings.Contains(string(agents), markerBegin) || !strings.Contains(string(agents), markerEnd):
 		gaps = append(gaps, gap{1, "AGENTS.md — the fenced writrun:begin/writrun:end markers are damaged"})
-	case strings.Contains(string(agents), "TODO"):
+	case strings.Contains(string(agents), todoPlaceholder):
 		gaps = append(gaps, gap{1, "AGENTS.md — TODOs remain; the four human gates must be answered, not left as placeholders"})
 	}
 
@@ -92,15 +96,22 @@ func checkFiles(root string) []gap {
 	return gaps
 }
 
+// todoPlaceholder is the shape the kit's own unanswered gates take —
+// an HTML comment, not the bare word. A project whose AGENTS.md merely
+// mentions TODO has answered its gates all the same.
+const todoPlaceholder = "<!-- TODO"
+
 // checkForge is stage 2: the forge reachable and the settings the
 // recording machinery depends on. An unauthenticated gh makes every
-// further read noise, so it is the one gap named.
-func checkForge(d Deps) []gap {
+// further read noise, so it is the one gap named; the bool says whether
+// the forge answered at all, so the stages above do not pile more
+// unreadable reads on top of it.
+func checkForge(d Deps) ([]gap, bool) {
 	if _, err := d.LookPath("gh"); err != nil {
-		return []gap{{2, "gh is not on the PATH — from stage 2 the flows ask the forge through it"}}
+		return []gap{{2, "gh is not on the PATH — from stage 2 the flows ask the forge through it"}}, false
 	}
 	if _, err := d.Gh("auth", "status"); err != nil {
-		return []gap{{2, "gh is not authenticated — run `gh auth login`"}}
+		return []gap{{2, "gh is not authenticated — run `gh auth login`"}}, false
 	}
 	var gaps []gap
 	if out, err := d.Gh("api", "repos/{owner}/{repo}", "--jq", ".allow_squash_merge"); err != nil {
@@ -113,7 +124,7 @@ func checkForge(d Deps) []gap {
 	} else if strings.TrimSpace(out) != "write" {
 		gaps = append(gaps, gap{2, "Actions workflow permissions are read-only — the recording bot needs read-and-write to push to main"})
 	}
-	return gaps
+	return gaps, true
 }
 
 // hasRealChapter reports whether a docs folder holds any markdown

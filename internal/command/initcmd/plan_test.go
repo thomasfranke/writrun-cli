@@ -19,7 +19,7 @@ func planFixture(t *testing.T, target string, stage int) *adoption {
 	if err != nil {
 		t.Fatalf("hookPath = %v", err)
 	}
-	a, err := plan(target, filepath.Join(clone, "template"), testTag, stage, hook, ExecGit)
+	a, err := plan(target, filepath.Join(clone, "template"), testTag, src, stage, hook, ExecGit)
 	if err != nil {
 		t.Fatalf("plan = %v", err)
 	}
@@ -161,5 +161,58 @@ func TestSummarizeCopiesGroupsByTopLevel(t *testing.T) {
 	})
 	if !strings.Contains(got, "3 files") || !strings.Contains(got, ".writrun/ (2 files)") || !strings.Contains(got, "WRITRUN.md") {
 		t.Errorf("summarizeCopies = %q", got)
+	}
+}
+
+func TestRenderNamesTheHookPathThatWillBeWritten(t *testing.T) {
+	t.Run("inside the repository it is relative", func(t *testing.T) {
+		a := planFixture(t, makeTarget(t), 1)
+		var out bytes.Buffer
+		a.render(&out)
+		if !strings.Contains(out.String(), "hook         .git/hooks/commit-msg") {
+			t.Errorf("the plan does not name the hook path:\n%s", out.String())
+		}
+	})
+	// core.hooksPath moves the hook out of the repository, and a plan
+	// still saying .git/hooks/ would be consent to something else.
+	t.Run("a redirected hooks directory is named in full", func(t *testing.T) {
+		target := makeTarget(t)
+		hooks := t.TempDir()
+		gitT(t, target, "config", "core.hooksPath", hooks)
+		a := planFixture(t, target, 1)
+		want := filepath.Join(hooks, "commit-msg")
+		if a.hookPath != want {
+			t.Fatalf("hookPath = %q, want %q", a.hookPath, want)
+		}
+		var out bytes.Buffer
+		a.render(&out)
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the plan hides the redirected hook path:\n%s", out.String())
+		}
+	})
+}
+
+func TestRenderNamesTheSourceItFetchedFrom(t *testing.T) {
+	target := makeTarget(t)
+	a := planFixture(t, target, 1)
+	var out bytes.Buffer
+	a.render(&out)
+	if !strings.Contains(out.String(), a.source) {
+		t.Errorf("the plan does not name the source %q:\n%s", a.source, out.String())
+	}
+}
+
+func TestApplyRefusesSettingsWithNoStageKey(t *testing.T) {
+	target := makeTarget(t)
+	a := planFixture(t, target, 3)
+	// The copy step reads from the template at apply time, so this is
+	// a kit whose settings init cannot write a stage into.
+	write(t, a.template, ".writrun/settings.json", "{\n  \"stage_1\": {}\n}\n")
+	err := a.apply()
+	if err == nil || !strings.Contains(err.Error(), `no "stage" key`) {
+		t.Fatalf("apply = %v, want the refusal rather than a silent no-op", err)
+	}
+	if settings := read(t, target, ".writrun/settings.json"); strings.Contains(settings, `"stage": 3`) {
+		t.Errorf("a stage was written after all:\n%s", settings)
 	}
 }

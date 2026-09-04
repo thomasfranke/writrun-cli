@@ -123,3 +123,20 @@ func TestCheckStagesNamesAMissingBinary(t *testing.T) {
 		t.Errorf("gaps = %v, want the awk gap", gaps)
 	}
 }
+
+func TestCheckStagesStopsAtTheForgeGapAtStageThree(t *testing.T) {
+	root := adoptedFixture(t)
+	d := fakeDeps(nil, nil)
+	d.LookPath = func(name string) (string, error) {
+		if name == "gh" {
+			return "", errors.New("not found")
+		}
+		return "/usr/bin/" + name, nil
+	}
+	// A gh that cannot answer makes the stage-3 read a restatement of
+	// the stage-2 gap, not a finding of its own.
+	gaps := checkStages(root, 3, d)
+	if len(gaps) != 1 || !strings.Contains(gaps[0].Text, "gh is not on the PATH") {
+		t.Errorf("gaps = %v, want only the missing-gh gap", gaps)
+	}
+}

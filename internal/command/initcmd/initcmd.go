@@ -73,7 +73,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if out, err := d.Git(ctx.Root, "status", "--porcelain"); err != nil {
 		return fmt.Errorf("reading the working tree: %w", err)
 	} else if strings.TrimSpace(out) != "" {
-		return fmt.Errorf("the working tree is dirty — commit or stash first, so the adoption is the only change")
+		return fmt.Errorf("the working tree is dirty — commit or stash first (`git stash -u`; untracked files count too), so the adoption is the only change")
 	}
 	hookAt, err := hookPath(ctx.Root, d.Git)
 	if err != nil {
@@ -108,7 +108,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return err
 	}
 
-	a, err := plan(ctx.Root, template, d.Tag, stage, hookAt, d.Git)
+	a, err := plan(ctx.Root, template, d.Tag, d.Source, stage, hookAt, d.Git)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,12 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return err
 	}
 	if err := a.apply(); err != nil {
-		return fmt.Errorf("%w — the adoption is partial; remove .writrun/ and rerun writrun init", err)
+		// The tree was clean before this point — the refusal above saw
+		// to it — so everything git now reports is the adoption's, and
+		// undoing it is two git commands. The hook lives outside the
+		// worktree, where neither of them reaches; left behind, it
+		// trips the foreign-hook refusal on the rerun.
+		return fmt.Errorf("%w — the adoption is partial; `git checkout -- .` and `git clean -fd` undo what it wrote, `rm -f %s` removes the hook, then rerun writrun init", err, a.hookPath)
 	}
 
 	reportGaps(ctx.Stdout, checkStages(ctx.Root, stage, d), stage)

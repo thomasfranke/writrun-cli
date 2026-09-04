@@ -197,3 +197,34 @@ func TestInitSaysShippedDefaultsWhenNothingToExtract(t *testing.T) {
 		t.Error("the shipped vocabulary did not survive")
 	}
 }
+
+func TestInitRefusesATemplateWithoutAgents(t *testing.T) {
+	src := t.TempDir()
+	gitT(t, src, "init", "-q")
+	write(t, src, "template/WRITRUN.md", "# a kit missing its skeleton\n")
+	gitT(t, src, "add", ".")
+	gitT(t, src, "commit", "-q", "-m", "x")
+	gitT(t, src, "tag", testTag)
+
+	target := makeTarget(t)
+	d := Deps{Tag: testTag, Source: src}
+	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	if err == nil || !strings.Contains(err.Error(), "no template/AGENTS.md") {
+		t.Fatalf("init = %v, want the missing-skeleton refusal", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(target, ".writrun")); statErr == nil {
+		t.Error(".writrun/ exists after a refusal")
+	}
+}
+
+func TestInitDirtyTreeRefusalNamesTheRemedyThatClearsIt(t *testing.T) {
+	// git status counts untracked files, and a plain `git stash` leaves
+	// them exactly where they are.
+	target := makeTarget(t)
+	write(t, target, "untracked.txt", "dirt\n")
+	d := Deps{Tag: testTag, Source: makeSource(t)}
+	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	if err == nil || !strings.Contains(err.Error(), "git stash -u") {
+		t.Errorf("init = %v, want the refusal naming `git stash -u`", err)
+	}
+}

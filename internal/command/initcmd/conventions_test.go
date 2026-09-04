@@ -121,3 +121,29 @@ func TestReplaceBulletSwallowsContinuationLines(t *testing.T) {
 		t.Errorf("replaceBullet = %q, want %q", out, want)
 	}
 }
+
+func TestApplyVocabularyRespellsTheExample(t *testing.T) {
+	root := applyTestKit(t)
+	v := vocabulary{Types: []string{"feat", "fix"}, Scopes: []string{"api"}, Source: "the commit history"}
+	if err := applyVocabulary(root, v); err != nil {
+		t.Fatalf("applyVocabulary = %v", err)
+	}
+	commits := read(t, root, ".writrun/conventions/commits.md")
+	// The summary is the kit's prose and stays; the vocabulary it
+	// spells is the project's, and a shipped one would be a subject the
+	// hook installed by the same run refuses.
+	if !strings.Contains(commits, "- Example: `feat(api): add a chapter`.") {
+		t.Errorf("the example was not respelled:\n%s", commits)
+	}
+}
+
+func TestApplyVocabularyExampleKeepsTheShippedScope(t *testing.T) {
+	root := applyTestKit(t)
+	if err := applyVocabulary(root, vocabulary{Types: []string{"fix"}}); err != nil {
+		t.Fatalf("applyVocabulary = %v", err)
+	}
+	commits := read(t, root, ".writrun/conventions/commits.md")
+	if !strings.Contains(commits, "- Example: `fix(product): add a chapter`.") {
+		t.Errorf("the example dropped the shipped scope:\n%s", commits)
+	}
+}

@@ -34,6 +34,7 @@ type adoption struct {
 	root     string
 	template string
 	tag      string
+	source   string
 	stage    int
 
 	copies   []copyStep
@@ -53,9 +54,10 @@ var ownedSkeletons = map[string]bool{
 
 // plan walks the fetched template and decides every write without
 // performing one.
-func plan(root, template, tag string, stage int, hookAt string, git gitRunner) (*adoption, error) {
-	a := &adoption{root: root, template: template, tag: tag, stage: stage, hookPath: hookAt}
+func plan(root, template, tag, source string, stage int, hookAt string, git gitRunner) (*adoption, error) {
+	a := &adoption{root: root, template: template, tag: tag, source: source, stage: stage, hookPath: hookAt}
 
+	sawAgents := false
 	err := filepath.WalkDir(template, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -72,6 +74,7 @@ func plan(root, template, tag string, stage int, hookAt string, git gitRunner) (
 			return err
 		}
 		if rel == "AGENTS.md" {
+			sawAgents = true
 			a.agents = agentsDecision(filepath.Join(root, "AGENTS.md"))
 			return nil
 		}
@@ -87,6 +90,11 @@ func plan(root, template, tag string, stage int, hookAt string, git gitRunner) (
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading the template: %w", err)
+	}
+	// Without it there is no AGENTS.md decision to make, and the plan
+	// would promise a skeleton it cannot write — its zero value.
+	if !sawAgents {
+		return nil, fmt.Errorf("%s carries no template/AGENTS.md at %s — not a WritRun repository", source, tag)
 	}
 
 	a.vocab = extractVocabulary(root, git)
@@ -109,7 +117,7 @@ func agentsDecision(path string) agentsAction {
 func (a *adoption) render(w io.Writer) {
 	fmt.Fprintln(w, "writrun init — the plan; nothing is written before the confirmation:")
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  source       WritRun %s\n", a.tag)
+	fmt.Fprintf(w, "  source       WritRun %s from %s\n", a.tag, a.source)
 	fmt.Fprintf(w, "  stage        %d — %s\n", a.stage, stageNames[a.stage-1])
 	fmt.Fprintf(w, "  copy         %s\n", summarizeCopies(a.copies))
 	for _, rel := range a.kept {
@@ -134,7 +142,7 @@ func (a *adoption) render(w io.Writer) {
 		}
 		fmt.Fprintln(w, line)
 	}
-	fmt.Fprintln(w, "  hook         .git/hooks/commit-msg validates the Conventional subject; it never writes one")
+	fmt.Fprintf(w, "  hook         %s validates the Conventional subject; it never writes one\n", a.hookDisplay())
 	fmt.Fprintf(w, "  settings     .writrun/settings.json records stage %d\n", a.stage)
 	fmt.Fprintf(w, "  version      .writrun/VERSION records %s\n", a.tag)
 	fmt.Fprintln(w)
@@ -142,9 +150,37 @@ func (a *adoption) render(w io.Writer) {
 
 var stageNames = []string{"files", "pull requests", "GitHub issues"}
 
+// hookDisplay is the hook's path as the plan should show it: relative
+// inside the repository, absolute outside it. `core.hooksPath` can put
+// it anywhere, and a confirmation naming .git/hooks/ while the write
+// lands in a shared hooks directory is consent to something else
+// (spec-0002 — the plan is the whole of what the confirmation is about).
+func (a *adoption) hookDisplay() string {
+	rel, err := filepath.Rel(a.root, a.hookPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return a.hookPath
+	}
+	return filepath.ToSlash(rel)
+}
+
 // summarizeCopies condenses the copy list into counts per top-level
 // entry — sixty file names are a wall, not a plan.
 func summarizeCopies(copies []copyStep) string {
+	tops, counts := copyTops(copies)
+	parts := make([]string, 0, len(tops))
+	for _, t := range tops {
+		if strings.HasSuffix(t, "/") {
+			parts = append(parts, fmt.Sprintf("%s (%d files)", t, counts[t]))
+		} else {
+			parts = append(parts, t)
+		}
+	}
+	return fmt.Sprintf("%d files: %s", len(copies), strings.Join(parts, ", "))
+}
+
+// copyTops groups the copy list by top-level entry, sorted, with how
+// many files each holds.
+func copyTops(copies []copyStep) ([]string, map[string]int) {
 	counts := map[string]int{}
 	for _, c := range copies {
 		top := filepath.ToSlash(c.rel)
@@ -158,15 +194,7 @@ func summarizeCopies(copies []copyStep) string {
 		tops = append(tops, t)
 	}
 	sort.Strings(tops)
-	parts := make([]string, 0, len(tops))
-	for _, t := range tops {
-		if strings.HasSuffix(t, "/") {
-			parts = append(parts, fmt.Sprintf("%s (%d files)", t, counts[t]))
-		} else {
-			parts = append(parts, t)
-		}
-	}
-	return fmt.Sprintf("%d files: %s", len(copies), strings.Join(parts, ", "))
+	return tops, counts
 }
 
 var stageLineRE = regexp.MustCompile(`"stage":\s*\d+`)
@@ -191,8 +219,14 @@ func (a *adoption) apply() error {
 	// The chosen stage lands in the copied settings by targeted
 	// replacement — the rest of the file stays byte-for-byte the
 	// shipped default, which is the adopter's to edit next.
-	if err := rewriteFile(filepath.Join(a.root, ".writrun", "settings.json"), func(s string) string {
-		return stageLineRE.ReplaceAllString(s, fmt.Sprintf(`"stage": %d`, a.stage))
+	if err := rewriteFile(filepath.Join(a.root, ".writrun", "settings.json"), func(s string) (string, error) {
+		// A miss here is silent: ReplaceAllString hands back the input
+		// unchanged, and the run would report a stage the file does not
+		// record.
+		if !stageLineRE.MatchString(s) {
+			return "", fmt.Errorf(`no "stage" key to write %d into`, a.stage)
+		}
+		return stageLineRE.ReplaceAllString(s, fmt.Sprintf(`"stage": %d`, a.stage)), nil
 	}); err != nil {
 		return err
 	}

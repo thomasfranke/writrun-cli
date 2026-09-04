@@ -123,22 +123,47 @@ func applyVocabulary(root string, v vocabulary) error {
 		return nil
 	}
 	commitsPath := filepath.Join(root, ".writrun", "conventions", "commits.md")
-	if err := rewriteFile(commitsPath, func(s string) string {
+	if err := rewriteFile(commitsPath, func(s string) (string, error) {
 		s = replaceBullet(s, "- **Types**", "- **Types**: "+backtickList(v.Types)+".")
 		if len(v.Scopes) > 0 {
 			s = replaceBullet(s, "- **Scopes**", "- **Scopes** (optional — omit when a change genuinely spans the repository): "+backtickList(v.Scopes)+".")
 		}
-		return s
+		return rewriteExample(s, v), nil
 	}); err != nil {
 		return err
 	}
 	observancePath := filepath.Join(root, ".writrun", "scripts", "stage-2-pull-requests", "check_observance.sh")
-	return rewriteFile(observancePath, func(s string) string {
+	return rewriteFile(observancePath, func(s string) (string, error) {
 		s = replaceLinePrefix(s, `TYPES="`, `TYPES="`+strings.Join(v.Types, " ")+`"`)
 		if len(v.Scopes) > 0 {
 			s = replaceLinePrefix(s, `SCOPES="`, `SCOPES="`+strings.Join(v.Scopes, " ")+`"`)
 		}
-		return s
+		return s, nil
+	})
+}
+
+// exampleBulletRE is the `- Example:` bullet of conventions/commits.md:
+// a backticked Conventional subject demonstrating the two lists above
+// it.
+var exampleBulletRE = regexp.MustCompile("(?m)^(- Example: `)([a-z]+)(?:\\(([a-z0-9-]+)\\))?(!?: [^`]+`.*)$")
+
+// rewriteExample respells the example's type and scope in the extracted
+// vocabulary, keeping its summary — the prose is the kit's to teach
+// with, the vocabulary is the project's. Left as shipped, the example
+// would exhibit a subject the hook installed by the same run refuses.
+// The scope follows the same rule as the bullet above it: shipped
+// scopes stand where the project's history never used one.
+func rewriteExample(content string, v vocabulary) string {
+	return exampleBulletRE.ReplaceAllStringFunc(content, func(bullet string) string {
+		m := exampleBulletRE.FindStringSubmatch(bullet)
+		scope := m[3]
+		if len(v.Scopes) > 0 {
+			scope = v.Scopes[0]
+		}
+		if scope != "" {
+			scope = "(" + scope + ")"
+		}
+		return m[1] + v.Types[0] + scope + m[4]
 	})
 }
 
@@ -185,8 +210,10 @@ func replaceLinePrefix(content, prefix, replacement string) string {
 }
 
 // rewriteFile applies fn to a file's content in place, keeping its
-// mode.
-func rewriteFile(path string, fn func(string) string) error {
+// mode. fn returns an error where the content is not the shape the
+// rewrite needs: a rewrite that silently matched nothing would leave
+// the kit saying something other than what the plan promised.
+func rewriteFile(path string, fn func(string) (string, error)) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("rewriting %s: %w", path, err)
@@ -195,5 +222,9 @@ func rewriteFile(path string, fn func(string) string) error {
 	if err != nil {
 		return fmt.Errorf("rewriting %s: %w", path, err)
 	}
-	return os.WriteFile(path, []byte(fn(string(content))), info.Mode())
+	next, err := fn(string(content))
+	if err != nil {
+		return fmt.Errorf("rewriting %s: %w", path, err)
+	}
+	return os.WriteFile(path, []byte(next), info.Mode())
 }
