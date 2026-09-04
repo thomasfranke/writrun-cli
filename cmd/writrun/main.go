@@ -4,9 +4,12 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"runtime/debug"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
+	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/term"
 	"github.com/thomasfranke/writrun-cli/internal/wrepo"
 )
@@ -36,12 +39,42 @@ func main() {
 	os.Exit(command.Run(command.Frame{
 		Version:    buildVersion(),
 		WritRunTag: writrunTag,
-		Commands:   nil,
+		Commands:   commands(),
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
-		Terminal:   term.New(),
+		Terminal:   terminal(),
 		FindRepo:   wrepo.Find,
 		Getenv:     os.Getenv,
 		Getwd:      os.Getwd,
 	}, os.Args[1:]))
+}
+
+// commands is the production command table. WRITRUN_SOURCE is the
+// suite's seam: it points the kit fetch at a local WritRun clone;
+// empty means the canonical repository.
+func commands() []command.Command {
+	gh := forge.Client{}
+	return []command.Command{
+		initcmd.New(initcmd.Deps{
+			Tag:      writrunTag,
+			Source:   os.Getenv("WRITRUN_SOURCE"),
+			Git:      initcmd.ExecGit,
+			Gh:       gh.Run,
+			LookPath: exec.LookPath,
+		}),
+	}
+}
+
+// terminal is the production terminal. WRITRUN_TTY_IN is the suite's
+// pseudo-terminal: a file of key bytes driving the forms, so the
+// guarded flows — a decline, an arrow-selected stage — are exercisable
+// through the compiled binary, where no real terminal exists.
+func terminal() term.Terminal {
+	t := term.New()
+	if p := os.Getenv("WRITRUN_TTY_IN"); p != "" {
+		if f, err := os.Open(p); err == nil {
+			t.In = f
+		}
+	}
+	return t
 }
