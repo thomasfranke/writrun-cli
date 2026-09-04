@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -39,6 +40,16 @@ func Run(f Frame, args []string) int {
 
 	for i := 0; i < len(args); i++ {
 		a := args[i]
+		if a == "--" {
+			// End of the frame's flags: everything after is the
+			// command's verbatim, reserved names included.
+			tail := args[i+1:]
+			if name == "" && len(tail) > 0 {
+				name, tail = tail[0], tail[1:]
+			}
+			rest = append(rest, tail...)
+			break
+		}
 		switch {
 		case a == "--version":
 			fmt.Fprintf(f.Stdout, "writrun %s (pins WritRun %s)\n", f.Version, f.WritRunTag)
@@ -86,6 +97,16 @@ func Run(f Frame, args []string) int {
 	}
 
 	if err := cmd.Run(ctx, rest); err != nil {
+		if errors.Is(err, ErrDeclined) {
+			fmt.Fprintf(f.Stderr, "writrun %s: declined — nothing changed\n", cmd.Name)
+			return 1
+		}
+		// A wrapped script's exit code is its own verdict, already
+		// reported on stderr — pass it through instead of restating it.
+		var verdict interface{ ExitCode() int }
+		if errors.As(err, &verdict) && verdict.ExitCode() > 0 {
+			return verdict.ExitCode()
+		}
 		fmt.Fprintf(f.Stderr, "writrun %s: %v\n", cmd.Name, err)
 		return 1
 	}
@@ -160,5 +181,5 @@ func help(f Frame) {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "usage: writrun [--version] [--help] [--yes] [--no-color] <command> [args]")
+	fmt.Fprintln(w, "usage: writrun [--version] [--help] [--yes] [--no-color] <command> [--] [args]")
 }

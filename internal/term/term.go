@@ -3,6 +3,7 @@
 package term
 
 import (
+	"context"
 	"io"
 	"os"
 
@@ -13,7 +14,9 @@ import (
 
 // Terminal renders questions with huh and answers TTY probes for the
 // frame's color and interaction rules. The zero value uses the real
-// terminal; In and Out exist so tests can drive the forms headless.
+// terminal; In and Out exist so tests can drive the forms headless —
+// an override stands in for the terminal, so the probes count it as
+// one and the guarded flows stay exercisable end to end.
 type Terminal struct {
 	In  io.Reader
 	Out io.Writer
@@ -22,8 +25,19 @@ type Terminal struct {
 // New returns the production terminal.
 func New() Terminal { return Terminal{} }
 
-func (Terminal) InteractiveIn() bool  { return xterm.IsTerminal(int(os.Stdin.Fd())) }
-func (Terminal) InteractiveOut() bool { return xterm.IsTerminal(int(os.Stdout.Fd())) }
+func (t Terminal) InteractiveIn() bool {
+	if t.In != nil {
+		return true
+	}
+	return xterm.IsTerminal(int(os.Stdin.Fd()))
+}
+
+func (t Terminal) InteractiveOut() bool {
+	if t.Out != nil {
+		return true
+	}
+	return xterm.IsTerminal(int(os.Stdout.Fd()))
+}
 
 func (t Terminal) run(form *huh.Form) error {
 	if t.In != nil {
@@ -57,15 +71,35 @@ func (t Terminal) Confirm(question string) (bool, error) {
 	return ok, err
 }
 
-// Spin runs work behind a spinner; the work's own error is the verdict.
+// Spin runs work behind a spinner; the work's own error is the
+// verdict. Where stdout is no terminal the spinner would be escape
+// sequences in machine-read output, so only the work runs. The work is
+// never abandoned: an interrupted spinner still waits for it, and only
+// then does the interruption surface.
 func (t Terminal) Spin(label string, work func() error) error {
+	if !t.InteractiveOut() {
+		return work()
+	}
 	var werr error
-	s := spinner.New().Title(label).Action(func() { werr = work() })
+	finished := make(chan struct{})
+	go func() {
+		werr = work()
+		close(finished)
+	}()
+	s := spinner.New().Title(label).ActionWithErr(func(ctx context.Context) error {
+		select {
+		case <-finished:
+		case <-ctx.Done():
+		}
+		return nil
+	})
 	if t.Out != nil {
 		s = s.Output(t.Out)
 	}
-	if err := s.Run(); err != nil {
-		return err
+	runErr := s.Run()
+	<-finished
+	if werr != nil {
+		return werr
 	}
-	return werr
+	return runErr
 }

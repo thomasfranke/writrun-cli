@@ -117,6 +117,86 @@ func TestNeedEnforcement(t *testing.T) {
 	}
 }
 
+// scriptVerdict mimics *exec.ExitError: an error carrying the wrapped
+// script's own exit code.
+type scriptVerdict int
+
+func (v scriptVerdict) Error() string { return "exit status" }
+func (v scriptVerdict) ExitCode() int { return int(v) }
+
+func TestScriptExitCodePassesThroughUnrestated(t *testing.T) {
+	cmds := []Command{{Name: "c", Need: NeedAny, Run: func(*Ctx, []string) error {
+		return scriptVerdict(3)
+	}}}
+	f, _, errb := frame(t, cmds, true, nil)
+	if code := Run(f, []string{"c"}); code != 3 {
+		t.Fatalf("exit = %d, want the script's own 3", code)
+	}
+	if errb.Len() != 0 {
+		t.Fatalf("stderr = %q; the script already reported — want nothing restated", errb.String())
+	}
+}
+
+func TestSignaledScriptStillExitsOneWithTheCause(t *testing.T) {
+	cmds := []Command{{Name: "c", Need: NeedAny, Run: func(*Ctx, []string) error {
+		return scriptVerdict(-1) // killed, no exit code to pass through
+	}}}
+	f, _, errb := frame(t, cmds, true, nil)
+	if code := Run(f, []string{"c"}); code != 1 {
+		t.Fatalf("exit = %d, want 1", code)
+	}
+	if !strings.Contains(errb.String(), "writrun c:") {
+		t.Fatalf("stderr = %q; want the failure named", errb.String())
+	}
+}
+
+func TestDeclinedExitsNonZeroNamingIt(t *testing.T) {
+	cmds := []Command{{Name: "c", Need: NeedAny, Run: func(c *Ctx, _ []string) error {
+		return c.AskConfirm("push the branch?")
+	}}}
+	f, _, errb := frame(t, cmds, true, nil)
+	f.Terminal = &FakeTerminal{In: true, ConfirmAnswer: false}
+	if code := Run(f, []string{"c"}); code != 1 {
+		t.Fatalf("exit = %d, want 1 on decline", code)
+	}
+	if !strings.Contains(errb.String(), "declined — nothing changed") {
+		t.Fatalf("stderr = %q; want the decline named", errb.String())
+	}
+}
+
+func TestDoubleDashHandsReservedFlagsToTheCommand(t *testing.T) {
+	var gotArgs []string
+	cmds := []Command{{Name: "c", Need: NeedAny, Run: func(_ *Ctx, a []string) error {
+		gotArgs = a
+		return nil
+	}}}
+	f, out, _ := frame(t, cmds, true, nil)
+	if code := Run(f, []string{"c", "--", "--help", "--yes"}); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if len(gotArgs) != 2 || gotArgs[0] != "--help" || gotArgs[1] != "--yes" {
+		t.Fatalf("args = %v, want [--help --yes] verbatim after --", gotArgs)
+	}
+	if strings.Contains(out.String(), "Docs:") {
+		t.Fatalf("stdout = %q; the global help answered a command's own --help", out.String())
+	}
+}
+
+func TestDoubleDashBeforeTheNameStillDispatches(t *testing.T) {
+	ran := false
+	cmds := []Command{{Name: "c", Need: NeedAny, Run: func(_ *Ctx, a []string) error {
+		ran = true
+		if len(a) != 1 || a[0] != "--no-color" {
+			t.Errorf("args = %v, want [--no-color]", a)
+		}
+		return nil
+	}}}
+	f, _, _ := frame(t, cmds, true, nil)
+	if code := Run(f, []string{"--", "c", "--no-color"}); code != 0 || !ran {
+		t.Fatalf("exit = %d ran = %v, want the command dispatched", code, ran)
+	}
+}
+
 func TestCommandErrorNamesCommandAndExitsNonZero(t *testing.T) {
 	cmds := []Command{{Name: "c", Need: NeedAny, Run: func(*Ctx, []string) error {
 		return errors.New("the check failed")

@@ -1,9 +1,15 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"io"
 )
+
+// ErrDeclined is the user's no. AskConfirm returns it so a command
+// cannot forget the answer: the error travels up and the frame turns
+// it into a non-zero exit having changed nothing (spec-0001).
+var ErrDeclined = errors.New("declined")
 
 // Ctx is what the frame hands a running command: the resolved
 // repository, the streams, the interaction helpers, and the flags every
@@ -28,15 +34,23 @@ type Ctx struct {
 
 // AskConfirm is the confirmation flow: --yes answers it, a terminal
 // asks it, and anything else aborts naming the flag — a question never
-// hangs.
-func (c *Ctx) AskConfirm(question string) (bool, error) {
+// hangs. nil is the go-ahead; a decline is ErrDeclined, so proceeding
+// takes an explicit yes and a forgotten check cannot exit 0.
+func (c *Ctx) AskConfirm(question string) error {
 	if c.Yes {
-		return true, nil
+		return nil
 	}
 	if !c.Terminal.InteractiveIn() {
-		return false, fmt.Errorf("no terminal to ask %q — pass --yes", question)
+		return fmt.Errorf("no terminal to ask %q — pass --yes", question)
 	}
-	return c.Terminal.Confirm(question)
+	ok, err := c.Terminal.Confirm(question)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrDeclined
+	}
+	return nil
 }
 
 // AskSelect is the selection flow: a preset answers it, a terminal

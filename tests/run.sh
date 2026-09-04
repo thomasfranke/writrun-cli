@@ -16,6 +16,12 @@ set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# One compiled binary for the whole run: the first CLI case builds it
+# here and the rest reuse it (tests/cli_lib.sh).
+WRITRUN_BIN_DIR="$(mktemp -d)"
+export WRITRUN_BIN_DIR
+trap 'rm -rf "$WRITRUN_BIN_DIR"' EXIT
+
 pass=0
 fail=0
 

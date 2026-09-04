@@ -34,3 +34,13 @@ func TestRunCarriesGhsOwnStderrOnFailure(t *testing.T) {
 		t.Fatalf("err = %v; want gh's own reason carried", err)
 	}
 }
+
+func TestRunCarriesStdoutDetailOnFailure(t *testing.T) {
+	// gh api puts the API's error detail on stdout with only a generic
+	// line on stderr — both belong in the reason.
+	c := Client{Bin: stub(t, `echo '{"message": "Not Found"}'; echo 'gh: HTTP 404' >&2; exit 1`)}
+	_, err := c.Run("api", "repos/x/y")
+	if err == nil || !strings.Contains(err.Error(), "HTTP 404") || !strings.Contains(err.Error(), "Not Found") {
+		t.Fatalf("err = %v; want stderr and the stdout detail carried", err)
+	}
+}
