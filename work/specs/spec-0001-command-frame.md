@@ -1,7 +1,7 @@
 ---
 id: spec-0001
 task_ref: task-0001
-status: approved
+status: implemented
 created: 2026-09-03T22:30:34Z
 ---
 
@@ -68,4 +68,13 @@ integration → e2e) wired into `tests.yml` by this task.
 
 ## Outcome
 
-_(fill after execution)_
+Shipped as specified. The frame lives in `internal/command/` —
+dispatch, the three needs, the interaction helpers, the color rule,
+exit discipline — with `wrepo.Find` for detection, the term port on
+`huh` (arrow keys exercised headless in tests), and the `kit`/`forge`
+adapters. `--version` names the client and the pinned tag. 45 unit
+tests and 4 CLI integration cases; coverage over `internal/` at 94%
+against the 85% gate, wired into `tests.yml` in the tier order;
+cross-compiles for macOS, Linux and Windows without cgo. One reading
+of scope: `Frame.Commands` ships empty — the table exists, and each
+command joins it with its own task.
