@@ -1,8 +1,8 @@
 ---
 id: task-0001
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0001]
 doc_ref: product/rules.md
 origin: rule
