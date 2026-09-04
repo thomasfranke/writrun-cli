@@ -1,6 +1,4 @@
-# Reports — `report`
-
-## `writrun report`
+# `writrun report`
 
 Records an observation into `work/reports/` before it is lost to a
 conversation.

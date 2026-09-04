@@ -30,7 +30,7 @@ decision.
   repository's own. If the binary and the scripts disagree, the scripts
   are right.
 - **Packages, never decides.** No command makes a call a human or an
-  agent had not already made. There is no approve command.
+  agent had not already made ([rules](product/rules.md)).
 - **Launches agents, never is one.**
 - **Pins, never tracks.** The methodology's contract is alpha; each
   release targets one tag.
@@ -50,4 +50,7 @@ decision.
   scripts, the files stay the authority.
 - **Not an agent, and not an agent framework.**
 - **Not a forge client.** It uses the forge where the flows already do.
-- **Not an approval path.** Convenience ends where a gate begins.
+- **Not a machine interface.** No `--json`: automation calls the same
+  scripts the binary calls.
+- **Not an approval path.** What no command ever does:
+  [rules](product/rules.md).

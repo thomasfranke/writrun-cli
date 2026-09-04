@@ -4,15 +4,27 @@
 source of truth the implementation is checked against — the reader is a
 maintainer, a contributor, a stakeholder.
 
-## Chapters
+[`rules.md`](rules.md) holds what every command obeys: where it runs,
+what it never does, how it reports. Each command then has one file,
+grouped by flow:
 
-| # | Chapter | Answers |
+| Flow | Command | Answers |
 |---|---|---|
-| 1 | [`rules.md`](rules.md) | What holds for every command: where it runs, what it never does, how it reports. |
-| 2 | [`adoption.md`](adoption.md) | `init`, `update`, `doctor`, `uninstall` — installing the kit, keeping it current, and removing it. |
-| 3 | [`queue.md`](queue.md) | `list`, `work` — reading the queue and launching an agent on it. |
-| 4 | [`pull-requests.md`](pull-requests.md) | `author`, `take`, `finish`, `amend` — the four flows that end in a pull request. |
-| 5 | [`reports.md`](reports.md) | `report` — recording an observation before it is lost. |
+| Adoption | [`init`](adoption/init.md) | Installing the kit into an existing repository. |
+| | [`update`](adoption/update.md) | Refreshing the kit to a newer WritRun tag. |
+| | [`doctor`](adoption/doctor.md) | Whether the repository still satisfies what the methodology assumes. |
+| | [`uninstall`](adoption/uninstall.md) | Removing the kit; the project's record stays. |
+| Queue | [`list`](queue/list.md) | Reading the queue. |
+| | [`work`](queue/work.md) | Launching the adopter's agent on a task. |
+| | [`status`](queue/status.md) | Where the work stands, from the current branch. |
+| Pull requests | [`take`](pull-requests/take.md) | Beginning the work on a task. |
+| | [`author`](pull-requests/author.md) | Sending a finished rule's derived work up for review. |
+| | [`finish`](pull-requests/finish.md) | Completing the work. |
+| | [`amend`](pull-requests/amend.md) | Returning an approved spec to draft. |
+| Reports | [`report`](reports/report.md) | Recording an observation before it is lost. |
+
+The four pull-request commands share one shape:
+[`pull-requests/shape.md`](pull-requests/shape.md).
 
 ## Rules for this folder
 
