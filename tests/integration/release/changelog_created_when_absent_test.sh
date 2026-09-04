@@ -7,7 +7,7 @@ release_setup
 out=$(bash "$RELEASE_SH" 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
    [ "$(sed -n 1p CHANGELOG.md)" = "# Changelog" ] &&
-   grep -q "^## v0.0.01 — $(date -u +%Y-%m-%d)\$" CHANGELOG.md &&
+   grep -q "^## v0.1.0 — $(date -u +%Y-%m-%d)\$" CHANGELOG.md &&
    git show --stat --format= HEAD | grep -q 'CHANGELOG.md'; then
   echo "ok    the cut creates CHANGELOG.md and commits it"; pass=$((pass + 1))
 else

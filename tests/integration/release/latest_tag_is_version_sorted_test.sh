@@ -6,7 +6,7 @@
 release_setup
 git tag -a v0.0.9 -m v0.0.9
 git tag -a v0.0.10 -m v0.0.10
-out=$(bash "$RELEASE_SH" minor 2>&1); code=$?
+out=$(bash "$RELEASE_SH" patch 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
    git tag --list | grep -qx 'v0.0.11'; then
   echo "ok    the latest tag is found by version sort, not lexicographic"; pass=$((pass + 1))

@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # release.sh — cut a release.
 #
-#   release.sh [minor|major|epoch]     default: minor
+#   release.sh [patch|minor|major]     default: patch
 #
-# minor bumps the 3rd digit, major the middle one, epoch the 1st
-# (historic milestones only). The next number is computed from the
-# latest tag — the very first release is v0.0.01, and the third field
-# stays two digits, as in WritRun itself — then: write the changelog,
-# run the suite, and only after that commit, tag, push, and publish the
-# GitHub Release with notes generated from the conventional commits.
+# SemVer: patch bumps the 3rd digit, minor the middle one, major the
+# 1st. The next number is computed from the latest tag — the very
+# first release is v0.1.0 — then: write the changelog, run the suite,
+# and only after that commit, tag, push, and publish the GitHub
+# Release with notes generated from the conventional commits.
 #
 # The tag is the only place the number is written — there is no VERSION
 # file to stamp. The cut writes CHANGELOG.md, the one file the release
@@ -21,11 +20,11 @@
 # (`git checkout CHANGELOG.md` undoes it).
 set -euo pipefail
 
-[ "$#" -le 1 ] || { echo "release: pick one of minor|major|epoch" >&2; exit 1; }
-bump="${1:-minor}"
+[ "$#" -le 1 ] || { echo "release: pick one of patch|minor|major" >&2; exit 1; }
+bump="${1:-patch}"
 case "$bump" in
-  minor|major|epoch) ;;
-  *) echo "release: pick one of minor|major|epoch" >&2; exit 1 ;;
+  patch|minor|major) ;;
+  *) echo "release: pick one of patch|minor|major" >&2; exit 1 ;;
 esac
 
 [ -z "$(git status --porcelain)" ] || { echo "release: working tree not clean" >&2; exit 1; }
@@ -39,14 +38,14 @@ command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 \
 
 last="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
 if [ -z "$last" ]; then
-  next="v0.0.01"
+  next="v0.1.0"
 else
   next="$(echo "$last" | awk -F. -v b="$bump" '{
     sub(/^v/, "")
-    if (b == "epoch")      { $1++; $2 = 0; $3 = 0 }
-    else if (b == "major") { $2++; $3 = 0 }
+    if (b == "major")      { $1++; $2 = 0; $3 = 0 }
+    else if (b == "minor") { $2++; $3 = 0 }
     else                   { $3++ }
-    printf "v%d.%d.%02d", $1, $2, $3 }')"
+    printf "v%d.%d.%d", $1, $2, $3 }')"
 fi
 echo "release: ${last:-none} -> $next ($bump)"
 

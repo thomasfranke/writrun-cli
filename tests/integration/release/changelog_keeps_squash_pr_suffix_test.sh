@@ -4,7 +4,7 @@
 # The (#NN) the forge appends to a squash subject is the only hop an
 # entry has back to its pull request: it is kept as written.
 release_setup
-git tag -a v0.0.01 -m v0.0.01
+git tag -a v0.1.0 -m v0.1.0
 git commit -q --allow-empty -m "feat(queue): name the reports (#42)"
 out=$(bash "$RELEASE_SH" 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
