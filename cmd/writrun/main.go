@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/command/doctorcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/finishcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/listcmd"
+	"github.com/thomasfranke/writrun-cli/internal/command/reportcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/takecmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/uninstallcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/updatecmd"
@@ -88,6 +90,12 @@ func commands() []command.Command {
 			Files:  disk,
 			Kit:    fetcher,
 		}),
+		doctorcmd.New(doctorcmd.Deps{
+			Scripts:  kit.Run,
+			Gh:       gh.Run,
+			Files:    disk,
+			LookPath: exec.LookPath,
+		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),
 		takecmd.New(takecmd.Deps{Scripts: kit.Run}),
@@ -98,6 +106,7 @@ func commands() []command.Command {
 			Gh:      gh.Run,
 			Now:     time.Now,
 		}),
+		reportcmd.New(reportcmd.Deps{Scripts: kit.Run, Files: disk}),
 	}
 }
 
