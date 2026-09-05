@@ -4,22 +4,23 @@ package wrepo
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // Find walks up from dir to the git toplevel — the directory holding
 // `.git`, a directory or a worktree's file — and reports whether
 // `.writrun/` sits beside it. Running from a subdirectory is the same
 // answer as running from the root.
-func Find(dir string) (root string, adopted bool, err error) {
+func Find(files vfs.FS, dir string) (root string, adopted bool, err error) {
 	d, err := filepath.Abs(dir)
 	if err != nil {
 		return "", false, err
 	}
 	for {
-		if _, statErr := os.Stat(filepath.Join(d, ".git")); statErr == nil {
-			info, statErr := os.Stat(filepath.Join(d, ".writrun"))
+		if _, statErr := files.Stat(filepath.Join(d, ".git")); statErr == nil {
+			info, statErr := files.Stat(filepath.Join(d, ".writrun"))
 			return d, statErr == nil && info.IsDir(), nil
 		}
 		parent := filepath.Dir(d)

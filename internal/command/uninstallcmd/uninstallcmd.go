@@ -5,23 +5,28 @@
 package uninstallcmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"os"
+	"io/fs"
 	"path/filepath"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // Deps is the wiring uninstall needs beyond the frame's Ctx.
 type Deps struct {
 	// Git runs one git invocation — the hooks directory is git's to
 	// name, not a path this command may assume.
-	Git hook.GitRunner
+	Git gitx.Runner
+	// Files is the filesystem this command reads and writes through.
+	Files vfs.FS
 }
 
 // New returns the uninstall command wired with its dependencies.
@@ -50,7 +55,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	r, err := plan(ctx.Root, hookAt)
+	r, err := plan(d.Files, ctx.Root, hookAt)
 	if err != nil {
 		return err
 	}
@@ -69,6 +74,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 // what stays — computed before anything is deleted and shown before
 // the confirmation.
 type removal struct {
+	disk vfs.FS
 	root string
 
 	dirs  []string // kit-owned directories to delete
@@ -85,33 +91,33 @@ type removal struct {
 	agentsKept  bool // no fence found; the file is the project's alone
 }
 
-func plan(root, hookAt string) (*removal, error) {
-	r := &removal{root: root, hookAt: hookAt}
+func plan(files vfs.FS, root, hookAt string) (*removal, error) {
+	r := &removal{disk: files, root: root, hookAt: hookAt}
 
 	for _, dir := range kitpaths.RemoveDirs {
-		if _, err := os.Stat(filepath.Join(root, dir)); err == nil {
+		if _, err := files.Stat(filepath.Join(root, dir)); err == nil {
 			r.dirs = append(r.dirs, dir)
 		} else {
 			r.gone = append(r.gone, dir)
 		}
 	}
 	for _, rel := range kitpaths.RemoveFiles() {
-		if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+		if _, err := files.Stat(filepath.Join(root, rel)); err == nil {
 			r.files = append(r.files, rel)
 		} else {
 			r.gone = append(r.gone, rel)
 		}
 	}
 
-	state, err := hook.Inspect(hookAt)
+	state, err := hook.Inspect(files, hookAt)
 	if err != nil {
 		return nil, err
 	}
 	r.hookState = state
 
-	agents, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	agents, err := files.ReadFile(filepath.Join(root, "AGENTS.md"))
 	switch {
-	case os.IsNotExist(err):
+	case errors.Is(err, fs.ErrNotExist):
 		r.agentsKept = true
 		r.gone = append(r.gone, "AGENTS.md")
 	case err != nil:
@@ -180,28 +186,28 @@ func (r *removal) hookDisplay() string {
 // apply performs exactly the rendered plan.
 func (r *removal) apply() error {
 	for _, dir := range r.dirs {
-		if err := os.RemoveAll(filepath.Join(r.root, dir)); err != nil {
+		if err := r.disk.RemoveAll(filepath.Join(r.root, dir)); err != nil {
 			return fmt.Errorf("removing %s: %w", dir, err)
 		}
 	}
 	for _, rel := range r.files {
-		if err := os.Remove(filepath.Join(r.root, rel)); err != nil && !os.IsNotExist(err) {
+		if err := r.disk.Remove(filepath.Join(r.root, rel)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("removing %s: %w", rel, err)
 		}
 	}
 	agentsPath := filepath.Join(r.root, "AGENTS.md")
 	switch {
 	case r.agentsWhole:
-		if err := os.Remove(agentsPath); err != nil && !os.IsNotExist(err) {
+		if err := r.disk.Remove(agentsPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("removing AGENTS.md: %w", err)
 		}
 	case r.agents != nil:
-		if err := os.WriteFile(agentsPath, r.agents, 0o644); err != nil {
+		if err := r.disk.WriteFile(agentsPath, r.agents, 0o644); err != nil {
 			return fmt.Errorf("editing AGENTS.md: %w", err)
 		}
 	}
 	if r.hookState == hook.Ours {
-		if err := os.Remove(r.hookAt); err != nil && !os.IsNotExist(err) {
+		if err := r.disk.Remove(r.hookAt); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("removing the commit-msg hook: %w", err)
 		}
 	}

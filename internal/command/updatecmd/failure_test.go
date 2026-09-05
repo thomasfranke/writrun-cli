@@ -1,6 +1,7 @@
 package updatecmd
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,144 +9,9 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
-
-// readOnly makes dir unwritable for the rest of the test, so a refresh
-// writing into it fails the way a checkout somebody else owns would.
-func readOnly(t *testing.T, dir string) {
-	t.Helper()
-	if err := os.Chmod(dir, 0o555); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
-}
-
-// readOnlyFile makes one file unwritable. A read-only *directory*
-// still lets an existing file be overwritten, so a case about a failed
-// write has to reach the file itself.
-func readOnlyFile(t *testing.T, path string) {
-	t.Helper()
-	if err := os.Chmod(path, 0o444); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
-}
-
-func skipAsRoot(t *testing.T) {
-	t.Helper()
-	if os.Geteuid() == 0 {
-		t.Skip("root writes into a read-only directory all the same")
-	}
-}
-
-func TestApplyReportsWhatItCouldNotWrite(t *testing.T) {
-	skipAsRoot(t)
-	root, template := t.TempDir(), t.TempDir()
-	write(t, template, ".writrun/skills/select/SKILL.md", "# Select\n")
-	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
-	readOnly(t, filepath.Join(root, ".writrun"))
-
-	r := &refresh{root: root, template: template, to: newTag,
-		dirs: []string{".writrun/skills"}, agentsPath: filepath.Join(root, "AGENTS.md")}
-	err := r.apply()
-	if err == nil {
-		t.Fatal("replacing a directory under an unwritable parent succeeded")
-	}
-	if !strings.Contains(err.Error(), ".writrun/skills") {
-		t.Errorf("the error does not name the directory: %v", err)
-	}
-}
-
-func TestApplyReportsAWorkflowItCouldNotWrite(t *testing.T) {
-	skipAsRoot(t)
-	root, template := t.TempDir(), t.TempDir()
-	rel := ".github/workflows/writrun-check.yml"
-	write(t, template, rel, "name: check\n")
-	write(t, root, rel, "name: check, older\n")
-	readOnly(t, filepath.Join(root, ".github", "workflows"))
-
-	r := &refresh{root: root, template: template, to: newTag,
-		changes:    []change{{rel: rel, verb: changed, src: filepath.Join(template, rel), mode: 0o644}},
-		agentsPath: filepath.Join(root, "AGENTS.md")}
-	if err := r.apply(); err == nil {
-		t.Fatal("writing a workflow under an unwritable parent succeeded")
-	}
-}
-
-func TestApplyReportsATagItCouldNotRecord(t *testing.T) {
-	skipAsRoot(t)
-	root := t.TempDir()
-	write(t, root, ".writrun/VERSION", oldTag+"\n")
-	// The file itself, not its directory: a read-only directory still
-	// lets an existing file be overwritten.
-	readOnlyFile(t, filepath.Join(root, ".writrun", "VERSION"))
-
-	r := &refresh{root: root, template: t.TempDir(), to: newTag,
-		agentsPath: filepath.Join(root, "AGENTS.md")}
-	err := r.apply()
-	if err == nil {
-		t.Fatal("recording the tag into an unwritable directory succeeded")
-	}
-	if !strings.Contains(err.Error(), "recording the tag") {
-		t.Errorf("the error does not name the act: %v", err)
-	}
-}
-
-func TestApplyReportsAnAgentsItCouldNotRefresh(t *testing.T) {
-	skipAsRoot(t)
-	root := t.TempDir()
-	write(t, root, ".writrun/VERSION", oldTag+"\n")
-	write(t, root, "AGENTS.md", "# Ours\n")
-	readOnlyFile(t, filepath.Join(root, "AGENTS.md"))
-
-	r := &refresh{root: root, template: t.TempDir(), to: newTag,
-		agentsPath: filepath.Join(root, "AGENTS.md"),
-		agents:     []byte("# refreshed\n")}
-	// The tag lands first and lands fine; what fails here is the
-	// document.
-	err := r.apply()
-	if err == nil {
-		t.Fatal("refreshing AGENTS.md under an unwritable root succeeded")
-	}
-	if !strings.Contains(err.Error(), "AGENTS.md") {
-		t.Errorf("the error does not name the document: %v", err)
-	}
-}
-
-func TestCopyTreeReportsWhatItCouldNotRead(t *testing.T) {
-	if err := copyTree(filepath.Join(t.TempDir(), "not-there"), t.TempDir()); err == nil {
-		t.Error("copying a tree that is not there succeeded")
-	}
-}
-
-func TestDiffTreeReportsAnUnreadableTree(t *testing.T) {
-	skipAsRoot(t)
-	root, template := t.TempDir(), t.TempDir()
-	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
-	if err := os.Chmod(filepath.Join(root, ".writrun", "skills"), 0o000); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, ".writrun", "skills"), 0o755) })
-
-	if _, err := diffTree(root, template, ".writrun/skills"); err == nil {
-		t.Error("a tree that cannot be walked was diffed all the same")
-	}
-}
-
-func TestRunReportsAnApplyThatFailedHalfway(t *testing.T) {
-	skipAsRoot(t)
-	src := makeSource(t)
-	root := makeAdopted(t)
-	readOnly(t, filepath.Join(root, ".writrun"))
-
-	out, err := runUpdate(t, root, src)
-	if err == nil {
-		t.Fatalf("a refresh that could not write succeeded:\n%s", out)
-	}
-	if !strings.Contains(err.Error(), "the refresh is partial") {
-		t.Errorf("the error does not say what state the tree is in: %v", err)
-	}
-}
 
 func TestRunRefusesAnUnreadableAgents(t *testing.T) {
 	src := makeSource(t)
@@ -166,7 +32,7 @@ func TestRunReportsAGitThatCannotAnswer(t *testing.T) {
 	write(t, root, "AGENTS.md", agentsAt("The flow's text."))
 	var out strings.Builder
 	ctx := &command.Ctx{Stdout: &out, Stderr: &out, Terminal: &command.FakeTerminal{}, Root: root, Yes: true}
-	err := run(ctx, Deps{Tag: newTag, Source: makeSource(t), Git: gitx.Run}, nil)
+	err := run(ctx, Deps{Tag: newTag, Source: makeSource(t), Git: gitx.Run, Files: vfs.OS{}}, nil)
 	if err == nil {
 		t.Fatal("the working tree was read outside a repository")
 	}
@@ -191,7 +57,7 @@ func TestDiffTreeNamesAFileTheTagDropped(t *testing.T) {
 	write(t, root, ".writrun/skills/gone/SKILL.md", "# Gone\n")
 	write(t, template, ".writrun/skills/kept/SKILL.md", "# Kept\n")
 
-	cs, err := diffTree(root, template, ".writrun/skills")
+	cs, err := diffTree(vfs.OS{}, root, template, ".writrun/skills")
 	if err != nil {
 		t.Fatalf("diffTree: %v", err)
 	}
@@ -212,25 +78,8 @@ func TestDiffTreeNamesAFileTheTagDropped(t *testing.T) {
 	}
 }
 
-func TestReadTreeReportsAFileItCannotRead(t *testing.T) {
-	skipAsRoot(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "unreadable.md")
-	if err := os.WriteFile(path, []byte("# x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chmod(path, 0o000); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
-
-	if _, err := readTree(dir); err == nil {
-		t.Error("a file that cannot be read was read")
-	}
-}
-
 func TestRenderSaysWhenTheSectionAlreadyMatches(t *testing.T) {
-	r := &refresh{from: oldTag, to: newTag, changes: []change{
+	r := &refresh{disk: vfs.OS{}, from: oldTag, to: newTag, changes: []change{
 		{rel: ".writrun/skills/select/SKILL.md", verb: changed},
 		{rel: ".writrun/VERSION", verb: changed},
 	}}
@@ -238,59 +87,6 @@ func TestRenderSaysWhenTheSectionAlreadyMatches(t *testing.T) {
 	r.render(&out)
 	if !strings.Contains(out.String(), "already matches — left alone") {
 		t.Errorf("an unchanged section was not said to be left alone:\n%s", out.String())
-	}
-}
-
-func TestApplyReportsADirectoryItCouldNotRemove(t *testing.T) {
-	skipAsRoot(t)
-	root, template := t.TempDir(), t.TempDir()
-	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
-	write(t, root, ".writrun/VERSION", oldTag+"\n")
-	readOnly(t, filepath.Join(root, ".writrun"))
-
-	// The template ships no skills/ at all, so the removal is what fails.
-	r := &refresh{root: root, template: template, to: newTag,
-		dirs: []string{".writrun/skills"}, agentsPath: filepath.Join(root, "AGENTS.md")}
-	err := r.apply()
-	if err == nil {
-		t.Fatal("removing a directory under an unwritable parent succeeded")
-	}
-	if !strings.Contains(err.Error(), "removing .writrun/skills") {
-		t.Errorf("the error does not name the act: %v", err)
-	}
-}
-
-func TestApplyReportsAWorkflowItCouldNotRemove(t *testing.T) {
-	skipAsRoot(t)
-	root := t.TempDir()
-	rel := ".github/workflows/writrun-issues.yml"
-	write(t, root, rel, "name: issues\n")
-	write(t, root, ".writrun/VERSION", oldTag+"\n")
-	readOnly(t, filepath.Join(root, ".github", "workflows"))
-
-	r := &refresh{root: root, template: t.TempDir(), to: newTag,
-		changes:    []change{{rel: rel, verb: removed}},
-		agentsPath: filepath.Join(root, "AGENTS.md")}
-	if err := r.apply(); err == nil {
-		t.Fatal("removing a workflow under an unwritable parent succeeded")
-	}
-}
-
-func TestCopyFileReportsADirectoryItCouldNotCreate(t *testing.T) {
-	skipAsRoot(t)
-	dir := t.TempDir()
-	src := filepath.Join(dir, "src.txt")
-	if err := os.WriteFile(src, []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	guarded := filepath.Join(dir, "guarded")
-	if err := os.Mkdir(guarded, 0o555); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(guarded, 0o755) })
-
-	if err := copyFile(src, filepath.Join(guarded, "nested", "dst.txt"), 0o644); err == nil {
-		t.Error("copying under an uncreatable directory succeeded")
 	}
 }
 
@@ -320,7 +116,7 @@ func TestADeclineRefreshesNothing(t *testing.T) {
 		Terminal: &command.FakeTerminal{In: true, ConfirmAnswer: false},
 		Root:     root, Adopted: true,
 	}
-	if err := run(ctx, Deps{Tag: newTag, Source: src, Git: gitx.Run}, nil); err == nil {
+	if err := run(ctx, Deps{Tag: newTag, Source: src, Git: gitx.Run, Files: vfs.OS{}}, nil); err == nil {
 		t.Fatal("a decline was not reported")
 	}
 	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {
@@ -369,5 +165,142 @@ func TestOnlyTheTagMovingWritesOnlyTheTag(t *testing.T) {
 	}
 	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {
 		t.Errorf("a run that asked nothing still wrote the tag: %q", got)
+	}
+}
+
+// fakeAt is the refresh's two trees as the fake holds them: the kit the
+// repository has, and the template the tag ships.
+func fakeAt(t *testing.T) (*vfs.Fake, string, string) {
+	t.Helper()
+	disk := vfs.NewFake()
+	root, template := "/repo", "/kit/template"
+	disk.Seed(root+"/.writrun/VERSION", []byte(oldTag+"\n"), 0o644)
+	disk.Seed(root+"/.writrun/skills/select/SKILL.md", []byte("# Select\n"), 0o644)
+	disk.Seed(root+"/.github/workflows/writrun-check.yml", []byte("name: check\n"), 0o644)
+	disk.Seed(template+"/.writrun/skills/select/SKILL.md", []byte("# Select, reworded\n"), 0o644)
+	disk.Seed(template+"/.github/workflows/writrun-check.yml", []byte("name: check\n# reworded\n"), 0o644)
+	return disk, root, template
+}
+
+func TestApplyReportsTheDirectoryItCouldNotReplace(t *testing.T) {
+	disk, root, template := fakeAt(t)
+	boom := errors.New("the skills folder will not go")
+	disk.Fail(root+"/.writrun/skills", boom)
+
+	r := &refresh{disk: disk, root: root, template: template, to: newTag,
+		dirs: []string{".writrun/skills"}, agentsPath: root + "/AGENTS.md"}
+	err := r.apply()
+	if err == nil {
+		t.Fatal("a refresh that cannot replace succeeded")
+	}
+	if !errors.Is(err, boom) {
+		t.Errorf("the cause did not survive: %v", err)
+	}
+	if !strings.Contains(err.Error(), ".writrun/skills") {
+		t.Errorf("the error does not name the directory: %v", err)
+	}
+}
+
+func TestApplyReportsTheDirectoryTheTagDroppedAndCouldNotRemove(t *testing.T) {
+	disk, root, _ := fakeAt(t)
+	boom := errors.New("it stays")
+	disk.Fail(root+"/.writrun/skills", boom)
+
+	// The template ships no skills/ at all, so the removal is what fails.
+	r := &refresh{disk: disk, root: root, template: "/kit/empty", to: newTag,
+		dirs: []string{".writrun/skills"}, agentsPath: root + "/AGENTS.md"}
+	if err := r.apply(); !errors.Is(err, boom) {
+		t.Errorf("removing a dropped directory: %v", err)
+	}
+}
+
+func TestApplyReportsTheWorkflowItCouldNotWrite(t *testing.T) {
+	disk, root, template := fakeAt(t)
+	rel := ".github/workflows/writrun-check.yml"
+	boom := errors.New("the workflow is held open")
+	disk.Fail(root+"/"+rel, boom)
+
+	r := &refresh{disk: disk, root: root, template: template, to: newTag,
+		changes:    []change{{rel: rel, verb: changed, src: template + "/" + rel, mode: 0o644}},
+		agentsPath: root + "/AGENTS.md"}
+	if err := r.apply(); !errors.Is(err, boom) {
+		t.Errorf("writing a workflow that refuses: %v", err)
+	}
+}
+
+func TestApplyReportsTheWorkflowItCouldNotRemove(t *testing.T) {
+	disk, root, template := fakeAt(t)
+	rel := ".github/workflows/writrun-check.yml"
+	boom := errors.New("it stays")
+	disk.Fail(root+"/"+rel, boom)
+
+	r := &refresh{disk: disk, root: root, template: template, to: newTag,
+		changes:    []change{{rel: rel, verb: removed}},
+		agentsPath: root + "/AGENTS.md"}
+	if err := r.apply(); !errors.Is(err, boom) {
+		t.Errorf("removing a workflow that refuses: %v", err)
+	}
+}
+
+func TestApplyReportsTheTagItCouldNotRecord(t *testing.T) {
+	disk, root, template := fakeAt(t)
+	boom := errors.New("VERSION is read-only")
+	disk.Fail(root+"/.writrun/VERSION", boom)
+
+	r := &refresh{disk: disk, root: root, template: template, to: newTag,
+		agentsPath: root + "/AGENTS.md"}
+	err := r.apply()
+	if !errors.Is(err, boom) {
+		t.Fatalf("recording the tag: %v", err)
+	}
+	if !strings.Contains(err.Error(), "recording the tag") {
+		t.Errorf("the error does not name the act: %v", err)
+	}
+}
+
+func TestApplyReportsTheDocumentItCouldNotRefresh(t *testing.T) {
+	disk, root, template := fakeAt(t)
+	boom := errors.New("AGENTS.md is held open")
+	disk.Fail(root+"/AGENTS.md", boom)
+
+	r := &refresh{disk: disk, root: root, template: template, to: newTag,
+		agentsPath: root + "/AGENTS.md", agents: []byte("# refreshed\n")}
+	err := r.apply()
+	if !errors.Is(err, boom) {
+		t.Fatalf("refreshing the document: %v", err)
+	}
+	if !strings.Contains(err.Error(), "AGENTS.md") {
+		t.Errorf("the error does not name the document: %v", err)
+	}
+}
+
+func TestDiffTreeReportsATreeItCannotWalk(t *testing.T) {
+	disk, root, template := fakeAt(t)
+	disk.Fail(root+"/.writrun/skills", errors.New("the tree cannot be read"))
+	if _, err := diffTree(disk, root, template, ".writrun/skills"); err == nil {
+		t.Error("a tree that cannot be walked was diffed all the same")
+	}
+}
+
+func TestReadTreeReportsAFileItCannotRead(t *testing.T) {
+	disk, root, _ := fakeAt(t)
+	disk.Fail(root+"/.writrun/skills/select/SKILL.md", errors.New("that file, no"))
+	if _, err := readTree(disk, root+"/.writrun/skills"); err == nil {
+		t.Error("a file that cannot be read was read")
+	}
+}
+
+func TestCopyFileReportsTheDirectoryItCouldNotCreate(t *testing.T) {
+	disk, _, template := fakeAt(t)
+	disk.Fail("/out/nested", errors.New("nowhere to put it"))
+	if err := copyFile(disk, template+"/.github/workflows/writrun-check.yml", "/out/nested/x.yml", 0o644); err == nil {
+		t.Error("copying under a directory that cannot be made succeeded")
+	}
+}
+
+func TestCopyTreeReportsWhatItCouldNotRead(t *testing.T) {
+	disk := vfs.NewFake()
+	if err := copyTree(disk, "/not-there", "/out"); err == nil {
+		t.Error("copying a tree that is not there succeeded")
 	}
 }

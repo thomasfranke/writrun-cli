@@ -9,6 +9,8 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // installTestHook adopts just enough of a repository for the hook to
@@ -17,11 +19,11 @@ func installTestHook(t *testing.T) (root, hookAt string) {
 	t.Helper()
 	root = makeTarget(t)
 	write(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
-	hookAt, err := hook.Path(root, hook.GitRunner(gitx.Run))
+	hookAt, err := hook.Path(root, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}
-	if err := hook.Install(hookAt); err != nil {
+	if err := hook.Install(vfs.OS{}, hookAt); err != nil {
 		t.Fatalf("hook.Install = %v", err)
 	}
 	return root, hookAt
@@ -90,11 +92,11 @@ func TestHookOutlivingTheKitBlocksNothing(t *testing.T) {
 
 func TestRefuseForeignHookRefusesAndNames(t *testing.T) {
 	root := makeTarget(t)
-	hookAt, err := hook.Path(root, hook.GitRunner(gitx.Run))
+	hookAt, err := hook.Path(root, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}
-	if err := hook.RefuseForeign(hookAt); err != nil {
+	if err := hook.RefuseForeign(vfs.OS{}, hookAt); err != nil {
 		t.Fatalf("an absent hook was refused: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(hookAt), 0o755); err != nil {
@@ -103,7 +105,7 @@ func TestRefuseForeignHookRefusesAndNames(t *testing.T) {
 	if err := os.WriteFile(hookAt, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	err = hook.RefuseForeign(hookAt)
+	err = hook.RefuseForeign(vfs.OS{}, hookAt)
 	if err == nil {
 		t.Fatal("an existing hook was not refused")
 	}

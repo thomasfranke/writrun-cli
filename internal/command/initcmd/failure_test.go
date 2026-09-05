@@ -10,22 +10,9 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
-
-func readOnly(t *testing.T, path string, mode os.FileMode) {
-	t.Helper()
-	if err := os.Chmod(path, mode); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(path, 0o755) })
-}
-
-func skipAsRoot(t *testing.T) {
-	t.Helper()
-	if os.Geteuid() == 0 {
-		t.Skip("root writes where nobody else may")
-	}
-}
 
 func TestNewDefaultsTheSourceToTheCanonicalRepository(t *testing.T) {
 	// An empty Source is the canonical repository, resolved once at
@@ -62,40 +49,6 @@ func TestAWorkingTreeGitCannotReadStopsTheAdoption(t *testing.T) {
 	}
 }
 
-func TestAnAdoptionThatCouldNotWriteSaysHowToUndoIt(t *testing.T) {
-	skipAsRoot(t)
-	target := makeTarget(t)
-	readOnly(t, target, 0o555)
-
-	err, _ := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
-	if err == nil {
-		t.Fatal("an adoption that could not write succeeded")
-	}
-	if !strings.Contains(err.Error(), "the adoption is partial") {
-		t.Errorf("the error does not say what state the tree is in: %v", err)
-	}
-	if !strings.Contains(err.Error(), "git clean -fd") {
-		t.Errorf("the error does not say how to undo it: %v", err)
-	}
-}
-
-func TestATemplateThatCannotBeWalkedIsReported(t *testing.T) {
-	skipAsRoot(t)
-	src := makeSource(t)
-	clone := t.TempDir()
-	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", testTag, src, filepath.Join(clone, "writrun"))
-	template := filepath.Join(clone, "writrun", "template")
-	readOnly(t, filepath.Join(template, ".writrun"), 0o000)
-
-	_, err := plan(makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run)
-	if err == nil {
-		t.Fatal("a template that cannot be walked was planned over")
-	}
-	if !strings.Contains(err.Error(), "reading the template") {
-		t.Errorf("the error does not name the act: %v", err)
-	}
-}
-
 func TestATemplateWithNoAgentsIsNotAWritRunRepository(t *testing.T) {
 	src := makeSource(t)
 	clone := t.TempDir()
@@ -104,34 +57,13 @@ func TestATemplateWithNoAgentsIsNotAWritRunRepository(t *testing.T) {
 	if err := os.Remove(filepath.Join(template, "AGENTS.md")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := plan(makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run); err == nil {
+	if _, err := plan(vfs.OS{}, makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run); err == nil {
 		t.Fatal("a template with no AGENTS.md was planned over")
 	}
 }
 
-func TestApplyReportsEachWriteItCouldNotMake(t *testing.T) {
-	skipAsRoot(t)
-	src := makeSource(t)
-	clone := t.TempDir()
-	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", testTag, src, filepath.Join(clone, "writrun"))
-	template := filepath.Join(clone, "writrun", "template")
-
-	// A copy that cannot land.
-	target := makeTarget(t)
-	a, err := plan(target, template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run)
-	if err != nil {
-		t.Fatal(err)
-	}
-	readOnly(t, target, 0o555)
-	if applyErr := a.apply(); applyErr == nil {
-		t.Fatal("a copy under an unwritable root succeeded")
-	} else if !strings.Contains(applyErr.Error(), "copying") {
-		t.Errorf("the error does not name the act: %v", applyErr)
-	}
-}
-
 func TestApplyAgentsReportsATemplateItCannotRead(t *testing.T) {
-	a := &adoption{root: t.TempDir(), template: t.TempDir(), agents: agentsSkeleton}
+	a := &adoption{disk: vfs.OS{}, root: t.TempDir(), template: t.TempDir(), agents: agentsSkeleton}
 	if err := a.applyAgents(); err == nil {
 		t.Fatal("a template with no AGENTS.md was grafted from")
 	}
@@ -142,34 +74,16 @@ func TestApplyAgentsReportsAnExistingDocumentItCannotRead(t *testing.T) {
 	// one that cannot be read by the time apply runs is a fault.
 	template := t.TempDir()
 	write(t, template, "AGENTS.md", templateAgents)
-	a := &adoption{root: t.TempDir(), template: template, agents: agentsGraft}
+	a := &adoption{disk: vfs.OS{}, root: t.TempDir(), template: template, agents: agentsGraft}
 	if err := a.applyAgents(); err == nil {
 		t.Fatal("a document that is not there was grafted onto")
-	}
-}
-
-func TestRewriteFileReportsWhatItCouldNotRead(t *testing.T) {
-	same := func(s string) (string, error) { return s, nil }
-	if err := rewriteFile(filepath.Join(t.TempDir(), "not-there"), same); err == nil {
-		t.Fatal("a file that is not there was rewritten")
-	}
-
-	skipAsRoot(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "commits.md")
-	if err := os.WriteFile(path, []byte("# Commits\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	readOnly(t, path, 0o000)
-	if err := rewriteFile(path, same); err == nil {
-		t.Fatal("a file that cannot be read was rewritten")
 	}
 }
 
 func TestApplyVocabularyReportsTheFirstFileItCouldNotRewrite(t *testing.T) {
 	// The conventions file is missing, so the first rewrite fails and
 	// the second is never reached.
-	err := applyVocabulary(t.TempDir(), vocabulary{Types: []string{"feat"}, Source: "history"})
+	err := applyVocabulary(vfs.OS{}, t.TempDir(), vocabulary{Types: []string{"feat"}, Source: "history"})
 	if err == nil {
 		t.Fatal("a vocabulary was applied to a kit that is not there")
 	}
@@ -185,6 +99,7 @@ func TestTheForgeReadsThatCouldNotAnswerAreNamed(t *testing.T) {
 		return "", errors.New("the API said no\nand said more about it")
 	}
 	d := Deps{
+		Files:    vfs.OS{},
 		LookPath: func(name string) (string, error) { return "/usr/bin/" + name, nil },
 		Gh:       failing,
 	}
@@ -206,7 +121,7 @@ func TestTheForgeReadsThatCouldNotAnswerAreNamed(t *testing.T) {
 
 func TestAMissingAgentsIsNamedAsAGap(t *testing.T) {
 	target := makeTarget(t)
-	gaps := checkFiles(target)
+	gaps := checkFiles(vfs.OS{}, target)
 	var text string
 	for _, g := range gaps {
 		text += g.Text + "\n"
@@ -329,6 +244,7 @@ func TestAOneLineForgeReasonIsReportedWhole(t *testing.T) {
 	// firstLine returns the whole string where there is no newline to
 	// cut at — the common case, and the one that must not lose text.
 	d := Deps{
+		Files:    vfs.OS{},
 		LookPath: func(name string) (string, error) { return "/usr/bin/" + name, nil },
 		Gh: func(args ...string) (string, error) {
 			if len(args) > 1 && args[0] == "auth" {
@@ -344,5 +260,99 @@ func TestAOneLineForgeReasonIsReportedWhole(t *testing.T) {
 	}
 	if !strings.Contains(text, "a single line of reason") {
 		t.Errorf("a one-line reason was not reported:\n%s", text)
+	}
+}
+
+// fakeTemplate is a kit as the fake holds it — enough of one for the
+// plan to be made and applied without a clone.
+func fakeTemplate(t *testing.T) (*vfs.Fake, string, string) {
+	t.Helper()
+	disk := vfs.NewFake()
+	root, template := "/repo", "/kit/template"
+	disk.Seed(template+"/AGENTS.md", []byte(templateAgents), 0o644)
+	disk.Seed(template+"/WRITRUN.md", []byte("# This project uses WritRun\n"), 0o644)
+	disk.Seed(template+"/.writrun/settings.json", []byte(templateSettings), 0o644)
+	disk.Seed(template+"/.writrun/conventions/commits.md", []byte(templateCommits), 0o644)
+	disk.SeedDir(root)
+	return disk, root, template
+}
+
+func TestApplyReportsTheCopyItCouldNotMake(t *testing.T) {
+	disk, root, template := fakeTemplate(t)
+	boom := errors.New("that file will not land")
+	disk.Fail(root+"/WRITRUN.md", boom)
+
+	a := &adoption{disk: disk, root: root, template: template, tag: testTag,
+		copies:   []copyStep{{src: template + "/WRITRUN.md", rel: "WRITRUN.md", mode: 0o644}},
+		hookPath: root + "/.git/hooks/commit-msg"}
+	err := a.apply()
+	if err == nil {
+		t.Fatal("an adoption that cannot copy succeeded")
+	}
+	if !errors.Is(err, boom) {
+		t.Errorf("the cause did not survive: %v", err)
+	}
+	if !strings.Contains(err.Error(), "copying WRITRUN.md") {
+		t.Errorf("the error does not name the file: %v", err)
+	}
+}
+
+func TestApplyReportsTheTagItCouldNotRecord(t *testing.T) {
+	disk, root, template := fakeTemplate(t)
+	disk.Seed(root+"/.writrun/settings.json", []byte(templateSettings), 0o644)
+	boom := errors.New("VERSION will not be written")
+	disk.Fail(root+"/.writrun/VERSION", boom)
+
+	a := &adoption{disk: disk, root: root, template: template, tag: testTag, stage: 1,
+		hookPath: root + "/.git/hooks/commit-msg"}
+	err := a.apply()
+	if !errors.Is(err, boom) {
+		t.Fatalf("recording the tag: %v", err)
+	}
+	if !strings.Contains(err.Error(), "recording the tag") {
+		t.Errorf("the error does not name the act: %v", err)
+	}
+}
+
+func TestApplyAgentsReportsTheDocumentItCouldNotWrite(t *testing.T) {
+	disk, root, template := fakeTemplate(t)
+	boom := errors.New("AGENTS.md will not be written")
+	disk.Fail(root+"/AGENTS.md", boom)
+
+	a := &adoption{disk: disk, root: root, template: template, agents: agentsSkeleton}
+	if err := a.applyAgents(); !errors.Is(err, boom) {
+		t.Errorf("writing the skeleton: %v", err)
+	}
+
+	disk.Heal(root + "/AGENTS.md")
+	disk.Seed(root+"/AGENTS.md", []byte("# Ours\n"), 0o644)
+	disk.Fail(root+"/AGENTS.md", boom)
+	a.agents = agentsGraft
+	if err := a.applyAgents(); !errors.Is(err, boom) {
+		t.Errorf("grafting onto the document: %v", err)
+	}
+}
+
+func TestPlanReportsATemplateItCannotWalk(t *testing.T) {
+	disk, root, template := fakeTemplate(t)
+	disk.Fail(template, errors.New("the template cannot be read"))
+	if _, err := plan(disk, root, template, testTag, "src", 1, "/hooks/commit-msg", gitx.Run); err == nil {
+		t.Error("a template that cannot be walked was planned over")
+	}
+}
+
+func TestRewriteFileReportsWhatItCouldNotTouch(t *testing.T) {
+	disk := vfs.NewFake()
+	same := func(s string) (string, error) { return s, nil }
+
+	if err := rewriteFile(disk, "/repo/not-there.md", same); err == nil {
+		t.Fatal("a file that is not there was rewritten")
+	}
+
+	disk.Seed("/repo/commits.md", []byte("# Commits\n"), 0o644)
+	boom := errors.New("that file, no")
+	disk.Fail("/repo/commits.md", boom)
+	if err := rewriteFile(disk, "/repo/commits.md", same); !errors.Is(err, boom) {
+		t.Errorf("a file that cannot be read was rewritten: %v", err)
 	}
 }

@@ -6,13 +6,11 @@ package kitfetch
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-)
 
-// GitRunner executes one git invocation in a directory and returns its
-// stdout.
-type GitRunner func(dir string, args ...string) (string, error)
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
+)
 
 // Fetched is a clone on disk: the template directory to read from, and
 // the cleanup that removes the whole checkout.
@@ -24,12 +22,12 @@ type Fetched struct {
 // Fetch clones source at tag, shallowly, and verifies it is a WritRun
 // repository — a clone carrying no `template/` is something else, and
 // saying so here beats a copy loop finding nothing to do.
-func Fetch(tag, source string, git GitRunner) (*Fetched, error) {
-	tmp, err := os.MkdirTemp("", "writrun-kit-")
+func Fetch(files vfs.FS, tag, source string, git gitx.Runner) (*Fetched, error) {
+	tmp, err := files.MkdirTemp("", "writrun-kit-")
 	if err != nil {
 		return nil, err
 	}
-	cleanup := func() { os.RemoveAll(tmp) }
+	cleanup := func() { _ = files.RemoveAll(tmp) }
 
 	clone := filepath.Join(tmp, "writrun")
 	if _, err := git("", "clone", "--depth", "1", "--branch", tag, source, clone); err != nil {
@@ -37,7 +35,7 @@ func Fetch(tag, source string, git GitRunner) (*Fetched, error) {
 		return nil, fmt.Errorf("fetching WritRun %s from %s failed — nothing was written: %w", tag, source, err)
 	}
 	template := filepath.Join(clone, "template")
-	if _, err := os.Stat(template); err != nil {
+	if _, err := files.Stat(template); err != nil {
 		cleanup()
 		return nil, fmt.Errorf("%s carries no template/ at %s — not a WritRun repository", source, tag)
 	}

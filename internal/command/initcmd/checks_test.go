@@ -4,12 +4,15 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // fakeDeps is the checks' wiring with every external faked: PATH has
 // everything, and gh answers from a script of canned replies.
 func fakeDeps(gh map[string]string, ghErr map[string]error) Deps {
 	return Deps{
+		Files:    vfs.OS{},
 		LookPath: func(name string) (string, error) { return "/usr/bin/" + name, nil },
 		Gh: func(args ...string) (string, error) {
 			key := strings.Join(args, " ")

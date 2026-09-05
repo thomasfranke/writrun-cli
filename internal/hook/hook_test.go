@@ -5,20 +5,22 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestInspectRecognisesOnlyTheKitsOwnHook(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "commit-msg")
 
-	if state, err := Inspect(path); err != nil || state != Absent {
+	if state, err := Inspect(vfs.OS{}, path); err != nil || state != Absent {
 		t.Errorf("nothing installed: state = %v, err = %v; want Absent", state, err)
 	}
 
-	if err := Install(path); err != nil {
+	if err := Install(vfs.OS{}, path); err != nil {
 		t.Fatalf("Install: %v", err)
 	}
-	if state, err := Inspect(path); err != nil || state != Ours {
+	if state, err := Inspect(vfs.OS{}, path); err != nil || state != Ours {
 		t.Errorf("the hook Install wrote: state = %v, err = %v; want Ours", state, err)
 	}
 
@@ -26,21 +28,21 @@ func TestInspectRecognisesOnlyTheKitsOwnHook(t *testing.T) {
 	if err := os.WriteFile(path, []byte(Script+"# edited\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if state, err := Inspect(path); err != nil || state != Foreign {
+	if state, err := Inspect(vfs.OS{}, path); err != nil || state != Foreign {
 		t.Errorf("an edited hook: state = %v, err = %v; want Foreign", state, err)
 	}
 
 	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if state, err := Inspect(path); err != nil || state != Foreign {
+	if state, err := Inspect(vfs.OS{}, path); err != nil || state != Foreign {
 		t.Errorf("somebody else's hook: state = %v, err = %v; want Foreign", state, err)
 	}
 }
 
 func TestInstallCreatesTheDirectoryAndTheModeBit(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "hooks", "commit-msg")
-	if err := Install(path); err != nil {
+	if err := Install(vfs.OS{}, path); err != nil {
 		t.Fatalf("Install: %v", err)
 	}
 	info, err := os.Stat(path)
@@ -54,13 +56,13 @@ func TestInstallCreatesTheDirectoryAndTheModeBit(t *testing.T) {
 
 func TestRefuseForeignNamesThePath(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "commit-msg")
-	if err := RefuseForeign(path); err != nil {
+	if err := RefuseForeign(vfs.OS{}, path); err != nil {
 		t.Fatalf("an absent hook was refused: %v", err)
 	}
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	err := RefuseForeign(path)
+	err := RefuseForeign(vfs.OS{}, path)
 	if err == nil {
 		t.Fatal("an existing hook was not refused")
 	}

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestExtractVocabularyReadsTheHistory(t *testing.T) {
@@ -16,7 +18,7 @@ func TestExtractVocabularyReadsTheHistory(t *testing.T) {
 		"feat(cli): add another",
 		"not a conventional subject",
 	)
-	v := extractVocabulary(target, gitx.Run)
+	v := extractVocabulary(vfs.OS{}, target, gitx.Run)
 	if got, want := v.Types, []string{"feat", "fix"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("types = %v, want %v (frequency first)", got, want)
 	}
@@ -31,7 +33,7 @@ func TestExtractVocabularyReadsTheHistory(t *testing.T) {
 func TestExtractVocabularyReadsTheContributingGuide(t *testing.T) {
 	target := makeTarget(t, "plain subject")
 	write(t, target, "CONTRIBUTING.md", "Use `build(deps): bump things` and `test: cover it`.\n")
-	v := extractVocabulary(target, gitx.Run)
+	v := extractVocabulary(vfs.OS{}, target, gitx.Run)
 	if got, want := v.Types, []string{"build", "test"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("types = %v, want %v", got, want)
 	}
@@ -43,7 +45,7 @@ func TestExtractVocabularyReadsTheContributingGuide(t *testing.T) {
 func TestExtractVocabularyMergesBothSources(t *testing.T) {
 	target := makeTarget(t, "feat: begin")
 	write(t, target, "docs/CONTRIBUTING.md", "Subjects look like `fix(core): mend`.\n")
-	v := extractVocabulary(target, gitx.Run)
+	v := extractVocabulary(vfs.OS{}, target, gitx.Run)
 	if len(v.Types) != 2 {
 		t.Errorf("types = %v, want feat and fix", v.Types)
 	}
@@ -54,7 +56,7 @@ func TestExtractVocabularyMergesBothSources(t *testing.T) {
 
 func TestExtractVocabularyWithNeitherSourceIsEmpty(t *testing.T) {
 	target := makeTarget(t, "initial import", "more work")
-	v := extractVocabulary(target, gitx.Run)
+	v := extractVocabulary(vfs.OS{}, target, gitx.Run)
 	if len(v.Types) != 0 || v.Source != "" {
 		t.Errorf("vocabulary = %+v, want the zero value for shipped defaults", v)
 	}
@@ -73,7 +75,7 @@ func applyTestKit(t *testing.T) string {
 func TestApplyVocabularyRewritesBothHalves(t *testing.T) {
 	root := applyTestKit(t)
 	v := vocabulary{Types: []string{"feat", "fix"}, Scopes: []string{"api"}, Source: "the commit history"}
-	if err := applyVocabulary(root, v); err != nil {
+	if err := applyVocabulary(vfs.OS{}, root, v); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
 	commits := read(t, root, ".writrun/conventions/commits.md")
@@ -91,7 +93,7 @@ func TestApplyVocabularyRewritesBothHalves(t *testing.T) {
 
 func TestApplyVocabularyKeepsShippedScopesWhenNoneObserved(t *testing.T) {
 	root := applyTestKit(t)
-	if err := applyVocabulary(root, vocabulary{Types: []string{"fix"}}); err != nil {
+	if err := applyVocabulary(vfs.OS{}, root, vocabulary{Types: []string{"fix"}}); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
 	observance := read(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh")
@@ -107,7 +109,7 @@ func TestApplyVocabularyKeepsShippedScopesWhenNoneObserved(t *testing.T) {
 func TestApplyVocabularyEmptyChangesNothing(t *testing.T) {
 	root := applyTestKit(t)
 	before := read(t, root, ".writrun/conventions/commits.md")
-	if err := applyVocabulary(root, vocabulary{}); err != nil {
+	if err := applyVocabulary(vfs.OS{}, root, vocabulary{}); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
 	if read(t, root, ".writrun/conventions/commits.md") != before {
@@ -127,7 +129,7 @@ func TestReplaceBulletSwallowsContinuationLines(t *testing.T) {
 func TestApplyVocabularyRespellsTheExample(t *testing.T) {
 	root := applyTestKit(t)
 	v := vocabulary{Types: []string{"feat", "fix"}, Scopes: []string{"api"}, Source: "the commit history"}
-	if err := applyVocabulary(root, v); err != nil {
+	if err := applyVocabulary(vfs.OS{}, root, v); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
 	commits := read(t, root, ".writrun/conventions/commits.md")
@@ -141,7 +143,7 @@ func TestApplyVocabularyRespellsTheExample(t *testing.T) {
 
 func TestApplyVocabularyExampleKeepsTheShippedScope(t *testing.T) {
 	root := applyTestKit(t)
-	if err := applyVocabulary(root, vocabulary{Types: []string{"fix"}}); err != nil {
+	if err := applyVocabulary(vfs.OS{}, root, vocabulary{Types: []string{"fix"}}); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
 	commits := read(t, root, ".writrun/conventions/commits.md")

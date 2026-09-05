@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -12,6 +11,9 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 // agentsAction is what the plan decided about AGENTS.md.
@@ -34,6 +36,7 @@ type copyStep struct {
 // adoption is the whole plan, computed before anything is written and
 // shown before the confirmation (spec-0002).
 type adoption struct {
+	disk     vfs.FS
 	root     string
 	template string
 	tag      string
@@ -57,11 +60,11 @@ var ownedSkeletons = map[string]bool{
 
 // plan walks the fetched template and decides every write without
 // performing one.
-func plan(root, template, tag, source string, stage int, hookAt string, git gitRunner) (*adoption, error) {
-	a := &adoption{root: root, template: template, tag: tag, source: source, stage: stage, hookPath: hookAt}
+func plan(disk vfs.FS, root, template, tag, source string, stage int, hookAt string, git gitx.Runner) (*adoption, error) {
+	a := &adoption{disk: disk, root: root, template: template, tag: tag, source: source, stage: stage, hookPath: hookAt}
 
 	sawAgents := false
-	err := filepath.WalkDir(template, func(path string, entry fs.DirEntry, err error) error {
+	err := disk.WalkDir(template, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -78,10 +81,10 @@ func plan(root, template, tag, source string, stage int, hookAt string, git gitR
 		}
 		if rel == "AGENTS.md" {
 			sawAgents = true
-			a.agents = agentsDecision(filepath.Join(root, "AGENTS.md"))
+			a.agents = agentsDecision(disk, filepath.Join(root, "AGENTS.md"))
 			return nil
 		}
-		if _, err := os.Stat(filepath.Join(root, rel)); err == nil {
+		if _, err := disk.Stat(filepath.Join(root, rel)); err == nil {
 			// The project's file always wins — an existing one is
 			// never overwritten (product/rules.md), and the two named
 			// skeletons are the expected case of it.
@@ -100,12 +103,12 @@ func plan(root, template, tag, source string, stage int, hookAt string, git gitR
 		return nil, fmt.Errorf("%s carries no template/AGENTS.md at %s — not a WritRun repository", source, tag)
 	}
 
-	a.vocab = extractVocabulary(root, git)
+	a.vocab = extractVocabulary(disk, root, git)
 	return a, nil
 }
 
-func agentsDecision(path string) agentsAction {
-	content, err := os.ReadFile(path)
+func agentsDecision(disk vfs.FS, path string) agentsAction {
+	content, err := disk.ReadFile(path)
 	if err != nil {
 		return agentsSkeleton
 	}
@@ -207,14 +210,14 @@ var stageLineRE = regexp.MustCompile(`"stage":\s*\d+`)
 func (a *adoption) apply() error {
 	for _, c := range a.copies {
 		dst := filepath.Join(a.root, c.rel)
-		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		if err := a.disk.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return fmt.Errorf("copying %s: %w", c.rel, err)
 		}
-		content, err := os.ReadFile(c.src)
+		content, err := a.disk.ReadFile(c.src)
 		if err != nil {
 			return fmt.Errorf("copying %s: %w", c.rel, err)
 		}
-		if err := os.WriteFile(dst, content, c.mode.Perm()); err != nil {
+		if err := a.disk.WriteFile(dst, content, c.mode.Perm()); err != nil {
 			return fmt.Errorf("copying %s: %w", c.rel, err)
 		}
 	}
@@ -222,7 +225,7 @@ func (a *adoption) apply() error {
 	// The chosen stage lands in the copied settings by targeted
 	// replacement — the rest of the file stays byte-for-byte the
 	// shipped default, which is the adopter's to edit next.
-	if err := rewriteFile(filepath.Join(a.root, ".writrun", "settings.json"), func(s string) (string, error) {
+	if err := rewriteFile(a.disk, filepath.Join(a.root, ".writrun", "settings.json"), func(s string) (string, error) {
 		// A miss here is silent: ReplaceAllString hands back the input
 		// unchanged, and the run would report a stage the file does not
 		// record.
@@ -236,38 +239,38 @@ func (a *adoption) apply() error {
 
 	// The tag is recorded from what was actually fetched, never
 	// trusted from the clone's own file (spec-0002).
-	if err := os.WriteFile(filepath.Join(a.root, ".writrun", "VERSION"), []byte(a.tag+"\n"), 0o644); err != nil {
+	if err := a.disk.WriteFile(filepath.Join(a.root, ".writrun", "VERSION"), []byte(a.tag+"\n"), 0o644); err != nil {
 		return fmt.Errorf("recording the tag: %w", err)
 	}
 
 	if err := a.applyAgents(); err != nil {
 		return err
 	}
-	if err := applyVocabulary(a.root, a.vocab); err != nil {
+	if err := applyVocabulary(a.disk, a.root, a.vocab); err != nil {
 		return err
 	}
-	return hook.Install(a.hookPath)
+	return hook.Install(a.disk, a.hookPath)
 }
 
 func (a *adoption) applyAgents() error {
-	templateAgents, err := os.ReadFile(filepath.Join(a.template, "AGENTS.md"))
+	templateAgents, err := a.disk.ReadFile(filepath.Join(a.template, "AGENTS.md"))
 	if err != nil {
 		return fmt.Errorf("reading the template's AGENTS.md: %w", err)
 	}
 	dst := filepath.Join(a.root, "AGENTS.md")
 	switch a.agents {
 	case agentsSkeleton:
-		return os.WriteFile(dst, templateAgents, 0o644)
+		return a.disk.WriteFile(dst, templateAgents, 0o644)
 	case agentsGraft:
 		section, err := fence.Section(templateAgents)
 		if err != nil {
 			return err
 		}
-		existing, err := os.ReadFile(dst)
+		existing, err := a.disk.ReadFile(dst)
 		if err != nil {
 			return fmt.Errorf("grafting AGENTS.md: %w", err)
 		}
-		return os.WriteFile(dst, fence.Graft(existing, section), 0o644)
+		return a.disk.WriteFile(dst, fence.Graft(existing, section), 0o644)
 	}
 	return nil
 }

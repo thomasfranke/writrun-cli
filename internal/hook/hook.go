@@ -6,15 +6,15 @@ package hook
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"strings"
-)
 
-// GitRunner executes one git invocation in a directory and returns its
-// stdout.
-type GitRunner func(dir string, args ...string) (string, error)
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
+)
 
 // Script is the commit-msg hook init installs. The vocabulary is
 // read from the kit's check_observance.sh at commit time, not baked in
@@ -66,7 +66,7 @@ exit 0
 
 // Path resolves where the commit-msg hook lives, through git so a
 // worktree's redirected hooks directory is the one answered.
-func Path(root string, git GitRunner) (string, error) {
+func Path(root string, git gitx.Runner) (string, error) {
 	out, err := git(root, "rev-parse", "--git-path", "hooks/commit-msg")
 	if err != nil {
 		return "", fmt.Errorf("resolving the hooks directory: %w", err)
@@ -81,8 +81,8 @@ func Path(root string, git GitRunner) (string, error) {
 // RefuseForeign refuses where a commit-msg hook already exists:
 // whatever installed it owns it, and overwriting would trade one
 // project's convention for another's silently (spec-0002, edge cases).
-func RefuseForeign(path string) error {
-	if _, err := os.Stat(path); err == nil {
+func RefuseForeign(files vfs.FS, path string) error {
+	if _, err := files.Stat(path); err == nil {
 		return fmt.Errorf("a commit-msg hook is already installed at %s — writrun init refuses to overwrite it; move it aside and rerun", path)
 	}
 	return nil
@@ -90,11 +90,11 @@ func RefuseForeign(path string) error {
 
 // Install writes the hook executable. The directory may not exist yet
 // in a repository that never had a hook installed.
-func Install(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+func Install(files vfs.FS, path string) error {
+	if err := files.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("installing the commit-msg hook: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(Script), 0o755); err != nil {
+	if err := files.WriteFile(path, []byte(Script), 0o755); err != nil {
 		return fmt.Errorf("installing the commit-msg hook: %w", err)
 	}
 	return nil
@@ -116,9 +116,9 @@ const (
 // Inspect reports whether the hook on disk is the one Install writes.
 // Anything that is not byte-identical is Foreign — a hook a project
 // edited is a hook a project owns.
-func Inspect(path string) (State, error) {
-	content, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+func Inspect(files vfs.FS, path string) (State, error) {
+	content, err := files.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
 		return Absent, nil
 	}
 	if err != nil {

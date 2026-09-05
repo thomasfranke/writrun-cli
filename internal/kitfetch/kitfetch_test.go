@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 const tag = "v9.9.9"
@@ -43,7 +45,7 @@ func makeRepo(t *testing.T, withTemplate bool) string {
 }
 
 func TestFetchReturnsTheTemplateAndCleansUp(t *testing.T) {
-	got, err := Fetch(tag, makeRepo(t, true), gitx.Run)
+	got, err := Fetch(vfs.OS{}, tag, makeRepo(t, true), gitx.Run)
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
@@ -57,7 +59,7 @@ func TestFetchReturnsTheTemplateAndCleansUp(t *testing.T) {
 }
 
 func TestACloneWithNoTemplateIsNotAWritRunRepository(t *testing.T) {
-	_, err := Fetch(tag, makeRepo(t, false), gitx.Run)
+	_, err := Fetch(vfs.OS{}, tag, makeRepo(t, false), gitx.Run)
 	if err == nil {
 		t.Fatal("a repository with no template/ was accepted")
 	}
@@ -67,7 +69,7 @@ func TestACloneWithNoTemplateIsNotAWritRunRepository(t *testing.T) {
 }
 
 func TestAnUnreachableSourceWritesNothing(t *testing.T) {
-	_, err := Fetch(tag, filepath.Join(t.TempDir(), "not-a-repository"), gitx.Run)
+	_, err := Fetch(vfs.OS{}, tag, filepath.Join(t.TempDir(), "not-a-repository"), gitx.Run)
 	if err == nil {
 		t.Fatal("an unreachable source was accepted")
 	}
@@ -77,7 +79,7 @@ func TestAnUnreachableSourceWritesNothing(t *testing.T) {
 }
 
 func TestATagThatDoesNotExistIsAFailure(t *testing.T) {
-	if _, err := Fetch("v0.0.0", makeRepo(t, true), gitx.Run); err == nil {
+	if _, err := Fetch(vfs.OS{}, "v0.0.0", makeRepo(t, true), gitx.Run); err == nil {
 		t.Fatal("a tag that does not exist was accepted")
 	}
 }
@@ -86,7 +88,7 @@ func TestNowhereToWorkIsReportedBeforeTheClone(t *testing.T) {
 	// The checkout goes outside the repository, so a temp directory
 	// that cannot be made is the first thing that can fail.
 	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "no-such-place"))
-	if _, err := Fetch(tag, makeRepo(t, true), gitx.Run); err == nil {
+	if _, err := Fetch(vfs.OS{}, tag, makeRepo(t, true), gitx.Run); err == nil {
 		t.Fatal("a fetch with nowhere to work succeeded")
 	}
 }
