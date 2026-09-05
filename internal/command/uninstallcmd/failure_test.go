@@ -140,3 +140,60 @@ func TestApplyReportsAHookItCouldNotRemove(t *testing.T) {
 		t.Fatal("removing a hook under an unwritable directory succeeded")
 	}
 }
+
+func TestAnUnknownFlagIsRefused(t *testing.T) {
+	root := makeAdopted(t)
+	if _, err := runUninstall(t, root, "--nope"); err == nil {
+		t.Fatal("an unknown flag was accepted")
+	}
+}
+
+func TestAKitDirectoryAlreadyGoneIsNamed(t *testing.T) {
+	root := makeAdopted(t)
+	if err := os.RemoveAll(filepath.Join(root, ".writrun")); err != nil {
+		t.Fatal(err)
+	}
+	r, err := plan(root, filepath.Join(root, ".git", "hooks", "commit-msg"))
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	var named bool
+	for _, g := range r.gone {
+		if g == ".writrun" {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("a kit directory already removed was not named: %v", r.gone)
+	}
+	if len(r.dirs) != 0 {
+		t.Errorf("it is also in the removal set: %v", r.dirs)
+	}
+}
+
+func TestAHookThatCannotBeReadIsAFault(t *testing.T) {
+	root := makeAdopted(t)
+	// A directory where the hook should be: not ours, not foreign, not
+	// absent — a fault the plan may not swallow.
+	hooks := filepath.Join(root, "hooks")
+	if err := os.MkdirAll(filepath.Join(hooks, "commit-msg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := plan(root, filepath.Join(hooks, "commit-msg")); err == nil {
+		t.Error("a directory where the hook should be was inspected as a hook")
+	}
+}
+
+func TestARemovalThatFailedHalfwaySaysSo(t *testing.T) {
+	skipAsRoot(t)
+	root := makeAdopted(t)
+	readOnly(t, root)
+
+	out, err := runUninstall(t, root)
+	if err == nil {
+		t.Fatalf("a removal that could not write succeeded:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), "the removal is partial") {
+		t.Errorf("the error does not say what state the tree is in: %v", err)
+	}
+}

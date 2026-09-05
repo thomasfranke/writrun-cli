@@ -38,11 +38,11 @@ func TestAFailureThatSpokeOnStdoutCarriesThatToo(t *testing.T) {
 	// A shell alias is the one way to get git to fail *after* writing
 	// to stdout, which is the branch where both streams are joined.
 	dir := t.TempDir()
-	out, err := Run(dir, "-c", "alias.loud=!echo the reason; exit 3", "loud")
+	out, err := Run(dir, "-c", "alias.loud=!echo $((20+22)); exit 3", "loud")
 	if err == nil {
 		t.Fatalf("the alias succeeded: %q", out)
 	}
-	if !strings.Contains(err.Error(), "the reason") {
+	if !strings.Contains(err.Error(), "42") {
 		t.Errorf("what git wrote on stdout did not reach the error: %v", err)
 	}
 }
@@ -56,5 +56,25 @@ func TestAFailureThatSaidNothingStillNamesItself(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "alias.quiet") {
 		t.Errorf("the error does not name the invocation: %v", err)
+	}
+}
+
+func TestAFailureJoinsBothStreams(t *testing.T) {
+	// stderr first, then stdout: git puts the reason on one and the
+	// detail on the other, and both belong in the refusal.
+	// The markers are computed by the shell so that neither appears in
+	// the command line itself — the invocation is echoed into the
+	// error, and a literal marker there would be found first.
+	const onStdout, onStderr = "42", "100"
+	_, err := Run(t.TempDir(), "-c", "alias.both=!echo $((20+22)); echo $((50+50)) >&2; exit 3", "both")
+	if err == nil {
+		t.Fatal("the alias succeeded")
+	}
+	got := err.Error()
+	if !strings.Contains(got, onStderr) || !strings.Contains(got, onStdout) {
+		t.Errorf("both streams did not reach the error: %v", err)
+	}
+	if strings.Index(got, onStderr) > strings.Index(got, onStdout) {
+		t.Errorf("stdout came before stderr: %v", err)
 	}
 }
