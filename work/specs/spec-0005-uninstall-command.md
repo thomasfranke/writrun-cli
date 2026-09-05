@@ -1,7 +1,7 @@
 ---
 id: spec-0005
 task_ref: task-0005
-status: approved
+status: implemented
 created: 2026-09-03T22:30:37Z
 ---
 
@@ -55,4 +55,21 @@ the removal set gone.
 
 ## Outcome
 
-_(fill after execution)_
+`writrun uninstall` ships in `internal/command/uninstallcmd/`. The
+removal set is `internal/kitpaths`, the same inventory update refreshes
+from; the fenced section is cut by `internal/fence.Remove`, which gives
+back the blank line the graft added, so a graft followed by a removal
+is a byte-for-byte round trip.
+
+The hook moved to `internal/hook` so that removing it is a recognition
+rather than a guess: `Inspect` reports `Ours` only on a byte-identical
+match with the script init writes, and anything else is `Foreign` and
+left standing with its own line in the shown plan. A hook a project
+edited is a hook a project owns.
+
+Verified by `tests/integration/uninstall/` — five cases: the full
+removal with the queue and a project chapter asserted byte-identical
+and AGENTS.md restored to its pre-adoption bytes, the foreign hook left
+behind, content surviving on both sides of the fence, the bare skeleton
+removed whole, and the refusal where `.writrun/` was never installed.
+`make tests` exits 0.

@@ -6,33 +6,36 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/hook"
 )
 
 // installTestHook adopts just enough of a repository for the hook to
 // validate against: the observance vocabulary and the hook itself.
-func installTestHook(t *testing.T) (root, hook string) {
+func installTestHook(t *testing.T) (root, hookAt string) {
 	t.Helper()
 	root = makeTarget(t)
 	write(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
-	hook, err := hookPath(root, ExecGit)
+	hookAt, err := hook.Path(root, hook.GitRunner(gitx.Run))
 	if err != nil {
-		t.Fatalf("hookPath = %v", err)
+		t.Fatalf("hook.Path = %v", err)
 	}
-	if err := installHook(hook); err != nil {
-		t.Fatalf("installHook = %v", err)
+	if err := hook.Install(hookAt); err != nil {
+		t.Fatalf("hook.Install = %v", err)
 	}
-	return root, hook
+	return root, hookAt
 }
 
 // runHook executes the installed hook against one message, the way git
 // would, and returns its verdict and output.
-func runHook(t *testing.T, root, hook, message string) (int, string) {
+func runHook(t *testing.T, root, hookAt, message string) (int, string) {
 	t.Helper()
 	msg := filepath.Join(t.TempDir(), "COMMIT_EDITMSG")
 	if err := os.WriteFile(msg, []byte(message), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("bash", hook, msg)
+	cmd := exec.Command("bash", hookAt, msg)
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -46,7 +49,7 @@ func runHook(t *testing.T, root, hook, message string) (int, string) {
 }
 
 func TestHookVerdicts(t *testing.T) {
-	root, hook := installTestHook(t)
+	root, hookAt := installTestHook(t)
 	cases := []struct {
 		name    string
 		message string
@@ -64,7 +67,7 @@ func TestHookVerdicts(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			code, out := runHook(t, root, hook, tc.message)
+			code, out := runHook(t, root, hookAt, tc.message)
 			if code != tc.code {
 				t.Errorf("exit = %d, want %d; output:\n%s", code, tc.code, out)
 			}
@@ -76,31 +79,31 @@ func TestHookVerdicts(t *testing.T) {
 }
 
 func TestHookOutlivingTheKitBlocksNothing(t *testing.T) {
-	root, hook := installTestHook(t)
+	root, hookAt := installTestHook(t)
 	if err := os.RemoveAll(filepath.Join(root, ".writrun")); err != nil {
 		t.Fatal(err)
 	}
-	if code, out := runHook(t, root, hook, "anything at all\n"); code != 0 {
+	if code, out := runHook(t, root, hookAt, "anything at all\n"); code != 0 {
 		t.Errorf("exit = %d with the kit gone, want 0; output:\n%s", code, out)
 	}
 }
 
-func TestCheckNoForeignHookRefusesAndNames(t *testing.T) {
+func TestRefuseForeignHookRefusesAndNames(t *testing.T) {
 	root := makeTarget(t)
-	hook, err := hookPath(root, ExecGit)
+	hookAt, err := hook.Path(root, hook.GitRunner(gitx.Run))
 	if err != nil {
-		t.Fatalf("hookPath = %v", err)
+		t.Fatalf("hook.Path = %v", err)
 	}
-	if err := checkNoForeignHook(hook); err != nil {
+	if err := hook.RefuseForeign(hookAt); err != nil {
 		t.Fatalf("an absent hook was refused: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(hook), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(hookAt), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(hookAt, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	err = checkNoForeignHook(hook)
+	err = hook.RefuseForeign(hookAt)
 	if err == nil {
 		t.Fatal("an existing hook was not refused")
 	}

@@ -2,9 +2,11 @@
 # them. CI calls these targets too (tests.yml, release-readiness.yml), so
 # renaming one is a workflow change.
 
-.PHONY: tests test test-unit test-integration
+.PHONY: tests test test-unit test-integration cover
 
-# Everything — every tier: Go unit tests, then the bash suites.
+# Everything — every tier: Go unit tests, then the bash suites. The
+# coverage gate is not here: it lives in CI (technical/testing/tiers.md).
+# `make cover` is how a session reads the percentage before pushing.
 tests:
 	go test ./...
 	bash tests/run.sh
@@ -15,6 +17,13 @@ test: tests
 # unit is Go, table-driven, beside the code (technical/testing/tiers.md).
 test-unit:
 	go test ./...
+
+# The percentage and the floor, printed — the same script CI runs, so a
+# session can read before pushing what the pipeline will read after.
+# `make cover 90` raises the floor for one run; the pipeline's floor is
+# the script's default.
+cover:
+	@bash scripts/coverage.sh $(filter-out cover,$(MAKECMDGOALS))
 
 # WRITRUN_BIN_DIR lets the CLI cases share one compiled binary
 # (tests/cli_lib.sh) instead of relinking per case file.

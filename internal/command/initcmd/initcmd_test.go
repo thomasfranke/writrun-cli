@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 // runInit drives the whole command against a target repository, the
@@ -16,7 +18,7 @@ import (
 func runInit(t *testing.T, target string, d Deps, term *command.FakeTerminal, yes bool, args ...string) (error, string) {
 	t.Helper()
 	if d.Git == nil {
-		d.Git = ExecGit
+		d.Git = gitx.Run
 	}
 	if d.LookPath == nil {
 		d.LookPath = func(name string) (string, error) { return "/usr/bin/" + name, nil }

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 // testTag is the tag every test fixture pins; the tests' Deps name it
@@ -16,7 +18,7 @@ const testTag = "v9.9.9"
 func gitT(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	full := append([]string{"-c", "user.name=suite", "-c", "user.email=suite@test", "-c", "commit.gpgsign=false"}, args...)
-	out, err := ExecGit(dir, full...)
+	out, err := gitx.Run(dir, full...)
 	if err != nil {
 		t.Fatalf("git %s: %v", strings.Join(args, " "), err)
 	}

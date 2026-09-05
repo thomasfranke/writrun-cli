@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/fence"
 )
 
 // gap is one finding of the on-the-spot checks: which stage's
@@ -76,7 +78,7 @@ func checkFiles(root string) []gap {
 	switch {
 	case err != nil:
 		gaps = append(gaps, gap{1, "AGENTS.md — the agents' entry point is missing"})
-	case !strings.Contains(string(agents), markerBegin) || !strings.Contains(string(agents), markerEnd):
+	case !strings.Contains(string(agents), fence.Begin) || !strings.Contains(string(agents), fence.End):
 		gaps = append(gaps, gap{1, "AGENTS.md — the fenced writrun:begin/writrun:end markers are damaged"})
 	case strings.Contains(string(agents), todoPlaceholder):
 		gaps = append(gaps, gap{1, "AGENTS.md — TODOs remain; the four human gates must be answered, not left as placeholders"})
