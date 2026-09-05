@@ -8,12 +8,9 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
-
-// GitRunner executes one git invocation in a directory and returns its
-// stdout.
-type GitRunner func(dir string, args ...string) (string, error)
 
 // Fetched is a clone on disk: the template directory to read from, and
 // the cleanup that removes the whole checkout.
@@ -25,7 +22,7 @@ type Fetched struct {
 // Fetch clones source at tag, shallowly, and verifies it is a WritRun
 // repository — a clone carrying no `template/` is something else, and
 // saying so here beats a copy loop finding nothing to do.
-func Fetch(files vfs.FS, tag, source string, git GitRunner) (*Fetched, error) {
+func Fetch(files vfs.FS, tag, source string, git gitx.Runner) (*Fetched, error) {
 	tmp, err := files.MkdirTemp("", "writrun-kit-")
 	if err != nil {
 		return nil, err

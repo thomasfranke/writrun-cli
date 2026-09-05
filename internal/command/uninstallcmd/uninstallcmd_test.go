@@ -91,7 +91,7 @@ func makeAdopted(t *testing.T) string {
 
 func hookAt(t *testing.T, root string) string {
 	t.Helper()
-	p, err := hook.Path(root, hook.GitRunner(gitx.Run))
+	p, err := hook.Path(root, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path: %v", err)
 	}
@@ -109,7 +109,7 @@ func runUninstall(t *testing.T, root string, args ...string) (string, error) {
 		Adopted:  true,
 		Yes:      true,
 	}
-	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run), Files: vfs.OS{}}, args)
+	err := run(ctx, Deps{Git: gitx.Run, Files: vfs.OS{}}, args)
 	return out.String(), err
 }
 

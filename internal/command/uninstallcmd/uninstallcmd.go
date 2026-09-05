@@ -14,6 +14,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
@@ -23,7 +24,7 @@ import (
 type Deps struct {
 	// Git runs one git invocation — the hooks directory is git's to
 	// name, not a path this command may assume.
-	Git hook.GitRunner
+	Git gitx.Runner
 	// Files is the filesystem this command reads and writes through.
 	Files vfs.FS
 }

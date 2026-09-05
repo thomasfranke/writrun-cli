@@ -174,3 +174,74 @@ func TestTheOSImplementationSatisfiesThePort(t *testing.T) {
 	var _ FS = OS{}
 	var _ FS = NewFake()
 }
+
+func TestTheFakeDescribesItsEntriesTheWayTheRealOneDoes(t *testing.T) {
+	f := NewFake()
+	f.Seed("/repo/take.sh", []byte("echo take\n"), 0o755)
+	f.SeedDir("/repo/kit")
+
+	info, err := f.Stat("/repo/take.sh")
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if info.Name() != "take.sh" {
+		t.Errorf("Name = %q", info.Name())
+	}
+	if info.Size() != int64(len("echo take\n")) {
+		t.Errorf("Size = %d", info.Size())
+	}
+	if info.IsDir() {
+		t.Error("a file called itself a directory")
+	}
+	if !info.ModTime().IsZero() {
+		t.Errorf("ModTime = %v, want the zero time — the fake keeps no clock", info.ModTime())
+	}
+	if info.Sys() != nil {
+		t.Errorf("Sys = %v, want nil", info.Sys())
+	}
+
+	dirInfo, err := f.Stat("/repo/kit")
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if !dirInfo.IsDir() || !dirInfo.Mode().IsDir() {
+		t.Errorf("a directory did not describe itself as one: %v", dirInfo.Mode())
+	}
+
+	// The DirEntry a walk hands back reads from the same node, so a
+	// fake file cannot describe itself two ways.
+	seen := map[string]fs.DirEntry{}
+	if err := f.WalkDir("/repo", func(p string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		seen[filepath.Base(p)] = e
+		return nil
+	}); err != nil {
+		t.Fatalf("WalkDir: %v", err)
+	}
+
+	file := seen["take.sh"]
+	if file == nil {
+		t.Fatal("the walk did not reach the file")
+	}
+	if file.Name() != "take.sh" || file.IsDir() {
+		t.Errorf("the entry describes itself as %q, dir=%v", file.Name(), file.IsDir())
+	}
+	if file.Type().IsDir() {
+		t.Errorf("Type = %v, want a regular file", file.Type())
+	}
+	fromEntry, err := file.Info()
+	if err != nil {
+		t.Fatalf("Info: %v", err)
+	}
+	if fromEntry.Mode() != info.Mode() || fromEntry.Size() != info.Size() {
+		t.Errorf("Stat and DirEntry.Info disagree: %v/%d vs %v/%d",
+			info.Mode(), info.Size(), fromEntry.Mode(), fromEntry.Size())
+	}
+
+	dir := seen["kit"]
+	if dir == nil || !dir.IsDir() || !dir.Type().IsDir() {
+		t.Errorf("the walk did not describe the directory as one: %+v", dir)
+	}
+}

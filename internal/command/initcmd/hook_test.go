@@ -19,7 +19,7 @@ func installTestHook(t *testing.T) (root, hookAt string) {
 	t.Helper()
 	root = makeTarget(t)
 	write(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
-	hookAt, err := hook.Path(root, hook.GitRunner(gitx.Run))
+	hookAt, err := hook.Path(root, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}
@@ -92,7 +92,7 @@ func TestHookOutlivingTheKitBlocksNothing(t *testing.T) {
 
 func TestRefuseForeignHookRefusesAndNames(t *testing.T) {
 	root := makeTarget(t)
-	hookAt, err := hook.Path(root, hook.GitRunner(gitx.Run))
+	hookAt, err := hook.Path(root, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}

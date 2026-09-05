@@ -96,7 +96,7 @@ func TestRefuseForeignAsksThePort(t *testing.T) {
 }
 
 func TestPathReportsAGitThatCannotAnswer(t *testing.T) {
-	_, err := Path(t.TempDir(), GitRunner(gitx.Run))
+	_, err := Path(t.TempDir(), gitx.Run)
 	if err == nil {
 		t.Fatal("the hooks directory was resolved outside a repository")
 	}

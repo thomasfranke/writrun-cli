@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
@@ -21,10 +22,6 @@ import (
 
 // sourceDefault is the WritRun repository the kit is fetched from.
 const sourceDefault = "https://github.com/thomasfranke/writrun"
-
-// gitRunner executes one git invocation in a directory and returns its
-// stdout; gitx.Run is the production implementation.
-type gitRunner func(dir string, args ...string) (string, error)
 
 // Deps is the production wiring init needs beyond the frame's Ctx:
 // the pinned tag, the source to fetch it from, and the three externals
@@ -37,7 +34,7 @@ type Deps struct {
 	Source string
 	// Git runs one git invocation; Gh one gh invocation; LookPath is
 	// the PATH probe of the stage-0 checks.
-	Git      gitRunner
+	Git      gitx.Runner
 	Gh       func(args ...string) (string, error)
 	LookPath func(name string) (string, error)
 	// Files is the filesystem this command reads and writes through.
@@ -78,7 +75,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	} else if strings.TrimSpace(out) != "" {
 		return fmt.Errorf("the working tree is dirty — commit or stash first (`git stash -u`; untracked files count too), so the adoption is the only change")
 	}
-	hookAt, err := hook.Path(ctx.Root, hook.GitRunner(d.Git))
+	hookAt, err := hook.Path(ctx.Root, d.Git)
 	if err != nil {
 		return err
 	}
@@ -92,7 +89,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	var kit *kitfetch.Fetched
 	if err := ctx.Terminal.Spin("fetching WritRun "+d.Tag, func() error {
 		var fetchErr error
-		kit, fetchErr = kitfetch.Fetch(d.Files, d.Tag, d.Source, kitfetch.GitRunner(d.Git))
+		kit, fetchErr = kitfetch.Fetch(d.Files, d.Tag, d.Source, d.Git)
 		return fetchErr
 	}); err != nil {
 		return err

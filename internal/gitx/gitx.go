@@ -11,6 +11,11 @@ import (
 	"strings"
 )
 
+// Runner is one git invocation: the type every consumer names, so the
+// wiring hands Run over without converting between three identical
+// declarations of it.
+type Runner func(dir string, args ...string) (string, error)
+
 // Run executes one git invocation in dir and returns its stdout. A
 // failure carries git's own words — stderr first, then stdout.
 func Run(dir string, args ...string) (string, error) {

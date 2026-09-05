@@ -12,6 +12,8 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 // agentsAction is what the plan decided about AGENTS.md.
@@ -58,7 +60,7 @@ var ownedSkeletons = map[string]bool{
 
 // plan walks the fetched template and decides every write without
 // performing one.
-func plan(disk vfs.FS, root, template, tag, source string, stage int, hookAt string, git gitRunner) (*adoption, error) {
+func plan(disk vfs.FS, root, template, tag, source string, stage int, hookAt string, git gitx.Runner) (*adoption, error) {
 	a := &adoption{disk: disk, root: root, template: template, tag: tag, source: source, stage: stage, hookPath: hookAt}
 
 	sawAgents := false

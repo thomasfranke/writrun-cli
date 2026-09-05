@@ -14,6 +14,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -31,7 +32,7 @@ type Deps struct {
 	// canonical one.
 	Source string
 	// Git runs one git invocation.
-	Git kitfetch.GitRunner
+	Git gitx.Runner
 	// Files is the filesystem this command reads and writes through.
 	Files vfs.FS
 }

@@ -12,12 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
-
-// GitRunner executes one git invocation in a directory and returns its
-// stdout.
-type GitRunner func(dir string, args ...string) (string, error)
 
 // Script is the commit-msg hook init installs. The vocabulary is
 // read from the kit's check_observance.sh at commit time, not baked in
@@ -69,7 +66,7 @@ exit 0
 
 // Path resolves where the commit-msg hook lives, through git so a
 // worktree's redirected hooks directory is the one answered.
-func Path(root string, git GitRunner) (string, error) {
+func Path(root string, git gitx.Runner) (string, error) {
 	out, err := git(root, "rev-parse", "--git-path", "hooks/commit-msg")
 	if err != nil {
 		return "", fmt.Errorf("resolving the hooks directory: %w", err)

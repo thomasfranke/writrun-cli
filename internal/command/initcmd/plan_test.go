@@ -22,7 +22,7 @@ func planFixture(t *testing.T, target string, stage int) *adoption {
 	src := makeSource(t)
 	clone := filepath.Join(t.TempDir(), "writrun")
 	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", testTag, src, clone)
-	hookAt, err := hook.Path(target, hook.GitRunner(gitx.Run))
+	hookAt, err := hook.Path(target, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 // vocabulary is what extraction found: the commit types and scopes the
@@ -38,7 +40,7 @@ var guidePaths = []string{"CONTRIBUTING.md", filepath.Join(".github", "CONTRIBUT
 // commit history and its contributing guide — rather than imposing the
 // shipped defaults (product/adoption/init.md). A repository with
 // neither returns the zero vocabulary, and the plan says so.
-func extractVocabulary(disk vfs.FS, root string, git gitRunner) vocabulary {
+func extractVocabulary(disk vfs.FS, root string, git gitx.Runner) vocabulary {
 	types := map[string]int{}
 	scopes := map[string]int{}
 	var sources []string
