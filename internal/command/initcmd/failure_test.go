@@ -19,7 +19,7 @@ func TestNewDefaultsTheSourceToTheCanonicalRepository(t *testing.T) {
 	// wiring time; the fetch then fails on the network, not on an
 	// empty URL.
 	target := makeTarget(t)
-	err, _ := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil {
 		t.Skip("this machine reached the canonical repository")
 	}
@@ -30,7 +30,7 @@ func TestNewDefaultsTheSourceToTheCanonicalRepository(t *testing.T) {
 
 func TestAnUnknownFlagIsRefused(t *testing.T) {
 	target := makeTarget(t)
-	err, _ := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--nope")
+	_, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--nope")
 	if err == nil {
 		t.Fatal("an unknown flag was accepted")
 	}
@@ -40,7 +40,7 @@ func TestAWorkingTreeGitCannotReadStopsTheAdoption(t *testing.T) {
 	// Outside a repository there is no tree to read, and an adoption
 	// may not proceed without knowing whether one is dirty.
 	target := t.TempDir()
-	err, _ := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil {
 		t.Fatal("the adoption proceeded outside a repository")
 	}
@@ -147,7 +147,7 @@ func TestThePlanNamesWhatTheProjectAlreadyOwns(t *testing.T) {
 	gitT(t, target, "add", "-A")
 	gitT(t, target, "commit", "-q", "-m", "our docs")
 
-	err, out := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -167,7 +167,7 @@ func TestThePlanSaysWhichWayAgentsGoes(t *testing.T) {
 	write(t, target, "AGENTS.md", "# Ours\n\nRules we already had.\n")
 	gitT(t, target, "add", "-A")
 	gitT(t, target, "commit", "-q", "-m", "agents")
-	err, out := runInit(t, target, Deps{Tag: testTag, Source: source}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, target, Deps{Tag: testTag, Source: source}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -180,7 +180,7 @@ func TestThePlanSaysWhichWayAgentsGoes(t *testing.T) {
 	write(t, kept, "AGENTS.md", templateAgents)
 	gitT(t, kept, "add", "-A")
 	gitT(t, kept, "commit", "-q", "-m", "agents")
-	err, out = runInit(t, kept, Deps{Tag: testTag, Source: source}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err = runInit(t, kept, Deps{Tag: testTag, Source: source}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -194,7 +194,7 @@ func TestThePlanNamesTheExtractedVocabulary(t *testing.T) {
 	// reports each differently, because absence is no vote against the
 	// shipped list.
 	scoped := makeTarget(t, "feat(product): a thing", "fix(technical): another")
-	err, out := runInit(t, scoped, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, scoped, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -206,7 +206,7 @@ func TestThePlanNamesTheExtractedVocabulary(t *testing.T) {
 	}
 
 	bare := makeTarget(t, "feat: a thing", "fix: another")
-	err, out = runInit(t, bare, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err = runInit(t, bare, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -228,7 +228,7 @@ func TestAForeignHookStopsTheAdoptionBeforeTheNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err, _ := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil {
 		t.Fatal("an adoption over a foreign hook succeeded")
 	}

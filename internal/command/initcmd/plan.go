@@ -50,14 +50,6 @@ type adoption struct {
 	hookPath string
 }
 
-// ownedSkeletons are template files that are skeletons for documents
-// the methodology requires of the project — where a real one exists it
-// is the project's and stays (spec-0002).
-var ownedSkeletons = map[string]bool{
-	filepath.Join("docs", "product", "README.md"):   true,
-	filepath.Join("docs", "technical", "README.md"): true,
-}
-
 // plan walks the fetched template and decides every write without
 // performing one.
 func plan(disk vfs.FS, root, template, tag, source string, stage int, hookAt string, git gitx.Runner) (*adoption, error) {

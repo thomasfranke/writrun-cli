@@ -16,8 +16,8 @@ import (
 )
 
 // runInit drives the whole command against a target repository, the
-// terminal faked, and returns the error and what was printed.
-func runInit(t *testing.T, target string, d Deps, term *command.FakeTerminal, yes bool, args ...string) (error, string) {
+// terminal faked, and returns what was printed and the error.
+func runInit(t *testing.T, target string, d Deps, term *command.FakeTerminal, yes bool, args ...string) (string, error) {
 	t.Helper()
 	if d.Git == nil {
 		d.Git = gitx.Run
@@ -40,14 +40,15 @@ func runInit(t *testing.T, target string, d Deps, term *command.FakeTerminal, ye
 		Yes:      yes,
 	}
 	cmd := New(d)
-	return cmd.Run(ctx, args), out.String()
+	err := cmd.Run(ctx, args)
+	return out.String(), err
 }
 
 func TestInitAdoptsEndToEnd(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
 	term := &command.FakeTerminal{}
-	err, out := runInit(t, target, d, term, true, "--stage", "1")
+	out, err := runInit(t, target, d, term, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init = %v\n%s", err, out)
 	}
@@ -66,7 +67,7 @@ func TestInitDeclineLeavesTheRepositoryUntouched(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
 	term := &command.FakeTerminal{In: true, ConfirmAnswer: false}
-	err, out := runInit(t, target, d, term, false, "--stage", "1")
+	out, err := runInit(t, target, d, term, false, "--stage", "1")
 	if !errors.Is(err, command.ErrDeclined) {
 		t.Fatalf("init = %v, want ErrDeclined\n%s", err, out)
 	}
@@ -82,7 +83,7 @@ func TestInitStageIsArrowSelectedWithoutTheFlag(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
 	term := &command.FakeTerminal{In: true, SelectIndex: 1, ConfirmAnswer: true}
-	err, out := runInit(t, target, d, term, false)
+	out, err := runInit(t, target, d, term, false)
 	if err != nil {
 		t.Fatalf("init = %v\n%s", err, out)
 	}
@@ -97,7 +98,7 @@ func TestInitStageIsArrowSelectedWithoutTheFlag(t *testing.T) {
 func TestInitWithoutTerminalNamesTheAnsweringFlag(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true)
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true)
 	if err == nil || !strings.Contains(err.Error(), "--stage") {
 		t.Errorf("init = %v, want an abort naming --stage", err)
 	}
@@ -107,7 +108,7 @@ func TestInitRefusesADirtyTree(t *testing.T) {
 	target := makeTarget(t)
 	write(t, target, "uncommitted.txt", "dirt\n")
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil || !strings.Contains(err.Error(), "dirty") {
 		t.Errorf("init = %v, want the dirty-tree refusal", err)
 	}
@@ -120,7 +121,7 @@ func TestInitRefusesAForeignHook(t *testing.T) {
 	target := makeTarget(t)
 	write(t, target, ".git/hooks/commit-msg", "#!/bin/sh\nexit 0\n")
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil || !strings.Contains(err.Error(), "already installed") {
 		t.Errorf("init = %v, want the foreign-hook refusal", err)
 	}
@@ -129,7 +130,7 @@ func TestInitRefusesAForeignHook(t *testing.T) {
 func TestInitAbortsBeforeAnyWriteWithoutTheSource(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: filepath.Join(t.TempDir(), "nowhere")}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil || !strings.Contains(err.Error(), "nothing was written") {
 		t.Errorf("init = %v, want the fetch failure naming itself", err)
 	}
@@ -147,7 +148,7 @@ func TestInitRefusesASourceWithoutATemplate(t *testing.T) {
 	gitT(t, src, "commit", "-q", "-m", "x")
 	gitT(t, src, "tag", testTag)
 	d := Deps{Tag: testTag, Source: src}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil || !strings.Contains(err.Error(), "no template/") {
 		t.Errorf("init = %v, want the no-template refusal", err)
 	}
@@ -157,7 +158,7 @@ func TestInitRefusesABadStageValue(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
 	for _, bad := range []string{"0", "4", "two"} {
-		err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", bad)
+		_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", bad)
 		if err == nil || !strings.Contains(err.Error(), "--stage must be 1, 2 or 3") {
 			t.Errorf("--stage %s: err = %v, want the range refusal", bad, err)
 		}
@@ -167,7 +168,7 @@ func TestInitRefusesABadStageValue(t *testing.T) {
 func TestInitRefusesUnexpectedArguments(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "bogus")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "bogus")
 	if err == nil || !strings.Contains(err.Error(), "unexpected argument") {
 		t.Errorf("init = %v, want the argument refusal", err)
 	}
@@ -178,7 +179,7 @@ func TestInitNamesGapsAndStillCompletes(t *testing.T) {
 	// finds gaps — named, never blocking (spec-0002).
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, out := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init = %v, want completion despite gaps\n%s", err, out)
 	}
@@ -193,7 +194,7 @@ func TestInitNamesGapsAndStillCompletes(t *testing.T) {
 func TestInitSaysShippedDefaultsWhenNothingToExtract(t *testing.T) {
 	target := makeTarget(t, "just words", "more words")
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, out := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init = %v\n%s", err, out)
 	}
@@ -215,7 +216,7 @@ func TestInitRefusesATemplateWithoutAgents(t *testing.T) {
 
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Source: src}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil || !strings.Contains(err.Error(), "no template/AGENTS.md") {
 		t.Fatalf("init = %v, want the missing-skeleton refusal", err)
 	}
@@ -230,7 +231,7 @@ func TestInitDirtyTreeRefusalNamesTheRemedyThatClearsIt(t *testing.T) {
 	target := makeTarget(t)
 	write(t, target, "untracked.txt", "dirt\n")
 	d := Deps{Tag: testTag, Source: makeSource(t)}
-	err, _ := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil || !strings.Contains(err.Error(), "git stash -u") {
 		t.Errorf("init = %v, want the refusal naming `git stash -u`", err)
 	}

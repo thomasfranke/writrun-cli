@@ -228,5 +228,5 @@ type entry struct {
 
 func (e entry) Name() string               { return e.name }
 func (e entry) IsDir() bool                { return e.n.dir }
-func (e entry) Type() fs.FileMode          { return info{name: e.name, n: e.n}.Mode().Type() }
-func (e entry) Info() (fs.FileInfo, error) { return info{name: e.name, n: e.n}, nil }
+func (e entry) Type() fs.FileMode          { return info(e).Mode().Type() }
+func (e entry) Info() (fs.FileInfo, error) { return info(e), nil }
