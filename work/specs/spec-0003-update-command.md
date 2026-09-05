@@ -1,7 +1,7 @@
 ---
 id: spec-0003
 task_ref: task-0003
-status: approved
+status: implemented
 created: 2026-09-03T22:30:36Z
 ---
 
@@ -57,4 +57,26 @@ untouchable set byte-identical and the `yours` lines preserved.
 
 ## Outcome
 
-_(fill after execution)_
+`writrun update` ships in `internal/command/updatecmd/`. The refresh set
+is read from `internal/kitpaths`, the inventory both this command and
+uninstall share; the fenced section is rewritten by `internal/fence`,
+whose `Replace` carries every block a `yours` marker governs across —
+the marker sits before the gates table and after the deriving default,
+so a block is taken from whichever side of the marker holds one.
+
+Two behaviours the spec did not name, both refusals:
+
+- **A section carrying fewer `yours` markers than the document is
+  refused.** The steps say the marked lines survive; a tag that dropped
+  a marker would take the project's answer with it silently, which is
+  the one outcome the step forbids.
+- **A dirty tree is refused**, as init refuses one. A refresh
+  *overwrites*, so an uncommitted edit inside a kit-owned folder would
+  be gone with nothing to restore it from.
+
+Verified by `tests/integration/update/` — four cases over two real tags
+in the fixture source: the refresh with the untouchable set asserted
+byte-identical and both `yours` blocks preserved, the same-tag
+stand-down, the damaged fence, and the refused downgrade.
+`writrun-check-spec-deltas spec-0003,spec-0005` exits 0; `make tests`
+exits 0.
