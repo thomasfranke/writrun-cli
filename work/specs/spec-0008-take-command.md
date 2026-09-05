@@ -1,7 +1,7 @@
 ---
 id: spec-0008
 task_ref: task-0009
-status: approved
+status: implemented
 created: 2026-09-03T22:30:40Z
 ---
 
@@ -59,4 +59,35 @@ and a stubbed `gh`.
 
 ## Outcome
 
-_(fill after execution)_
+Shipped as specified. `writrun take` lives in
+`internal/command/takecmd/`: the task id is the argument or the
+lister's Available group arrow-selected, the title is `--title` or the
+one free-text question, and
+`.writrun/scripts/stage-2-pull-requests/take_task.sh` decides
+everything else. The four exit codes map as the steps say — 0 returns
+having added nothing to the script's report, 1 and 3 return the error
+carrying the script's own code so the frame passes it through
+unedited, 2 asks and reruns with `--confirm`.
+
+Three decisions the spec did not name:
+
+- **The frame gained the free-text question.** `Terminal.Input` and
+  `Ctx.AskInput` are the typed answer `product/rules.md` allows;
+  `--yes` does not answer it, because a value nobody wrote is not an
+  answer a flag can stand in for.
+- **`internal/kit` became a `Runner` function**, shaped like
+  `gitx.Runner`, with the streams as arguments: take shows the take
+  script's reporting and reads the lister's back for the selection, and
+  one port serves both.
+- **A confirmed rerun that exits 2 again is named**, not passed
+  through: it would leave the composition printed twice and the act
+  undone with nobody saying so.
+
+Verified by 21 unit tests over the faked runner and 20 assertions in
+`tests/integration/take/` — seven cases over the real `take_task.sh`, a
+bare origin and a stubbed `gh`, with `WRITRUN_PR_LIST` and
+`WRITRUN_PR_FILES` supplying the open pull requests, one case per exit
+code plus the in-flight and amendment refusals. `make tests` exits 0
+(55 case files passed, 0 failed); `make cover` exits 0 at 98.1% over
+`internal/`, `takecmd` at 97.6%;
+`writrun-check-spec-deltas spec-0008` exits 0.
