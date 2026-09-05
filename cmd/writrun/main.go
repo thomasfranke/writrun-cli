@@ -10,6 +10,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
+	"github.com/thomasfranke/writrun-cli/internal/command/uninstallcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/updatecmd"
 	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
@@ -71,6 +72,7 @@ func commands() []command.Command {
 			Source: source,
 			Git:    gitx.Run,
 		}),
+		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run}),
 	}
 }
 
