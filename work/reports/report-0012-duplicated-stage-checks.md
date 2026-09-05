@@ -1,10 +1,10 @@
 ---
 id: report-0012
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0019]
 doc_ref: null
 created: 2026-09-05T18:21:19Z
-triaged: null
+triaged: 2026-09-05T19:11:24Z
 ---
 
 # The stage-0 and stage-1 checks are written twice, in initcmd and in doctorcmd
@@ -22,3 +22,9 @@ doctor runs `check_front_matter.sh` and `check_settings.sh` where init
 runs neither, and doctor names the four human gates one by one where
 init tests `AGENTS.md` for the string `<!-- TODO`. The duplication was
 left standing because four tasks were in flight on the same packages.
+
+**Tracked by [[task-0019]], with [[report-0010]].** Both are the same
+kind of debt, taken for the same reason: five tasks were in flight on
+the same packages, so a shared helper each would have had to agree on
+before any could land was a coupling none of them could pay for. The
+task consolidates them now that all five have landed.
