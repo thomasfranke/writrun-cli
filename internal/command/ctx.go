@@ -53,6 +53,20 @@ func (c *Ctx) AskConfirm(question string) error {
 	return nil
 }
 
+// AskInput is the free-text flow: a flag answers it, a terminal types
+// it, and anything else aborts naming the flag that would have
+// answered. --yes does not answer it — a value nobody wrote is not an
+// answer a flag can stand in for.
+func (c *Ctx) AskInput(question string, preset string, flag string) (string, error) {
+	if preset != "" {
+		return preset, nil
+	}
+	if !c.Terminal.InteractiveIn() {
+		return "", fmt.Errorf("no terminal to ask %q — pass %s", question, flag)
+	}
+	return c.Terminal.Input(question)
+}
+
 // AskSelect is the selection flow: a preset answers it, a terminal
 // renders it, and anything else aborts naming the flag that would have
 // answered.
