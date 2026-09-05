@@ -209,3 +209,89 @@ func TestAnUnknownFlagIsRefused(t *testing.T) {
 		t.Fatal("an unknown flag was accepted")
 	}
 }
+
+func TestAKitDirectoryAlreadyGoneIsNamed(t *testing.T) {
+	// A kit somebody deleted by hand: what remains is removed, what was
+	// already gone is listed rather than reported as a failure
+	// (spec-0005, edge cases).
+	disk, root := adoptedFake(t)
+	if err := disk.RemoveAll(root + "/.writrun"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := plan(disk, root, root+"/.git/hooks/commit-msg")
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	var named bool
+	for _, g := range r.gone {
+		if g == ".writrun" {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("a kit directory already removed was not named: %v", r.gone)
+	}
+	if len(r.dirs) != 0 {
+		t.Errorf("it is also in the removal set: %v", r.dirs)
+	}
+}
+
+func TestAHookThatCannotBeReadStopsThePlan(t *testing.T) {
+	disk, root := adoptedFake(t)
+	hookAt := root + "/.git/hooks/commit-msg"
+	if err := hook.Install(disk, hookAt); err != nil {
+		t.Fatal(err)
+	}
+	boom := errors.New("the hook cannot be read")
+	disk.Fail(hookAt, boom)
+
+	if _, err := plan(disk, root, hookAt); !errors.Is(err, boom) {
+		t.Errorf("a hook that cannot be read was planned around: %v", err)
+	}
+}
+
+func TestARemovalThatFailedHalfwayNamesTheState(t *testing.T) {
+	// What the user is told when the tree is half-removed: rerun, and
+	// the command finishes what it started.
+	disk, root := adoptedFake(t)
+	// The plan reads it and finds it there; the removal is what fails.
+	disk.FailOp("removeall", root+"/.writrun", errors.New("no"))
+	var out strings.Builder
+	ctx := &command.Ctx{
+		Stdout: &out, Stderr: &out,
+		Terminal: &command.FakeTerminal{},
+		Root:     root, Adopted: true, Yes: true,
+	}
+	err := run(ctx, Deps{Git: func(string, ...string) (string, error) {
+		return root + "/.git/hooks/commit-msg", nil
+	}, Files: disk}, nil)
+	if err == nil {
+		t.Fatalf("a removal that could not write succeeded:\n%s", out.String())
+	}
+	if !strings.Contains(err.Error(), "the removal is partial") {
+		t.Errorf("the error does not say what state the tree is in: %v", err)
+	}
+	if !strings.Contains(err.Error(), "rerun writrun uninstall") {
+		t.Errorf("the error does not say how to finish it: %v", err)
+	}
+}
+
+func TestAPlanThatCannotBeMadeStopsTheRun(t *testing.T) {
+	disk, root := adoptedFake(t)
+	disk.Fail(root+"/AGENTS.md", errors.New("unreadable"))
+	var out strings.Builder
+	ctx := &command.Ctx{
+		Stdout: &out, Stderr: &out,
+		Terminal: &command.FakeTerminal{},
+		Root:     root, Adopted: true, Yes: true,
+	}
+	err := run(ctx, Deps{Git: func(string, ...string) (string, error) {
+		return root + "/.git/hooks/commit-msg", nil
+	}, Files: disk}, nil)
+	if err == nil {
+		t.Fatal("a plan that could not be made was applied")
+	}
+	if strings.Contains(err.Error(), "the removal is partial") {
+		t.Errorf("a failure before any write was reported as a partial removal: %v", err)
+	}
+}

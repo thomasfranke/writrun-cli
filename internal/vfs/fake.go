@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -34,6 +35,13 @@ func NewFake() *Fake {
 
 // Fail makes every call touching path return err, until Heal.
 func (f *Fake) Fail(path string, err error) { f.fails[clean(path)] = err }
+
+// FailOp fails one operation on one path and leaves the others alone —
+// "readable but not writable" is a real state, and a fake that could
+// only fail a path whole could not express it. The op names are the
+// port's methods, lowercased: read, write, stat, mkdir, remove,
+// removeall, walk, mkdirtemp.
+func (f *Fake) FailOp(op, path string, err error) { f.fails[op+" "+clean(path)] = err }
 
 // Heal undoes a Fail.
 func (f *Fake) Heal(path string) { delete(f.fails, clean(path)) }
@@ -77,6 +85,9 @@ func (f *Fake) seedDirs(dir string) {
 func clean(p string) string { return filepath.Clean(p) }
 
 func (f *Fake) failure(op, p string) error {
+	if err, there := f.fails[op+" "+p]; there {
+		return &fs.PathError{Op: op, Path: p, Err: err}
+	}
 	if err, there := f.fails[p]; there {
 		return &fs.PathError{Op: op, Path: p, Err: err}
 	}
@@ -186,21 +197,9 @@ func (f *Fake) MkdirTemp(dir, pattern string) (string, error) {
 		return "", err
 	}
 	f.tmpSeq++
-	p := clean(filepath.Join(base, strings.ReplaceAll(pattern, "*", "")+itoa(f.tmpSeq)))
+	p := clean(filepath.Join(base, strings.ReplaceAll(pattern, "*", "")+strconv.Itoa(f.tmpSeq)))
 	f.seedDirs(p)
 	return p, nil
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b []byte
-	for n > 0 {
-		b = append([]byte{byte('0' + n%10)}, b...)
-		n /= 10
-	}
-	return string(b)
 }
 
 // info and entry are the two shapes the port hands back; both read from

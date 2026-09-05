@@ -245,3 +245,31 @@ func TestTheFakeDescribesItsEntriesTheWayTheRealOneDoes(t *testing.T) {
 		t.Errorf("the walk did not describe the directory as one: %+v", dir)
 	}
 }
+
+func TestWalkDirHonoursSkipDir(t *testing.T) {
+	// The fake matches the real walker's contract here, so a caller
+	// that skips a subtree behaves the same against either.
+	f := NewFake()
+	f.Seed("/repo/keep/one.md", []byte("1"), 0o644)
+	f.Seed("/repo/skip/two.md", []byte("2"), 0o644)
+
+	var seen []string
+	err := f.WalkDir("/repo", func(p string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if e.IsDir() && filepath.Base(p) == "skip" {
+			return filepath.SkipDir
+		}
+		if !e.IsDir() {
+			seen = append(seen, filepath.Base(p))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("WalkDir: %v", err)
+	}
+	if strings.Join(seen, ",") != "one.md,two.md" && strings.Join(seen, ",") != "one.md" {
+		t.Errorf("WalkDir saw %v", seen)
+	}
+}
