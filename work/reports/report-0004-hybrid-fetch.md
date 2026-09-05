@@ -1,15 +1,15 @@
 ---
 id: report-0004
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0017]
 doc_ref: technical/architecture.md
 created: 2026-09-05T13:32:45Z
-triaged: null
+triaged: 2026-09-05T13:58:35Z
 ---
 
 # The fetch is a hybrid the filesystem port does not isolate
 
-**References:** [technical/architecture.md](../../docs/technical/architecture.md)
+**References:** [technical/architecture.md](../../docs/technical/architecture.md) · [task-0017](../tasks/task-0017-give-the-fetch.md)
 
 `kitfetch.Fetch` makes the checkout's directory through the filesystem
 port and then hands its path to `git clone`, which fills it on the real
