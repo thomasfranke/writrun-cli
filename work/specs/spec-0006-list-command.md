@@ -1,7 +1,7 @@
 ---
 id: spec-0006
 task_ref: task-0006
-status: approved
+status: implemented
 created: 2026-09-03T22:30:38Z
 ---
 
@@ -42,8 +42,8 @@ reachable and unreachable.
 
 ## Definition of Done
 
-- [ ] Output matches the skill's for every fixture, modulo filtering.
-- [ ] Suite green.
+- [x] Output matches the skill's for every fixture, modulo filtering.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -55,4 +55,34 @@ reachable and unreachable.
 
 ## Outcome
 
-_(fill after execution)_
+`writrun list` is `internal/command/listcmd/`, registered in
+`cmd/writrun/main.go` and needing an adopted repository. It runs
+`.writrun/skills/writrun-select-next-task/list_tasks.sh` from `ctx.Root`
+through the exec port — `listcmd.Script`, wired to `kit.Run`, which is
+`kit.Runner` for a caller holding the root and the streams.
+
+- Unfiltered, the script's stdout is the command's: the port writes
+  straight to the user's terminal and no byte is read or rewritten.
+- A filter buffers the output and `sections.go` cuts it into blocks at
+  the lister's own headings. A block is printed whole or not at all, in
+  the order the lister printed it, so no task changes group or order.
+  `--available` selects the in-progress, available and in-flight
+  sections, `--held` the held-back section, `--reports` the open
+  reports; the lister's notes and anything preceding its first heading
+  print in every run.
+- Exit 1 from the script becomes exit 0 — nothing available is an
+  answer, and `Nothing is available.` is the message that carries it.
+  Every other non-zero exit travels up with its code, so a missing
+  `work/tasks/` exits 3 with the script's `No such directory:` on
+  stderr.
+
+Tests: `internal/command/listcmd/` unit tests over a faked port (23
+cases), and `tests/integration/list/` over `tests/list_lib.sh` — a
+repository carrying this repository's own copy of the lister, a queue
+per case, and `gh` stubbed (28 checks). The mixed-status case diffs the
+binary's stdout against a direct run of the lister and requires them
+identical. Coverage: `internal/command/listcmd` 98.6%, total over
+`internal/` 98.1%.
+
+No permanent doc changed: `product/queue/list.md` already stated the
+behaviour, and nothing was found to correct in it.

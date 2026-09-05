@@ -89,6 +89,54 @@ func TestAskSelect(t *testing.T) {
 	}
 }
 
+func TestAskInput(t *testing.T) {
+	cases := []struct {
+		name    string
+		preset  string
+		yes     bool
+		tty     bool
+		typed   string
+		want    string
+		wantErr string
+		asked   int
+	}{
+		{"the flag answers without asking", "from the flag", false, true, "typed", "from the flag", "", 0},
+		{"a terminal types it", "", false, true, "typed", "typed", "", 1},
+		{"--yes does not answer free text", "", true, false, "typed", "", "--title", 0},
+		{"no terminal and no flag aborts naming the flag", "", false, false, "typed", "", "--title", 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ft := &FakeTerminal{In: tc.tty, InputAnswer: tc.typed}
+			c := &Ctx{Terminal: ft, Yes: tc.yes}
+			got, err := c.AskInput("the summary:", tc.preset, "--title")
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("err = %v; want it to name %q", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("err = %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("answer = %q, want %q", got, tc.want)
+			}
+			if len(ft.Asked) != tc.asked {
+				t.Errorf("asked %d questions, want %d", len(ft.Asked), tc.asked)
+			}
+		})
+	}
+}
+
+func TestAskInputCarriesTheTerminalError(t *testing.T) {
+	boom := errors.New("render failed")
+	c := &Ctx{Terminal: &FakeTerminal{In: true, InputErr: boom}}
+	if _, err := c.AskInput("the summary:", "", "--title"); !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want the terminal's own error", err)
+	}
+}
+
 func TestFakeTerminalSpinRunsTheWork(t *testing.T) {
 	ft := &FakeTerminal{}
 	ran := false

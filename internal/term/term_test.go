@@ -100,6 +100,20 @@ func TestConfirmAnswersYes(t *testing.T) {
 	}
 }
 
+func TestInputReturnsWhatWasTyped(t *testing.T) {
+	got := headless(t, func() answer[string] {
+		tm := Terminal{In: strings.NewReader("[Feat][Ci] Debounce it\r"), Out: &bytes.Buffer{}}
+		s, err := tm.Input("the summary:")
+		return answer[string]{s, err}
+	})
+	if got.err != nil {
+		t.Fatalf("Input = %v", got.err)
+	}
+	if got.val != "[Feat][Ci] Debounce it" {
+		t.Errorf("answer = %q, want the typed line", got.val)
+	}
+}
+
 func TestSpinRunsTheWorkAndCarriesItsError(t *testing.T) {
 	got := headless(t, func() answer[bool] {
 		tm := Terminal{Out: &bytes.Buffer{}}

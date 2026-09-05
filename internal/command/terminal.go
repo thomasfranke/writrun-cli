@@ -14,6 +14,10 @@ type Terminal interface {
 	Select(title string, options []string) (int, error)
 	// Confirm renders a yes/no question.
 	Confirm(question string) (bool, error)
+	// Input renders a free-text question and returns what was typed —
+	// the only shape of question that is typed rather than navigated
+	// (docs/product/rules.md).
+	Input(question string) (string, error)
 	// Spin runs work behind a spinner while the terminal waits.
 	Spin(label string, work func() error) error
 }

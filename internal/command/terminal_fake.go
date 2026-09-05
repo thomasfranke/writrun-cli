@@ -10,6 +10,8 @@ type FakeTerminal struct {
 	SelectErr     error
 	ConfirmAnswer bool
 	ConfirmErr    error
+	InputAnswer   string
+	InputErr      error
 
 	// Asked records every question rendered, in order.
 	Asked []string
@@ -26,6 +28,11 @@ func (f *FakeTerminal) Select(title string, options []string) (int, error) {
 func (f *FakeTerminal) Confirm(question string) (bool, error) {
 	f.Asked = append(f.Asked, question)
 	return f.ConfirmAnswer, f.ConfirmErr
+}
+
+func (f *FakeTerminal) Input(question string) (string, error) {
+	f.Asked = append(f.Asked, question)
+	return f.InputAnswer, f.InputErr
 }
 
 func (f *FakeTerminal) Spin(label string, work func() error) error {
