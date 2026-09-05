@@ -79,7 +79,7 @@ And `.writrun/VERSION` is read, and the two tags compared, inside this
 package — `updatecmd` reads the same file to decide a refresh and
 `doctor` (task-0004) will read it to report on it, so the duplication
 was taken deliberately over a shared package three commands in flight
-would have to agree on before any could land; report-0008 records that
+would have to agree on before any could land; report-0010 records that
 choice for triage.
 
 Tests: 27 Go cases in the package (96.9% of its statements, over the
