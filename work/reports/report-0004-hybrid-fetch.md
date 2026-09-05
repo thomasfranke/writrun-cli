@@ -25,4 +25,13 @@ and `git clean -fd` — were removed for this reason, and those messages
 are among the statements no fixture reaches.
 
 The same seam is why task-0016 met every criterion of `spec-0015`
-except its coverage floor, which `#29` amends from 99% to 98%.
+except its coverage floor, which #29 amends from 99% to 98%.
+
+**Naming it "the port does not isolate the fetch" reads the seam from
+the wrong side.** `git clone` is a subprocess writing to the disk it was
+given; no filesystem port will ever stand between it and what it writes.
+What the observation actually shows is that the fetch is a boundary of
+its own — it leaves the process, exactly as script execution, `gh` and
+the terminal do, and `boundaries.md` asks each of those to sit behind a
+small interface with a fake beside it. `kitfetch.Fetch` is that
+interface already; it has no fake.
