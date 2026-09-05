@@ -4,10 +4,13 @@ name: tests
 # of its own (release-readiness.yml), re-verifying the branch releases
 # are cut from on every push to it.
 #
-# The order is technical/testing/ci.md's, stopping at the first
-# failure: gofmt → go vet → unit with the coverage gate → integration
-# → e2e — plus the cross-compile gate between vet and unit, spec-0001's
-# Definition of Done (macOS, Linux, Windows, no cgo).
+# The nine steps and their order are technical/testing/ci.md's, cheapest
+# first, stopping at the first failure. The two floors the unit step
+# enforces are technical/testing/tiers.md's, read from
+# scripts/coverage.sh.
+#
+# Every action is pinned by commit SHA, and every tool by version tag:
+# a moving reference is a dependency nobody reviewed.
 
 on:
   pull_request:
@@ -15,32 +18,73 @@ on:
 permissions:
   contents: read
 
+# One run per pull request; a superseded run stops rather than spending
+# a runner on a tree nobody will merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  STATICCHECK: honnef.co/go/tools/cmd/staticcheck@2026.2.1
+  GOVULNCHECK: golang.org/x/vuln/cmd/govulncheck@v1.7.0
+
 jobs:
   suite:
-    name: gofmt → vet → unit → integration → e2e
+    name: gofmt → vet → staticcheck → tidy → build → unit → vuln → integration → e2e
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: stable
+
       - name: gofmt
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
             echo "gofmt would rewrite:"; echo "$unformatted"; exit 1
           fi
+
       - name: go vet
         run: go vet ./...
+
+      - name: staticcheck
+        run: go run "$STATICCHECK" ./...
+
+      - name: go mod tidy
+        run: |
+          go mod tidy
+          if ! git diff --exit-code -- go.mod go.sum; then
+            echo "go mod tidy would change go.mod or go.sum"; exit 1
+          fi
+
+      # -race needs cgo, so it never shares a step with this one.
       - name: cross-compile, without cgo
         run: |
           for target in darwin/arm64 linux/amd64 windows/amd64; do
             echo "go build for $target"
             CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build ./...
           done
-      - name: unit, with the coverage gate
+
+      - name: unit, with the coverage gates
         run: make cover
+
+      # An outage is named as one: the database is unreachable, which is
+      # not a clean run and never passes as one.
+      - name: govulncheck
+        run: |
+          if out=$(go run "$GOVULNCHECK" ./... 2>&1); then
+            printf '%s\n' "$out"; exit 0
+          fi
+          printf '%s\n' "$out"
+          if printf '%s' "$out" |
+             grep -qiE 'vulnerability database|no such host|dial tcp|i/o timeout|connection refused|TLS handshake'; then
+            echo "the advisory database was unreachable: an outage, not a clean run"
+          fi
+          exit 1
+
       - name: integration
         run: make test-integration
+
       - name: e2e
         run: make test-e2e

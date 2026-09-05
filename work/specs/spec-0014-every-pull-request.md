@@ -1,7 +1,7 @@
 ---
 id: spec-0014
 task_ref: task-0015
-status: approved
+status: implemented
 created: 2026-09-05T11:18:26Z
 ---
 
@@ -90,4 +90,27 @@ and that the failing package is named.
 
 ## Outcome
 
-_(fill after execution)_
+`tests.yml` runs ci.md's nine steps in its order. Actions are pinned by
+commit SHA; `staticcheck` and `govulncheck` are pinned by version tag and
+run through `go run`, so neither reaches `go.mod`. `concurrency` is keyed
+on the pull request.
+
+`scripts/coverage.sh` gates the total and the per-package floor from one
+profile. It sums statements from the profile rather than reading
+`go tool cover -func`: `-coverpkg` writes one copy of every block per
+test binary, so a block is counted once and is covered when any copy
+covered it. `COVERAGE_GATE_ONLY=1` gates a profile without running a
+test, which is how `tests/integration/coverage/` states the percentages
+each case is about.
+
+`staticcheck` reported four findings the repository cleared to pass its
+own new gate. `ownedSkeletons` in `initcmd/plan.go` was dead — `plan`
+keeps every file the project already has, not the two that map named.
+`runInit` returned its error first. `vfs`'s `entry` built two `info`
+struct literals a conversion covers. Reordering `runInit` exposed an
+evaluation-order fault in the same helper: Go evaluates return
+expressions left to right, so the printed output was read before `Run`
+wrote it.
+
+The repository passes both floors: 98.1% over `internal/`, lowest package
+`internal/wrepo` at 90.9%.

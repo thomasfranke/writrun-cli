@@ -18,10 +18,11 @@ test: tests
 test-unit:
 	go test ./...
 
-# The percentage and the floor, printed — the same script CI runs, so a
-# session can read before pushing what the pipeline will read after.
-# `make cover 90` raises the floor for one run; the pipeline's floor is
-# the script's default.
+# The percentages and the two floors, printed — the same script CI runs,
+# so a session can read before pushing what the pipeline will read after.
+# It runs the unit tier with -race, -shuffle=on and a -timeout
+# (technical/testing/ci.md). `make cover 95` raises the total floor for
+# one run; the pipeline's floors are the script's defaults.
 cover:
 	@bash scripts/coverage.sh $(filter-out cover,$(MAKECMDGOALS))
 
