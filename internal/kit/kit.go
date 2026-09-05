@@ -28,3 +28,10 @@ func (r Runner) Run(script string, args ...string) error {
 	cmd.Stderr = r.Stderr
 	return cmd.Run()
 }
+
+// Run is Runner.Run for a caller holding the root and the streams and
+// nothing else — the shape a command package's exec port declares, so
+// the wiring hands this function over without a closure.
+func Run(root string, stdout, stderr io.Writer, script string, args ...string) error {
+	return Runner{Root: root, Stdout: stdout, Stderr: stderr}.Run(script, args...)
+}

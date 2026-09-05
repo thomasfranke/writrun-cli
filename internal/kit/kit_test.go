@@ -35,6 +35,24 @@ func TestRunnerRunsTheScriptFromTheRoot(t *testing.T) {
 	}
 }
 
+func TestRunIsTheRunnerForACallerHoldingRootAndStreams(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "say.sh"),
+		[]byte("#!/usr/bin/env bash\necho \"out $1\"\necho \"err\" >&2\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	if err := Run(root, &out, &errb, "say.sh", "one"); err != nil {
+		t.Fatalf("Run = %v", err)
+	}
+	if out.String() != "out one\n" {
+		t.Errorf("stdout = %q", out.String())
+	}
+	if errb.String() != "err\n" {
+		t.Errorf("stderr = %q", errb.String())
+	}
+}
+
 func TestRunnerPassesTheScriptsExitThrough(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "fail.sh"),
