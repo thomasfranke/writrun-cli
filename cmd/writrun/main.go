@@ -17,6 +17,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 	"github.com/thomasfranke/writrun-cli/internal/term"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 	"github.com/thomasfranke/writrun-cli/internal/wrepo"
@@ -65,6 +66,9 @@ func commands() []command.Command {
 	gh := forge.Client{}
 	disk := vfs.OS{}
 	source := os.Getenv("WRITRUN_SOURCE")
+	// Named for what it is, not for its package: `kit` is the script
+	// runner's package name, and a local of that name shadows it.
+	fetcher := kitfetch.Clone{Files: disk, Git: gitx.Run}
 	return []command.Command{
 		initcmd.New(initcmd.Deps{
 			Tag:      writrunTag,
@@ -73,12 +77,14 @@ func commands() []command.Command {
 			Gh:       gh.Run,
 			LookPath: exec.LookPath,
 			Files:    disk,
+			Kit:      fetcher,
 		}),
 		updatecmd.New(updatecmd.Deps{
 			Tag:    writrunTag,
 			Source: source,
 			Git:    gitx.Run,
 			Files:  disk,
+			Kit:    fetcher,
 		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),

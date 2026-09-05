@@ -9,17 +9,17 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestRunRefusesAnUnreadableAgents(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	if err := os.Remove(filepath.Join(root, "AGENTS.md")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runUpdate(t, root, src); err == nil {
+	if _, err := runUpdate(t, root, Deps{}); err == nil {
 		t.Fatal("a repository with no AGENTS.md was refreshed")
 	}
 }
@@ -32,7 +32,7 @@ func TestRunReportsAGitThatCannotAnswer(t *testing.T) {
 	write(t, root, "AGENTS.md", agentsAt("The flow's text."))
 	var out strings.Builder
 	ctx := &command.Ctx{Stdout: &out, Stderr: &out, Terminal: &command.FakeTerminal{}, Root: root, Yes: true}
-	err := run(ctx, Deps{Tag: newTag, Source: makeSource(t), Git: gitx.Run, Files: vfs.OS{}}, nil)
+	err := run(ctx, Deps{Tag: newTag, Source: sourceDefault, Git: gitx.Run, Files: vfs.OS{}, Kit: fakeKit(t)}, nil)
 	if err == nil {
 		t.Fatal("the working tree was read outside a repository")
 	}
@@ -41,14 +41,36 @@ func TestRunReportsAGitThatCannotAnswer(t *testing.T) {
 	}
 }
 
-func TestRunReportsAnUnreachableSource(t *testing.T) {
+func TestRunReportsAFetchThatFailed(t *testing.T) {
 	root := makeAdopted(t)
-	out, err := runUpdate(t, root, filepath.Join(t.TempDir(), "not-a-repository"))
+	kit := fakeKit(t)
+	kit.Fail(newTag, errors.New("repository not found"))
+	out, err := runUpdate(t, root, Deps{Source: "https://example.invalid/writrun", Kit: kit})
 	if err == nil {
-		t.Fatalf("an unreachable source was accepted:\n%s", out)
+		t.Fatalf("a fetch that failed was accepted:\n%s", out)
 	}
 	if !strings.Contains(err.Error(), "nothing was written") {
 		t.Errorf("the error does not say the tree is untouched: %v", err)
+	}
+	for _, want := range []string{newTag, "https://example.invalid/writrun"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {
+		t.Errorf("a failed fetch moved the tag to %q", got)
+	}
+}
+
+func TestRunRefusesASourceWithoutATemplate(t *testing.T) {
+	// A repository, but not a WritRun one — answered without a clone.
+	root := makeAdopted(t)
+	kit := fakeKit(t)
+	kit.FailNoTemplate(newTag)
+	if _, err := runUpdate(t, root, Deps{Kit: kit}); err == nil {
+		t.Fatal("a source with no template/ was refreshed from")
+	} else if !strings.Contains(err.Error(), "not a WritRun repository") {
+		t.Errorf("the refusal does not say what the source is: %v", err)
 	}
 }
 
@@ -92,7 +114,7 @@ func TestRenderSaysWhenTheSectionAlreadyMatches(t *testing.T) {
 
 func TestAnUnknownFlagIsRefused(t *testing.T) {
 	root := makeAdopted(t)
-	if _, err := runUpdate(t, root, makeSource(t), "--nope"); err == nil {
+	if _, err := runUpdate(t, root, Deps{}, "--nope"); err == nil {
 		t.Fatal("an unknown flag was accepted")
 	}
 }
@@ -102,13 +124,12 @@ func TestAKitWithNoRecordedTagIsRefused(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, ".writrun", "VERSION")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runUpdate(t, root, makeSource(t)); err == nil {
+	if _, err := runUpdate(t, root, Deps{}); err == nil {
 		t.Fatal("a kit recording no tag was refreshed")
 	}
 }
 
 func TestADeclineRefreshesNothing(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	var out strings.Builder
 	ctx := &command.Ctx{
@@ -116,7 +137,7 @@ func TestADeclineRefreshesNothing(t *testing.T) {
 		Terminal: &command.FakeTerminal{In: true, ConfirmAnswer: false},
 		Root:     root, Adopted: true,
 	}
-	if err := run(ctx, Deps{Tag: newTag, Source: src, Git: gitx.Run, Files: vfs.OS{}}, nil); err == nil {
+	if err := run(ctx, Deps{Tag: newTag, Source: sourceDefault, Git: gitx.Run, Files: vfs.OS{}, Kit: fakeKit(t)}, nil); err == nil {
 		t.Fatal("a decline was not reported")
 	}
 	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {
@@ -125,19 +146,13 @@ func TestADeclineRefreshesNothing(t *testing.T) {
 }
 
 func TestAPlanThatCannotBeMadeStopsTheRefresh(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	// The document's fence is intact, so the run reaches the plan; the
 	// template's is not, so the merge inside it cannot be made.
-	clone := t.TempDir()
-	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", newTag, src, filepath.Join(clone, "src"))
-	broken := filepath.Join(clone, "src")
-	write(t, broken, "template/AGENTS.md", "# No fence in the template.\n")
-	gitT(t, broken, "add", "-A")
-	gitT(t, broken, "commit", "-q", "-m", "a template with no fence")
-	gitT(t, broken, "tag", "-f", newTag)
+	broken := makeTemplate(t)
+	write(t, broken, "AGENTS.md", "# No fence in the template.\n")
 
-	if _, err := runUpdate(t, root, broken); err == nil {
+	if _, err := runUpdate(t, root, Deps{Kit: kitfetch.NewFake(broken)}); err == nil {
 		t.Fatal("a template with no fence was refreshed from")
 	}
 }
@@ -145,7 +160,6 @@ func TestAPlanThatCannotBeMadeStopsTheRefresh(t *testing.T) {
 func TestOnlyTheTagMovingWritesOnlyTheTag(t *testing.T) {
 	// The kit's files already match the new tag; only VERSION differs,
 	// so the run says so and asks nothing.
-	src := makeSource(t)
 	root := makeAdopted(t)
 	// Bring every kit-owned path up to newTag by hand, leaving the
 	// recorded tag behind.
@@ -156,7 +170,7 @@ func TestOnlyTheTagMovingWritesOnlyTheTag(t *testing.T) {
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "the files, already current")
 
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{})
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
@@ -302,5 +316,69 @@ func TestCopyTreeReportsWhatItCouldNotRead(t *testing.T) {
 	disk := vfs.NewFake()
 	if err := copyTree(disk, "/not-there", "/out"); err == nil {
 		t.Error("copying a tree that is not there succeeded")
+	}
+}
+
+// fakeRefresh is a whole refresh as the fake holds it: an adopted kit
+// at oldTag, and the template newTag ships — enough for the command to
+// be driven end to end without a clone.
+func fakeRefresh(t *testing.T) (*vfs.Fake, string, string) {
+	t.Helper()
+	disk := vfs.NewFake()
+	root, template := "/repo", "/kit/template"
+	disk.Seed(root+"/.writrun/VERSION", []byte(oldTag+"\n"), 0o644)
+	disk.Seed(root+"/AGENTS.md", []byte(agentsAt("The flow's text.")), 0o644)
+	disk.Seed(root+"/.writrun/skills/select/SKILL.md", []byte("# Select\n"), 0o644)
+	disk.Seed(template+"/AGENTS.md", []byte(agentsAt("The flow's text, reworded.")), 0o644)
+	disk.Seed(template+"/.writrun/skills/select/SKILL.md", []byte("# Select, reworded\n"), 0o644)
+	return disk, root, template
+}
+
+// cleanGit answers the one read update makes through git: a working
+// tree with nothing uncommitted in it.
+func cleanGit() gitx.Runner {
+	return func(dir string, args ...string) (string, error) { return "", nil }
+}
+
+func TestAPartialRefreshNamesTheCommandsThatUndoIt(t *testing.T) {
+	// The write fails after the fetch succeeded, which is the one
+	// state the refresh cannot leave clean: the message is what tells
+	// the user how to get back (spec-0016).
+	disk, root, template := fakeRefresh(t)
+	disk.FailOp("write", root+"/.writrun/VERSION", errors.New("VERSION is read-only"))
+
+	d := Deps{Git: cleanGit(), Files: disk, Kit: kitfetch.NewFake(template)}
+	_, err := runUpdate(t, root, d)
+	if err == nil {
+		t.Fatal("a refresh that could not write succeeded")
+	}
+	for _, want := range []string{"the refresh is partial", "git checkout -- .", "git clean -fd", "rerun writrun update"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the partial-state message does not name %q: %v", want, err)
+		}
+	}
+}
+
+func TestTheFetchIsCleanedUpWhateverTheRefreshDid(t *testing.T) {
+	// The cleanup is the fetch's half of the contract: a checkout the
+	// command never releases is a leak the fake has to be able to see.
+	disk, root, template := fakeRefresh(t)
+	kit := kitfetch.NewFake(template)
+	out, err := runUpdate(t, root, Deps{Git: cleanGit(), Files: disk, Kit: kit})
+	if err != nil {
+		t.Fatalf("update = %v\n%s", err, out)
+	}
+	if kit.Cleaned != 1 {
+		t.Errorf("the fetch was cleaned up %d times, want 1", kit.Cleaned)
+	}
+
+	failing, failingRoot, failingTemplate := fakeRefresh(t)
+	failing.FailOp("write", failingRoot+"/.writrun/VERSION", errors.New("VERSION is read-only"))
+	leaky := kitfetch.NewFake(failingTemplate)
+	if _, err := runUpdate(t, failingRoot, Deps{Git: cleanGit(), Files: failing, Kit: leaky}); err == nil {
+		t.Fatal("a refresh that could not write succeeded")
+	}
+	if leaky.Cleaned != 1 {
+		t.Errorf("a failed refresh cleaned up %d times, want 1", leaky.Cleaned)
 	}
 }
