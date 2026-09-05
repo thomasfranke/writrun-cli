@@ -35,6 +35,9 @@ type Deps struct {
 	Git gitx.Runner
 	// Files is the filesystem this command reads and writes through.
 	Files vfs.FS
+	// Kit fetches the WritRun kit at a tag — the boundary the tests
+	// fake, so a refresh is drivable without a clone.
+	Kit kitfetch.Fetcher
 }
 
 // New returns the update command wired with its dependencies.
@@ -99,7 +102,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	var kit *kitfetch.Fetched
 	if err := ctx.Terminal.Spin("fetching WritRun "+d.Tag, func() error {
 		var fetchErr error
-		kit, fetchErr = kitfetch.Fetch(d.Files, d.Tag, d.Source, d.Git)
+		kit, fetchErr = d.Kit.Fetch(d.Tag, d.Source)
 		return fetchErr
 	}); err != nil {
 		return err

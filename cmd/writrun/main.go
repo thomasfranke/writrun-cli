@@ -14,6 +14,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command/updatecmd"
 	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 	"github.com/thomasfranke/writrun-cli/internal/term"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 	"github.com/thomasfranke/writrun-cli/internal/wrepo"
@@ -62,6 +63,7 @@ func commands() []command.Command {
 	gh := forge.Client{}
 	disk := vfs.OS{}
 	source := os.Getenv("WRITRUN_SOURCE")
+	kit := kitfetch.Clone{Files: disk, Git: gitx.Run}
 	return []command.Command{
 		initcmd.New(initcmd.Deps{
 			Tag:      writrunTag,
@@ -70,12 +72,14 @@ func commands() []command.Command {
 			Gh:       gh.Run,
 			LookPath: exec.LookPath,
 			Files:    disk,
+			Kit:      kit,
 		}),
 		updatecmd.New(updatecmd.Deps{
 			Tag:    writrunTag,
 			Source: source,
 			Git:    gitx.Run,
 			Files:  disk,
+			Kit:    kit,
 		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 	}
