@@ -1,7 +1,7 @@
 ---
 id: spec-0012
 task_ref: task-0013
-status: approved
+status: implemented
 created: 2026-09-03T22:30:44Z
 ---
 
@@ -43,7 +43,7 @@ disposable tag before first use.
 ## Definition of Done
 
 - [ ] One real release installable by all three routes.
-- [ ] Suite green.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -55,4 +55,34 @@ disposable tag before first use.
 
 ## Outcome
 
-_(fill after execution)_
+`.goreleaser.yaml` builds `cmd/writrun` for macOS, Linux and Windows on
+amd64 and arm64, without cgo, stamping the tag into `main.version` —
+the seam `buildVersion()` reads before falling back to the module
+version `go install` records, so all three routes name the same number.
+
+`.github/workflows/release.yml` runs GoReleaser on `refs/tags/v*`. The
+cut stays `scripts/release.sh`'s: it creates the GitHub release with
+generated notes, and GoReleaser appends the platform archives, the
+checksums, and a footer naming the pinned WritRun tag, then writes
+`writrun` into `thomasfranke/homebrew-tap`.
+`scripts/writrun-tag.sh` reads that tag from `cmd/writrun/main.go`, the
+one place it is written, and exits 1 when it is absent — a release that
+cannot name its tag is not published. Both existing workflows install
+goreleaser before `make tests`, which is where the dry-run check runs.
+
+The tap artefact is a cask, not a formula: GoReleaser deprecated
+formula generation and `goreleaser check` exits 2 on a configuration
+asking for one (report-0008). `brew install thomasfranke/tap/writrun`
+resolves either way.
+
+Verified without releasing: `goreleaser check` exits 0;
+`goreleaser build --snapshot --clean` links all six binaries and the
+snapshot printed `writrun v0.0.0 (pins WritRun v0.0.03)`. Four
+integration cases and one e2e case under `tests/*/release/` hold the
+matrix, the linked stamp, the footer and the tap.
+
+Two things only a tag can prove, and the first Definition-of-Done box
+waits on them: that the release job publishes the archives, and that
+the tap push succeeds — the latter needs a `HOMEBREW_TAP_TOKEN`
+repository secret, which lives outside the repository and does not
+exist yet.
