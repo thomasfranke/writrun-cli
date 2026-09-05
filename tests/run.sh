@@ -3,14 +3,15 @@
 #
 #   bash tests/run.sh
 #
-# Layout: one tier per directory — unit/ for script internals,
-# integration/ for the automation scripts, e2e/ for whole-path runs
-# against a copy of this repository — inside it one directory per script
-# under test, one file per behaviour, suffixed `_test.sh`. Every case
-# sources the fixture for its domain (tests/release_lib.sh, layered on
-# tests/harness.sh) and also runs standalone:
+# Layout: one tier per directory — integration/ for the compiled binary
+# against fixture repositories, e2e/ for whole-path runs against a copy
+# of this repository — inside it one directory per subject under test,
+# one file per behaviour, suffixed `_test.sh`. The unit tier is Go,
+# beside the code (technical/testing/tiers.md). Every case sources the
+# fixture for its domain, layered on tests/harness.sh, and also runs
+# standalone:
 #
-#   bash tests/integration/release/minor_bumps_third_digit_test.sh
+#   bash tests/integration/release/minor_bumps_middle_digit_test.sh
 
 set -uo pipefail
 

@@ -1,10 +1,10 @@
 ---
 id: report-0009
-status: open
+status: fixed
 task_ref: []
 doc_ref: technical/testing/suites.md
 created: 2026-09-05T18:20:02Z
-triaged: null
+triaged: 2026-09-05T19:03:11Z
 ---
 
 # The fixtures table names five of the eight fixtures
@@ -23,3 +23,11 @@ a hand-kept list had already drifted twice; the fixtures table beside it
 was kept, and it has drifted the same way since. Writing anything under
 `docs/` is Thomas's gate in AGENTS.md, and task-0008 carries no spec whose
 Proposed changes would authorise the edit.
+
+**Fixed here, by deleting the table rather than completing it.** The
+count was already wrong again by the time this was triaged: `tests/`
+holds ten fixtures, not eight. `suites.md` now states the rule the tree
+enforces — every case sources exactly one fixture, each fixture layers
+on the one below it, `harness.sh` at the bottom — and points at the `.`
+line that carries the answer per file. See [[report-0011]], which is the
+same finding seen independently.

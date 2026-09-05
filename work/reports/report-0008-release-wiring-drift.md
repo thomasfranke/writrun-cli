@@ -1,10 +1,10 @@
 ---
 id: report-0008
-status: open
+status: fixed
 task_ref: []
 doc_ref: technical/distribution/routes.md
 created: 2026-09-05T18:19:25Z
-triaged: null
+triaged: 2026-09-05T19:03:11Z
 ---
 
 # Distribution and CI docs are behind the release wiring
@@ -22,3 +22,8 @@ tagged-release path needed a workflow of its own,
 `.github/workflows/release.yml`, so this repository's own workflows are
 three. spec-0012 proposed no technical documentation changes, so both
 sentences were left as they stand.
+
+**Fixed here.** `routes.md` now says cask and states why GoReleaser
+leaves no choice; `ci.md` now opens on three workflows and names
+`release.yml`, adding that the `writrun-*` workflows beside them are the
+kit's rather than this project's.

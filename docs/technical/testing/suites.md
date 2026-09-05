@@ -1,28 +1,23 @@
 # Suites
 
-**No file lists the suites.** [`tests/run.sh`](../../../tests/run.sh)
-walks `tests/` — one directory per tier, one directory per subject
-inside it, one `*_test.sh` file per behaviour — so a case is registered
-by its path and nowhere else. `make test-<suite>` resolves the same way,
-by glob, and exits 3 naming the suite when nothing matches.
+**No file lists the suites, and none lists the fixtures.**
+[`tests/run.sh`](../../../tests/run.sh) walks `tests/` — one directory
+per tier, one directory per subject inside it, one `*_test.sh` file per
+behaviour — so a case is registered by its path and nowhere else.
+`make test-<suite>` resolves the same way, by glob, and exits 3 naming
+the suite when nothing matches.
 
-Every case sources the fixture for its domain. Every case also runs
-standalone:
+Every case sources exactly one fixture, and each fixture layers on the
+one below it, with [`harness.sh`](../../../tests/harness.sh) at the
+bottom. Which fixture a case takes is the `.` line at the top of the
+case; which one that fixture layers on is the `.` line at the top of
+the fixture. A new suite adds `tests/<subject>_lib.sh` and is listed
+nowhere.
+
+Every case also runs standalone:
 
 ```bash
 bash tests/integration/release/minor_bumps_middle_digit_test.sh
 ```
-
-## Fixtures
-
-Each layers on the one before it, so a case sources exactly one.
-
-| Fixture | Layered on | Sourced by |
-|---|---|---|
-| [`harness.sh`](../../../tests/harness.sh) | — | `tests/e2e/release/` |
-| [`cli_lib.sh`](../../../tests/cli_lib.sh) | `harness.sh` | `tests/e2e/adopt/`, `tests/integration/cli/` |
-| [`coverage_lib.sh`](../../../tests/coverage_lib.sh) | `harness.sh` | `tests/integration/coverage/` |
-| [`release_lib.sh`](../../../tests/release_lib.sh) | `harness.sh` | `tests/integration/release/` |
-| [`init_lib.sh`](../../../tests/init_lib.sh) | `cli_lib.sh` | `tests/integration/init/`, `tests/integration/uninstall/`, `tests/integration/update/` |
 
 The Makefile's targets are [Makefile](../layout/makefile.md)'s.

@@ -1,7 +1,9 @@
 # CI
 
-Two workflows. `tests.yml` runs on pull requests; `release-readiness.yml`
-re-verifies `main` on every push.
+Three workflows. `tests.yml` runs on pull requests;
+`release-readiness.yml` re-verifies `main` on every push; `release.yml`
+builds and publishes on a pushed `v*` tag. The `writrun-*` workflows
+beside them are the kit's, not this project's.
 
 ## Order
 
