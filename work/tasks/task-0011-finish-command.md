@@ -1,8 +1,8 @@
 ---
 id: task-0011
-status: ready
+status: in-review
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0010]
 doc_ref: product/pull-requests/finish.md
 origin: rule

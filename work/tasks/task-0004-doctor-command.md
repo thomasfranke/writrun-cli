@@ -1,6 +1,6 @@
 ---
 id: task-0004
-status: in-progress
+status: done
 blocked_reason: null
 taken_by: thomasfranke
 spec_ref: [spec-0004]
@@ -11,8 +11,8 @@ depends_on: [task-0001]
 milestone: null
 created: 2026-09-03T22:30:18Z
 queued: 2026-09-04T05:05:03Z
-completed: null
-merged: null
+completed: 2026-09-05T18:22:30Z
+merged: 2026-09-05T18:45:48Z
 provenance: []
 ---
 
