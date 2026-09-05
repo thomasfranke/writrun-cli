@@ -11,6 +11,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/listcmd"
+	"github.com/thomasfranke/writrun-cli/internal/command/statuscmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/takecmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/uninstallcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/updatecmd"
@@ -88,6 +89,12 @@ func commands() []command.Command {
 		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),
+		statuscmd.New(statuscmd.Deps{
+			Tag:     writrunTag,
+			Git:     gitx.Run,
+			Files:   disk,
+			Scripts: kit.Run,
+		}),
 		takecmd.New(takecmd.Deps{Scripts: kit.Run}),
 	}
 }
