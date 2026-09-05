@@ -10,6 +10,7 @@ grouped by flow:
 
 | Flow | Command | Answers |
 |---|---|---|
+| Entry | [`writrun`](screen.md) | Acting on the queue by keys instead of typed commands. |
 | Adoption | [`init`](adoption/init.md) | Installing the kit into an existing repository. |
 | | [`update`](adoption/update.md) | Refreshing the kit to a newer WritRun tag. |
 | | [`doctor`](adoption/doctor.md) | Whether the repository still satisfies what the methodology assumes. |
