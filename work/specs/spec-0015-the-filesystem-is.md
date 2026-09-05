@@ -1,7 +1,7 @@
 ---
 id: spec-0015
 task_ref: task-0016
-status: approved
+status: implemented
 created: 2026-09-05T12:28:39Z
 ---
 
@@ -110,4 +110,45 @@ changed no behaviour.
 
 ## Outcome
 
-_(fill after execution)_
+`internal/vfs` is the port: `FS` names only the calls the commands make,
+`OS` is the production one, and `Fake` holds a tree in memory with a
+fail table keyed by path. `hook`, `kitfetch`, `wrepo`, `initcmd`,
+`updatecmd` and `uninstallcmd` reach the filesystem only through it, and
+`vfs.OS{}` appears once, in `cmd/writrun/main.go`.
+
+Two calls are in the port that a smaller reading would have left out,
+and both had to be:
+
+- **`WalkDir`.** A walk reads the filesystem on every entry, so a
+  `filepath.WalkDir` called directly would step outside the port once
+  per file and the fake could answer none of it.
+- **`MkdirTemp`.** `kitfetch` writes outside the repository; a port that
+  stopped at the repository would leave the fetch untestable for exactly
+  the reason this task exists.
+
+**The fake grew one method the spec did not ask for.** `FailOp(op, path,
+err)` fails a single operation where `Fail` fails a path whole —
+*readable but not writable* is a real state, and a removal whose plan
+must first find the file cannot be tested without it.
+
+`gitx.Runner` is the one declaration of the git invocation type;
+`cmd/writrun/main.go` converts between none.
+
+Verified: coverage 98.1% over `internal/`, above the amended floor;
+`make tests` exit 0; every case in `tests/integration/` passes with no
+edit, which is the proof the refactor changed no behaviour. The only
+`os.Chmod` left in the suite is a fixture making a script executable —
+it arranges no failure.
+
+**Two limits found by doing the work**, both recorded rather than
+smoothed over:
+
+- The coverage floor was 99% and is 98%. The fake is code, so its
+  statements join the denominator: the port made 18 unreachable
+  statements reachable without raising the percentage by that much.
+  Amended in #29.
+- **The fetch is a hybrid the port does not isolate** — `MkdirTemp` is
+  the port's and `git clone` fills the directory on the real disk, so
+  `init` and `update` cannot be driven end to end against a fake. Two
+  tests for their partial-state messages were removed over it.
+  `report-0004`.
