@@ -2,16 +2,17 @@ package updatecmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // verb is what a refresh does to one path.
@@ -34,6 +35,7 @@ type change struct {
 // refresh is the whole plan, computed before anything is written and
 // shown before the confirmation.
 type refresh struct {
+	disk     vfs.FS
 	root     string
 	template string
 	from, to string
@@ -47,8 +49,9 @@ type refresh struct {
 	agents     []byte // the merged document; nil when the section is already current
 }
 
-func plan(root, template, from, to string, agents []byte) (*refresh, error) {
+func plan(disk vfs.FS, root, template, from, to string, agents []byte) (*refresh, error) {
 	r := &refresh{
+		disk:       disk,
 		root:       root,
 		template:   template,
 		from:       from,
@@ -57,7 +60,7 @@ func plan(root, template, from, to string, agents []byte) (*refresh, error) {
 	}
 
 	for _, dir := range kitpaths.RefreshDirs {
-		cs, err := diffTree(root, template, dir)
+		cs, err := diffTree(disk, root, template, dir)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +69,7 @@ func plan(root, template, from, to string, agents []byte) (*refresh, error) {
 	}
 
 	for _, rel := range kitpaths.Workflows {
-		c, err := diffFile(root, template, rel)
+		c, err := diffFile(disk, root, template, rel)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +82,7 @@ func plan(root, template, from, to string, agents []byte) (*refresh, error) {
 	// template's own file — the same rule the adoption follows.
 	r.changes = append(r.changes, change{rel: ".writrun/VERSION", verb: changed})
 
-	merged, err := mergeAgents(template, agents)
+	merged, err := mergeAgents(disk, template, agents)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +94,8 @@ func plan(root, template, from, to string, agents []byte) (*refresh, error) {
 
 // mergeAgents refreshes the fenced section of the project's AGENTS.md,
 // carrying its `yours` blocks across.
-func mergeAgents(template string, agents []byte) ([]byte, error) {
-	raw, err := os.ReadFile(filepath.Join(template, "AGENTS.md"))
+func mergeAgents(disk vfs.FS, template string, agents []byte) ([]byte, error) {
+	raw, err := disk.ReadFile(filepath.Join(template, "AGENTS.md"))
 	if err != nil {
 		return nil, fmt.Errorf("reading the template's AGENTS.md: %w", err)
 	}
@@ -105,12 +108,12 @@ func mergeAgents(template string, agents []byte) ([]byte, error) {
 
 // diffTree names every file that differs between the fetched tree and
 // the repository's copy of one kit-owned directory.
-func diffTree(root, template, dir string) ([]change, error) {
-	want, err := readTree(filepath.Join(template, dir))
+func diffTree(disk vfs.FS, root, template, dir string) ([]change, error) {
+	want, err := readTree(disk, filepath.Join(template, dir))
 	if err != nil {
 		return nil, err
 	}
-	have, err := readTree(filepath.Join(root, dir))
+	have, err := readTree(disk, filepath.Join(root, dir))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +121,7 @@ func diffTree(root, template, dir string) ([]change, error) {
 	var out []change
 	for _, rel := range sortedKeys(want) {
 		src := filepath.Join(template, dir, rel)
-		info, statErr := os.Stat(src)
+		info, statErr := disk.Stat(src)
 		if statErr != nil {
 			return nil, statErr
 		}
@@ -143,17 +146,17 @@ func diffTree(root, template, dir string) ([]change, error) {
 }
 
 // diffFile is diffTree for a single path; nil means the two agree.
-func diffFile(root, template, rel string) (*change, error) {
+func diffFile(disk vfs.FS, root, template, rel string) (*change, error) {
 	src := filepath.Join(template, rel)
-	want, wantErr := os.ReadFile(src)
-	have, haveErr := os.ReadFile(filepath.Join(root, rel))
+	want, wantErr := disk.ReadFile(src)
+	have, haveErr := disk.ReadFile(filepath.Join(root, rel))
 	switch {
 	case wantErr != nil && haveErr != nil:
 		return nil, nil
 	case wantErr != nil:
 		return &change{rel: rel, verb: removed}, nil
 	case haveErr != nil:
-		info, err := os.Stat(src)
+		info, err := disk.Stat(src)
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +164,7 @@ func diffFile(root, template, rel string) (*change, error) {
 	case bytes.Equal(want, have):
 		return nil, nil
 	default:
-		info, err := os.Stat(src)
+		info, err := disk.Stat(src)
 		if err != nil {
 			return nil, err
 		}
@@ -172,11 +175,11 @@ func diffFile(root, template, rel string) (*change, error) {
 // readTree reads every file under dir, keyed by its path relative to
 // dir. A directory that is not there is an empty tree, not a failure:
 // a tag may add a folder the adopted kit never had.
-func readTree(dir string) (map[string][]byte, error) {
+func readTree(disk vfs.FS, dir string) (map[string][]byte, error) {
 	out := map[string][]byte{}
-	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+	err := disk.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, fs.ErrNotExist) {
 				return nil
 			}
 			return err
@@ -188,14 +191,14 @@ func readTree(dir string) (map[string][]byte, error) {
 		if relErr != nil {
 			return relErr
 		}
-		content, readErr := os.ReadFile(path)
+		content, readErr := disk.ReadFile(path)
 		if readErr != nil {
 			return readErr
 		}
 		out[rel] = content
 		return nil
 	})
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
 	return out, nil
@@ -265,17 +268,17 @@ func (r *refresh) apply() error {
 	for _, dir := range r.dirs {
 		src := filepath.Join(r.template, dir)
 		dst := filepath.Join(r.root, dir)
-		if _, err := os.Stat(src); err != nil {
+		if _, err := r.disk.Stat(src); err != nil {
 			// The tag no longer ships it; the kit's copy goes with it.
-			if err := os.RemoveAll(dst); err != nil {
+			if err := r.disk.RemoveAll(dst); err != nil {
 				return fmt.Errorf("removing %s: %w", dir, err)
 			}
 			continue
 		}
-		if err := os.RemoveAll(dst); err != nil {
+		if err := r.disk.RemoveAll(dst); err != nil {
 			return fmt.Errorf("replacing %s: %w", dir, err)
 		}
-		if err := copyTree(src, dst); err != nil {
+		if err := copyTree(r.disk, src, dst); err != nil {
 			return fmt.Errorf("replacing %s: %w", dir, err)
 		}
 	}
@@ -289,29 +292,29 @@ func (r *refresh) apply() error {
 		}
 		dst := filepath.Join(r.root, c.rel)
 		if c.verb == removed {
-			if err := os.Remove(dst); err != nil && !os.IsNotExist(err) {
+			if err := r.disk.Remove(dst); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("removing %s: %w", c.rel, err)
 			}
 			continue
 		}
-		if err := copyFile(c.src, dst, c.mode); err != nil {
+		if err := copyFile(r.disk, c.src, dst, c.mode); err != nil {
 			return fmt.Errorf("writing %s: %w", c.rel, err)
 		}
 	}
 
-	if err := os.WriteFile(filepath.Join(r.root, ".writrun", "VERSION"), []byte(r.to+"\n"), 0o644); err != nil {
+	if err := r.disk.WriteFile(filepath.Join(r.root, ".writrun", "VERSION"), []byte(r.to+"\n"), 0o644); err != nil {
 		return fmt.Errorf("recording the tag: %w", err)
 	}
 	if r.agents != nil {
-		if err := os.WriteFile(r.agentsPath, r.agents, 0o644); err != nil {
+		if err := r.disk.WriteFile(r.agentsPath, r.agents, 0o644); err != nil {
 			return fmt.Errorf("refreshing AGENTS.md: %w", err)
 		}
 	}
 	return nil
 }
 
-func copyTree(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, entry fs.DirEntry, err error) error {
+func copyTree(disk vfs.FS, src, dst string) error {
+	return disk.WalkDir(src, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -321,23 +324,23 @@ func copyTree(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 		if entry.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return disk.MkdirAll(target, 0o755)
 		}
 		info, infoErr := entry.Info()
 		if infoErr != nil {
 			return infoErr
 		}
-		return copyFile(path, target, info.Mode())
+		return copyFile(disk, path, target, info.Mode())
 	})
 }
 
-func copyFile(src, dst string, mode fs.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+func copyFile(disk vfs.FS, src, dst string, mode fs.FileMode) error {
+	if err := disk.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
-	content, err := os.ReadFile(src)
+	content, err := disk.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, content, mode.Perm())
+	return disk.WriteFile(dst, content, mode.Perm())
 }

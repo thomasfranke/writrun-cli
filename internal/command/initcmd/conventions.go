@@ -2,11 +2,12 @@ package initcmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // vocabulary is what extraction found: the commit types and scopes the
@@ -37,7 +38,7 @@ var guidePaths = []string{"CONTRIBUTING.md", filepath.Join(".github", "CONTRIBUT
 // commit history and its contributing guide — rather than imposing the
 // shipped defaults (product/adoption/init.md). A repository with
 // neither returns the zero vocabulary, and the plan says so.
-func extractVocabulary(root string, git gitRunner) vocabulary {
+func extractVocabulary(disk vfs.FS, root string, git gitRunner) vocabulary {
 	types := map[string]int{}
 	scopes := map[string]int{}
 	var sources []string
@@ -65,7 +66,7 @@ func extractVocabulary(root string, git gitRunner) vocabulary {
 	// The guide: backticked Conventional examples are its declaration
 	// of intent, and each counts once.
 	for _, rel := range guidePaths {
-		content, err := os.ReadFile(filepath.Join(root, rel))
+		content, err := disk.ReadFile(filepath.Join(root, rel))
 		if err != nil {
 			continue
 		}
@@ -118,12 +119,12 @@ func rankVocabulary(counts map[string]int) []string {
 // nothing: the shipped defaults stand. Scopes stay shipped when the
 // project's history never used one — scopes are optional, so absence
 // is no vote against the shipped list.
-func applyVocabulary(root string, v vocabulary) error {
+func applyVocabulary(disk vfs.FS, root string, v vocabulary) error {
 	if len(v.Types) == 0 {
 		return nil
 	}
 	commitsPath := filepath.Join(root, ".writrun", "conventions", "commits.md")
-	if err := rewriteFile(commitsPath, func(s string) (string, error) {
+	if err := rewriteFile(disk, commitsPath, func(s string) (string, error) {
 		s = replaceBullet(s, "- **Types**", "- **Types**: "+backtickList(v.Types)+".")
 		if len(v.Scopes) > 0 {
 			s = replaceBullet(s, "- **Scopes**", "- **Scopes** (optional — omit when a change genuinely spans the repository): "+backtickList(v.Scopes)+".")
@@ -133,7 +134,7 @@ func applyVocabulary(root string, v vocabulary) error {
 		return err
 	}
 	observancePath := filepath.Join(root, ".writrun", "scripts", "stage-2-pull-requests", "check_observance.sh")
-	return rewriteFile(observancePath, func(s string) (string, error) {
+	return rewriteFile(disk, observancePath, func(s string) (string, error) {
 		s = replaceLinePrefix(s, `TYPES="`, `TYPES="`+strings.Join(v.Types, " ")+`"`)
 		if len(v.Scopes) > 0 {
 			s = replaceLinePrefix(s, `SCOPES="`, `SCOPES="`+strings.Join(v.Scopes, " ")+`"`)
@@ -213,12 +214,12 @@ func replaceLinePrefix(content, prefix, replacement string) string {
 // mode. fn returns an error where the content is not the shape the
 // rewrite needs: a rewrite that silently matched nothing would leave
 // the kit saying something other than what the plan promised.
-func rewriteFile(path string, fn func(string) (string, error)) error {
-	info, err := os.Stat(path)
+func rewriteFile(disk vfs.FS, path string, fn func(string) (string, error)) error {
+	info, err := disk.Stat(path)
 	if err != nil {
 		return fmt.Errorf("rewriting %s: %w", path, err)
 	}
-	content, err := os.ReadFile(path)
+	content, err := disk.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("rewriting %s: %w", path, err)
 	}
@@ -226,5 +227,5 @@ func rewriteFile(path string, fn func(string) (string, error)) error {
 	if err != nil {
 		return fmt.Errorf("rewriting %s: %w", path, err)
 	}
-	return os.WriteFile(path, []byte(next), info.Mode())
+	return disk.WriteFile(path, []byte(next), info.Mode())
 }

@@ -3,11 +3,12 @@ package initcmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // gap is one finding of the on-the-spot checks: which stage's
@@ -34,7 +35,7 @@ func checkStages(root string, stage int, d Deps) []gap {
 	}
 
 	if stage >= 1 {
-		gaps = append(gaps, checkFiles(root)...)
+		gaps = append(gaps, checkFiles(d.Files, root)...)
 	}
 	if stage >= 2 {
 		forgeGaps, reachable := checkForge(d)
@@ -57,24 +58,24 @@ func checkStages(root string, stage int, d Deps) []gap {
 // of the adopter, the docs/ and work/ split, and the gates answered in
 // AGENTS.md. The kit's own files were just written, so what can gape
 // here is the project's half.
-func checkFiles(root string) []gap {
+func checkFiles(disk vfs.FS, root string) []gap {
 	var gaps []gap
 
-	if _, err := os.Stat(filepath.Join(root, "docs", "about.md")); err != nil {
+	if _, err := disk.Stat(filepath.Join(root, "docs", "about.md")); err != nil {
 		gaps = append(gaps, gap{1, "docs/about.md — an About file is required of the project, and none was found"})
 	}
 	for _, folder := range []string{"product", "technical"} {
-		if !hasRealChapter(filepath.Join(root, "docs", folder)) {
+		if !hasRealChapter(disk, filepath.Join(root, "docs", folder)) {
 			gaps = append(gaps, gap{1, fmt.Sprintf("docs/%s/ — at least one real %s doc is required beyond the README", folder, folder)})
 		}
 	}
 	for _, rel := range []string{"work/tasks", "work/specs", "work/reports"} {
-		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
+		if _, err := disk.Stat(filepath.Join(root, rel)); err != nil {
 			gaps = append(gaps, gap{1, rel + "/ — the queue's folder is missing"})
 		}
 	}
 
-	agents, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	agents, err := disk.ReadFile(filepath.Join(root, "AGENTS.md"))
 	switch {
 	case err != nil:
 		gaps = append(gaps, gap{1, "AGENTS.md — the agents' entry point is missing"})
@@ -84,14 +85,14 @@ func checkFiles(root string) []gap {
 		gaps = append(gaps, gap{1, "AGENTS.md — TODOs remain; the four human gates must be answered, not left as placeholders"})
 	}
 
-	if v, err := os.ReadFile(filepath.Join(root, ".writrun", "VERSION")); err != nil || strings.TrimSpace(string(v)) == "" {
+	if v, err := disk.ReadFile(filepath.Join(root, ".writrun", "VERSION")); err != nil || strings.TrimSpace(string(v)) == "" {
 		gaps = append(gaps, gap{1, ".writrun/VERSION — the kit's tag is not recorded"})
 	}
 
 	var settings struct {
 		Stage int `json:"stage"`
 	}
-	raw, err := os.ReadFile(filepath.Join(root, ".writrun", "settings.json"))
+	raw, err := disk.ReadFile(filepath.Join(root, ".writrun", "settings.json"))
 	if err != nil || json.Unmarshal(raw, &settings) != nil || settings.Stage < 1 || settings.Stage > 3 {
 		gaps = append(gaps, gap{1, ".writrun/settings.json — the settings are not canonical; a stage of 1, 2 or 3 is required"})
 	}
@@ -131,9 +132,9 @@ func checkForge(d Deps) ([]gap, bool) {
 
 // hasRealChapter reports whether a docs folder holds any markdown
 // beyond its README — a real chapter, not a table of chapters to come.
-func hasRealChapter(dir string) bool {
+func hasRealChapter(disk vfs.FS, dir string) bool {
 	found := false
-	_ = filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+	_ = disk.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return nil
 		}

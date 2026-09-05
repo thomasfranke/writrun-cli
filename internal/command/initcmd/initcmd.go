@@ -16,6 +16,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // sourceDefault is the WritRun repository the kit is fetched from.
@@ -39,6 +40,8 @@ type Deps struct {
 	Git      gitRunner
 	Gh       func(args ...string) (string, error)
 	LookPath func(name string) (string, error)
+	// Files is the filesystem this command reads and writes through.
+	Files vfs.FS
 }
 
 // New returns the init command wired with its dependencies.
@@ -79,7 +82,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := hook.RefuseForeign(hookAt); err != nil {
+	if err := hook.RefuseForeign(d.Files, hookAt); err != nil {
 		return err
 	}
 
@@ -89,7 +92,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	var kit *kitfetch.Fetched
 	if err := ctx.Terminal.Spin("fetching WritRun "+d.Tag, func() error {
 		var fetchErr error
-		kit, fetchErr = kitfetch.Fetch(d.Tag, d.Source, kitfetch.GitRunner(d.Git))
+		kit, fetchErr = kitfetch.Fetch(d.Files, d.Tag, d.Source, kitfetch.GitRunner(d.Git))
 		return fetchErr
 	}); err != nil {
 		return err
@@ -102,7 +105,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return err
 	}
 
-	a, err := plan(ctx.Root, template, d.Tag, d.Source, stage, hookAt, d.Git)
+	a, err := plan(d.Files, ctx.Root, template, d.Tag, d.Source, stage, hookAt, d.Git)
 	if err != nil {
 		return err
 	}

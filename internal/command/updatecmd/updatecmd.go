@@ -9,13 +9,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // sourceDefault is the WritRun repository the kit is fetched from.
@@ -32,6 +32,8 @@ type Deps struct {
 	Source string
 	// Git runs one git invocation.
 	Git kitfetch.GitRunner
+	// Files is the filesystem this command reads and writes through.
+	Files vfs.FS
 }
 
 // New returns the update command wired with its dependencies.
@@ -59,7 +61,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return fmt.Errorf("unexpected argument %q", fs.Arg(0))
 	}
 
-	current, err := recordedTag(ctx.Root)
+	current, err := recordedTag(d.Files, ctx.Root)
 	if err != nil {
 		return err
 	}
@@ -75,7 +77,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// damaged one stops the whole refresh, and stopping after a clone
 	// would have spent the fetch to reach the same refusal (spec-0003).
 	agentsPath := filepath.Join(ctx.Root, "AGENTS.md")
-	agents, err := os.ReadFile(agentsPath)
+	agents, err := d.Files.ReadFile(agentsPath)
 	if err != nil {
 		return fmt.Errorf("reading AGENTS.md: %w", err)
 	}
@@ -96,14 +98,14 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	var kit *kitfetch.Fetched
 	if err := ctx.Terminal.Spin("fetching WritRun "+d.Tag, func() error {
 		var fetchErr error
-		kit, fetchErr = kitfetch.Fetch(d.Tag, d.Source, d.Git)
+		kit, fetchErr = kitfetch.Fetch(d.Files, d.Tag, d.Source, d.Git)
 		return fetchErr
 	}); err != nil {
 		return err
 	}
 	defer kit.Cleanup()
 
-	r, err := plan(ctx.Root, kit.Template, current, d.Tag, agents)
+	r, err := plan(d.Files, ctx.Root, kit.Template, current, d.Tag, agents)
 	if err != nil {
 		return err
 	}
@@ -123,8 +125,8 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 
 // recordedTag is the tag the kit records — the refresh's starting
 // point, read from the file the adoption wrote.
-func recordedTag(root string) (string, error) {
-	raw, err := os.ReadFile(filepath.Join(root, ".writrun", "VERSION"))
+func recordedTag(files vfs.FS, root string) (string, error) {
+	raw, err := files.ReadFile(filepath.Join(root, ".writrun", "VERSION"))
 	if err != nil {
 		return "", fmt.Errorf("reading .writrun/VERSION: %w", err)
 	}

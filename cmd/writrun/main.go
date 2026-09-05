@@ -15,6 +15,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/term"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 	"github.com/thomasfranke/writrun-cli/internal/wrepo"
 )
 
@@ -40,6 +41,7 @@ func buildVersion() string {
 const writrunTag = "v0.0.03"
 
 func main() {
+	disk := vfs.OS{}
 	os.Exit(command.Run(command.Frame{
 		Version:    buildVersion(),
 		WritRunTag: writrunTag,
@@ -47,7 +49,7 @@ func main() {
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
 		Terminal:   terminal(),
-		FindRepo:   wrepo.Find,
+		FindRepo:   func(dir string) (string, bool, error) { return wrepo.Find(disk, dir) },
 		Getenv:     os.Getenv,
 		Getwd:      os.Getwd,
 	}, os.Args[1:]))
@@ -58,6 +60,7 @@ func main() {
 // empty means the canonical repository.
 func commands() []command.Command {
 	gh := forge.Client{}
+	disk := vfs.OS{}
 	source := os.Getenv("WRITRUN_SOURCE")
 	return []command.Command{
 		initcmd.New(initcmd.Deps{
@@ -66,13 +69,15 @@ func commands() []command.Command {
 			Git:      gitx.Run,
 			Gh:       gh.Run,
 			LookPath: exec.LookPath,
+			Files:    disk,
 		}),
 		updatecmd.New(updatecmd.Deps{
 			Tag:    writrunTag,
 			Source: source,
 			Git:    gitx.Run,
+			Files:  disk,
 		}),
-		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run}),
+		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 	}
 }
 
