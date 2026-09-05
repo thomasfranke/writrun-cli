@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 func TestExtractVocabularyReadsTheHistory(t *testing.T) {
@@ -14,7 +16,7 @@ func TestExtractVocabularyReadsTheHistory(t *testing.T) {
 		"feat(cli): add another",
 		"not a conventional subject",
 	)
-	v := extractVocabulary(target, ExecGit)
+	v := extractVocabulary(target, gitx.Run)
 	if got, want := v.Types, []string{"feat", "fix"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("types = %v, want %v (frequency first)", got, want)
 	}
@@ -29,7 +31,7 @@ func TestExtractVocabularyReadsTheHistory(t *testing.T) {
 func TestExtractVocabularyReadsTheContributingGuide(t *testing.T) {
 	target := makeTarget(t, "plain subject")
 	write(t, target, "CONTRIBUTING.md", "Use `build(deps): bump things` and `test: cover it`.\n")
-	v := extractVocabulary(target, ExecGit)
+	v := extractVocabulary(target, gitx.Run)
 	if got, want := v.Types, []string{"build", "test"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("types = %v, want %v", got, want)
 	}
@@ -41,7 +43,7 @@ func TestExtractVocabularyReadsTheContributingGuide(t *testing.T) {
 func TestExtractVocabularyMergesBothSources(t *testing.T) {
 	target := makeTarget(t, "feat: begin")
 	write(t, target, "docs/CONTRIBUTING.md", "Subjects look like `fix(core): mend`.\n")
-	v := extractVocabulary(target, ExecGit)
+	v := extractVocabulary(target, gitx.Run)
 	if len(v.Types) != 2 {
 		t.Errorf("types = %v, want feat and fix", v.Types)
 	}
@@ -52,7 +54,7 @@ func TestExtractVocabularyMergesBothSources(t *testing.T) {
 
 func TestExtractVocabularyWithNeitherSourceIsEmpty(t *testing.T) {
 	target := makeTarget(t, "initial import", "more work")
-	v := extractVocabulary(target, ExecGit)
+	v := extractVocabulary(target, gitx.Run)
 	if len(v.Types) != 0 || v.Source != "" {
 		t.Errorf("vocabulary = %+v, want the zero value for shipped defaults", v)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
 	"github.com/thomasfranke/writrun-cli/internal/forge"
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/term"
 	"github.com/thomasfranke/writrun-cli/internal/wrepo"
 )
@@ -55,11 +56,12 @@ func main() {
 // empty means the canonical repository.
 func commands() []command.Command {
 	gh := forge.Client{}
+	source := os.Getenv("WRITRUN_SOURCE")
 	return []command.Command{
 		initcmd.New(initcmd.Deps{
 			Tag:      writrunTag,
-			Source:   os.Getenv("WRITRUN_SOURCE"),
-			Git:      initcmd.ExecGit,
+			Source:   source,
+			Git:      gitx.Run,
 			Gh:       gh.Run,
 			LookPath: exec.LookPath,
 		}),

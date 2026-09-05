@@ -9,6 +9,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/hook"
 )
 
 // agentsAction is what the plan decided about AGENTS.md.
@@ -106,7 +109,7 @@ func agentsDecision(path string) agentsAction {
 	if err != nil {
 		return agentsSkeleton
 	}
-	if strings.Contains(string(content), markerBegin) {
+	if strings.Contains(string(content), fence.Begin) {
 		return agentsKept
 	}
 	return agentsGraft
@@ -243,7 +246,7 @@ func (a *adoption) apply() error {
 	if err := applyVocabulary(a.root, a.vocab); err != nil {
 		return err
 	}
-	return installHook(a.hookPath)
+	return hook.Install(a.hookPath)
 }
 
 func (a *adoption) applyAgents() error {
@@ -256,7 +259,7 @@ func (a *adoption) applyAgents() error {
 	case agentsSkeleton:
 		return os.WriteFile(dst, templateAgents, 0o644)
 	case agentsGraft:
-		section, err := graftSection(templateAgents)
+		section, err := fence.Section(templateAgents)
 		if err != nil {
 			return err
 		}
@@ -264,7 +267,7 @@ func (a *adoption) applyAgents() error {
 		if err != nil {
 			return fmt.Errorf("grafting AGENTS.md: %w", err)
 		}
-		return os.WriteFile(dst, graft(existing, section), 0o644)
+		return os.WriteFile(dst, fence.Graft(existing, section), 0o644)
 	}
 	return nil
 }

@@ -10,19 +10,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 )
 
 // sourceDefault is the WritRun repository the kit is fetched from.
 const sourceDefault = "https://github.com/thomasfranke/writrun"
 
 // gitRunner executes one git invocation in a directory and returns its
-// stdout; ExecGit is the production implementation.
+// stdout; gitx.Run is the production implementation.
 type gitRunner func(dir string, args ...string) (string, error)
 
 // Deps is the production wiring init needs beyond the frame's Ctx:
@@ -75,33 +75,27 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	} else if strings.TrimSpace(out) != "" {
 		return fmt.Errorf("the working tree is dirty — commit or stash first (`git stash -u`; untracked files count too), so the adoption is the only change")
 	}
-	hookAt, err := hookPath(ctx.Root, d.Git)
+	hookAt, err := hook.Path(ctx.Root, hook.GitRunner(d.Git))
 	if err != nil {
 		return err
 	}
-	if err := checkNoForeignHook(hookAt); err != nil {
+	if err := hook.RefuseForeign(hookAt); err != nil {
 		return err
 	}
 
 	// The fetch: a shallow clone of the pinned tag, into a directory
 	// outside the repository — a failure here has written nothing
 	// (spec-0002, edge cases).
-	tmp, err := os.MkdirTemp("", "writrun-kit-")
-	if err != nil {
+	var kit *kitfetch.Fetched
+	if err := ctx.Terminal.Spin("fetching WritRun "+d.Tag, func() error {
+		var fetchErr error
+		kit, fetchErr = kitfetch.Fetch(d.Tag, d.Source, kitfetch.GitRunner(d.Git))
+		return fetchErr
+	}); err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
-	clone := filepath.Join(tmp, "writrun")
-	if err := ctx.Terminal.Spin("fetching WritRun "+d.Tag, func() error {
-		_, cloneErr := d.Git("", "clone", "--depth", "1", "--branch", d.Tag, d.Source, clone)
-		return cloneErr
-	}); err != nil {
-		return fmt.Errorf("fetching WritRun %s from %s failed — nothing was written: %w", d.Tag, d.Source, err)
-	}
-	template := filepath.Join(clone, "template")
-	if _, err := os.Stat(template); err != nil {
-		return fmt.Errorf("%s carries no template/ at %s — not a WritRun repository", d.Source, d.Tag)
-	}
+	defer kit.Cleanup()
+	template := kit.Template
 
 	stage, err := askStage(ctx, *stageFlag)
 	if err != nil {

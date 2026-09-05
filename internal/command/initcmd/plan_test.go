@@ -6,6 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/hook"
+
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 )
 
 // planFixture clones the test source the way run does and plans an
@@ -15,11 +20,11 @@ func planFixture(t *testing.T, target string, stage int) *adoption {
 	src := makeSource(t)
 	clone := filepath.Join(t.TempDir(), "writrun")
 	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", testTag, src, clone)
-	hook, err := hookPath(target, ExecGit)
+	hookAt, err := hook.Path(target, hook.GitRunner(gitx.Run))
 	if err != nil {
-		t.Fatalf("hookPath = %v", err)
+		t.Fatalf("hook.Path = %v", err)
 	}
-	a, err := plan(target, filepath.Join(clone, "template"), testTag, src, stage, hook, ExecGit)
+	a, err := plan(target, filepath.Join(clone, "template"), testTag, src, stage, hookAt, gitx.Run)
 	if err != nil {
 		t.Fatalf("plan = %v", err)
 	}
@@ -85,7 +90,7 @@ func TestApplyPerformsTheWholePlan(t *testing.T) {
 	if settings := read(t, target, ".writrun/settings.json"); !strings.Contains(settings, `"stage": 2`) {
 		t.Errorf("settings do not record stage 2:\n%s", settings)
 	}
-	if agents := read(t, target, "AGENTS.md"); !strings.Contains(agents, markerBegin) {
+	if agents := read(t, target, "AGENTS.md"); !strings.Contains(agents, fence.Begin) {
 		t.Error("AGENTS.md lacks the fenced section")
 	}
 	if observance := read(t, target, ".writrun/scripts/stage-2-pull-requests/check_observance.sh"); !strings.Contains(observance, `TYPES="feat"`) {
@@ -129,7 +134,7 @@ func TestApplyGraftKeepsEveryByteOutsideTheFence(t *testing.T) {
 	if !strings.HasPrefix(after, existing) {
 		t.Error("bytes outside the fenced section changed")
 	}
-	if !strings.Contains(after, markerEnd) {
+	if !strings.Contains(after, fence.End) {
 		t.Error("the fenced section was not grafted")
 	}
 }
