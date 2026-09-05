@@ -1,7 +1,7 @@
 ---
 id: spec-0004
 task_ref: task-0004
-status: approved
+status: implemented
 created: 2026-09-03T22:30:37Z
 ---
 
@@ -46,8 +46,8 @@ Integration with stubbed `gh`; one fixture per finding class.
 
 ## Definition of Done
 
-- [ ] Every check in scope has a passing and a failing fixture.
-- [ ] Suite green.
+- [x] Every check in scope has a passing and a failing fixture.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -59,4 +59,38 @@ Integration with stubbed `gh`; one fixture per finding class.
 
 ## Outcome
 
-_(fill after execution)_
+`internal/command/doctorcmd/` carries the command, registered in
+`commands()` between `update` and `uninstall`. It reads the world
+through four ports and opens none of its own: `kit.Runner` for the
+repository's scripts, `forge.Client.Run` for `gh`, `vfs.FS` for the
+filesystem, `exec.LookPath` for the `PATH`.
+
+The declared stage comes from the repository's own
+`.writrun/scripts/stage-2-pull-requests/read_setting.sh`, so the
+documented defaults are the reader's and not this binary's. A reader
+that refuses stands the run down to stage 1 and reports that as a
+finding.
+
+Each finding carries a stage, a level and a sentence naming the file or
+setting. Three levels: `breaks` sets the exit status, `advises` is a
+recommendation, `unread` is a check the forge would not answer. Only
+`breaks` reaches the exit status, so an unreachable forge and a missing
+recommendation both exit 0. A wrapped check's own reporting is printed
+under its finding unedited.
+
+Two stage-2 answers are recommendations rather than breakages, against
+the spec's plainest reading: `main` governed by no ruleset, and a
+ruleset over `main` naming no bypass actor. Neither refuses a
+fast-forward push on its own — `report-0010` records the evidence from
+this repository. What refuses the push is one of the four rules, and
+those are `breaks`.
+
+`.writrun/VERSION` is parsed inside this package rather than through a
+shared parser: `updatecmd` reads the same file to order two releases,
+which is a different question. `report-0009` records the checks
+`initcmd` and `doctorcmd` now write twice.
+
+Tests: 84 Go cases in `internal/command/doctorcmd/` (97.5% of the
+package's statements), and 49 assertions across nine case files in
+`tests/integration/doctor/` on `tests/doctor_lib.sh`, where `gh` is a
+stub answering from files named after its own arguments.

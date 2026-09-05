@@ -1,0 +1,263 @@
+package doctorcmd
+
+import (
+	"bytes"
+	"fmt"
+	"io/fs"
+	"path/filepath"
+	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
+)
+
+// requirements are the wrapped scripts' own, and this binary adds none
+// (docs/technical/runtime/requirements.md). `gh` is not among them: it
+// is asked for at stage 2, where the flows already reach the forge.
+var requirements = []string{"git", "bash", "awk", "sed"}
+
+// stage0 is the environment: every requirement named where it is
+// missing, one finding each, so a reader installs all of them in one
+// pass rather than one per run.
+func stage0(d Deps) []finding {
+	var found []finding
+	for _, bin := range requirements {
+		if _, err := d.LookPath(bin); err != nil {
+			found = append(found, finding{stage: 0, level: breaks,
+				text: bin + " is not on the PATH — the wrapped scripts require it"})
+		}
+	}
+	return found
+}
+
+// stage1 is the files: the three documents the methodology requires of
+// the adopter, the docs/ and work/ split, the gates answered in
+// AGENTS.md, the fence intact, the kit's tag recorded, and the two
+// checks whose verdict is the repository's own.
+func stage1(root string, d Deps) []finding {
+	var found []finding
+
+	if !exists(d.Files, filepath.Join(root, "docs", "about.md")) {
+		found = append(found, finding{stage: 1, level: breaks,
+			text: "docs/about.md — an About file is required of the project, and none was found"})
+	}
+	for _, folder := range []string{"product", "technical"} {
+		if !hasChapter(d.Files, filepath.Join(root, "docs", folder)) {
+			found = append(found, finding{stage: 1, level: breaks,
+				text: fmt.Sprintf("docs/%s/ — at least one real %s doc is required beyond the README", folder, folder)})
+		}
+	}
+	for _, rel := range []string{"docs", "work/tasks", "work/specs", "work/reports"} {
+		if !exists(d.Files, filepath.Join(root, filepath.FromSlash(rel))) {
+			found = append(found, finding{stage: 1, level: breaks,
+				text: rel + "/ — the docs/ and work/ split requires it, and it is missing"})
+		}
+	}
+
+	found = append(found, agents(d.Files, root)...)
+	found = append(found, kitVersion(d.Files, root)...)
+	found = append(found, script(root, d, frontMatterScript,
+		"the queue's front matter is not canonical; every fault it named is below")...)
+	found = append(found, script(root, d, settingsScript,
+		".writrun/settings.json does not hold the shape the line-based readers can see")...)
+	return found
+}
+
+// agents reads AGENTS.md: the entry point present, the fence the kit
+// refreshes through intact, and the four gates answered.
+func agents(disk vfs.FS, root string) []finding {
+	raw, err := disk.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		return []finding{{stage: 1, level: breaks,
+			text: "AGENTS.md — the agents' entry point is missing"}}
+	}
+	doc := string(raw)
+	var found []finding
+	begin := strings.Index(doc, fence.Begin)
+	end := strings.Index(doc, fence.End)
+	if begin < 0 || end < begin {
+		found = append(found, finding{stage: 1, level: breaks,
+			text: "AGENTS.md — the fenced writrun:begin/writrun:end markers are damaged; a refresh rewrites nothing without them"})
+	}
+	return append(found, gates(doc)...)
+}
+
+// gate is one of the four answers the methodology requires of a
+// project. The key is the phrase the transition cell carries in every
+// wording the kit has shipped, and the words are how the finding names
+// the gate that went unanswered.
+type gate struct {
+	key   string
+	names string
+}
+
+// theGates are the four, in the order the table states them
+// (spec-0004, step 3).
+var theGates = []gate{
+	{"under `docs/`", "who writes or reviews a change under docs/"},
+	{"authored rule", "who declares an authored rule finished"},
+	{"approved", "who moves a spec from draft to approved"},
+	{"spec_ref", "who acts on a task carrying no spec"},
+}
+
+// gates reports the gates the table leaves unanswered. The table is
+// read from the Human gates section where AGENTS.md still heads it that
+// way, and from the whole document otherwise — a project may retitle
+// the section, and a gate answered under another heading is answered.
+func gates(doc string) []finding {
+	rows := tableRows(section(doc, "Human gates"))
+	var found []finding
+	for _, g := range theGates {
+		who, stated := answer(rows, g.key)
+		switch {
+		case !stated:
+			found = append(found, finding{stage: 1, level: breaks,
+				text: "AGENTS.md — the human gates table states no row for " + g.names})
+		case unanswered(who):
+			found = append(found, finding{stage: 1, level: breaks,
+				text: "AGENTS.md — the gate for " + g.names + " is still a placeholder; it must be answered, not left as a TODO"})
+		}
+	}
+	return found
+}
+
+// section cuts the markdown heading named by title and everything under
+// it, up to the next heading of any level. An absent heading yields the
+// whole document, because a project that retitled the section still
+// wrote its answers somewhere in this file.
+func section(doc, title string) string {
+	lines := strings.Split(doc, "\n")
+	start := -1
+	for i, line := range lines {
+		if strings.HasPrefix(line, "#") && strings.Contains(line, title) {
+			start = i + 1
+			break
+		}
+	}
+	if start < 0 {
+		return doc
+	}
+	for i := start; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "#") {
+			return strings.Join(lines[start:i], "\n")
+		}
+	}
+	return strings.Join(lines[start:], "\n")
+}
+
+// tableRows reads the two-column rows of every markdown table in a
+// stretch of document: the transition and who answers it, trimmed. The
+// alignment row is one of them and matches no gate, so it needs no
+// special case.
+func tableRows(doc string) [][2]string {
+	var rows [][2]string
+	for _, line := range strings.Split(doc, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "|") {
+			continue
+		}
+		cells := strings.Split(strings.Trim(line, "|"), "|")
+		if len(cells) < 2 {
+			continue
+		}
+		rows = append(rows, [2]string{strings.TrimSpace(cells[0]), strings.TrimSpace(cells[1])})
+	}
+	return rows
+}
+
+// answer finds the row whose transition carries key and returns what it
+// says about who. The match is case-insensitive: the wording is the
+// project's, and a capital is not a missing gate.
+func answer(rows [][2]string, key string) (string, bool) {
+	for _, row := range rows {
+		if strings.Contains(strings.ToLower(row[0]), strings.ToLower(key)) {
+			return row[1], true
+		}
+	}
+	return "", false
+}
+
+// unanswered reports whether a Who cell is still the kit's placeholder
+// rather than the project's answer.
+func unanswered(who string) bool {
+	return strings.TrimSpace(who) == "" || strings.Contains(who, "TODO")
+}
+
+// kitVersion reads `.writrun/VERSION`. The tag is parsed here rather
+// than through a shared parser on purpose: `writrun update` reads the
+// same file to order two releases, and one type answering both would
+// tie a refresh's ordering to a health report's parse.
+func kitVersion(disk vfs.FS, root string) []finding {
+	raw, err := disk.ReadFile(filepath.Join(root, ".writrun", "VERSION"))
+	if err != nil {
+		return []finding{{stage: 1, level: breaks,
+			text: ".writrun/VERSION — the kit's tag is not recorded, so no refresh can tell what is installed"}}
+	}
+	tag := strings.TrimSpace(string(raw))
+	if !parseableTag(tag) {
+		return []finding{{stage: 1, level: breaks,
+			text: fmt.Sprintf(".writrun/VERSION — %q is not a readable tag; vMAJOR.MINOR.PATCH is expected", tag)}}
+	}
+	return nil
+}
+
+// parseableTag reports whether a recorded tag can be read as a WritRun
+// release: a leading `v` and two or more all-digit components. `v0.0.03`
+// is one, and so is a two-component tag a later release may carry.
+func parseableTag(tag string) bool {
+	if !strings.HasPrefix(tag, "v") {
+		return false
+	}
+	parts := strings.Split(strings.TrimPrefix(tag, "v"), ".")
+	if len(parts) < 2 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// script runs one of the repository's own checks and turns its verdict
+// into a finding. The exit code is the whole answer — this reads it and
+// never re-decides it — and what the script said is carried under the
+// finding so the reader gets the faults in the script's own words
+// (product/rules.md).
+func script(root string, d Deps, name, expectation string) []finding {
+	var said bytes.Buffer
+	if err := d.Scripts(root, &said, &said, name); err != nil {
+		return []finding{{stage: 1, level: breaks,
+			text: name + " — it refuses: " + expectation, detail: said.String()}}
+	}
+	return nil
+}
+
+// exists reports whether a path is there at all — the question every
+// required file and folder asks.
+func exists(disk vfs.FS, path string) bool {
+	_, err := disk.Stat(path)
+	return err == nil
+}
+
+// hasChapter reports whether a docs folder holds any markdown beyond
+// its README — a real chapter, not a table of chapters to come.
+func hasChapter(disk vfs.FS, dir string) bool {
+	found := false
+	_ = disk.WalkDir(dir, func(_ string, entry fs.DirEntry, err error) error {
+		if err != nil || entry == nil || entry.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(entry.Name(), ".md") && !strings.EqualFold(entry.Name(), "README.md") {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
