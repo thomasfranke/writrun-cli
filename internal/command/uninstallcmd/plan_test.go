@@ -9,10 +9,12 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestNewNamesTheCommand(t *testing.T) {
-	c := New(Deps{Git: hook.GitRunner(gitx.Run)})
+	c := New(Deps{Git: hook.GitRunner(gitx.Run), Files: vfs.OS{}})
 	if c.Name != "uninstall" {
 		t.Errorf("Name = %q", c.Name)
 	}
@@ -58,13 +60,13 @@ func TestHookDisplayFallsBackToTheAbsolutePath(t *testing.T) {
 	// to something else.
 	root := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "shared-hooks", "commit-msg")
-	r := &removal{root: root, hookAt: outside}
+	r := &removal{disk: vfs.OS{}, root: root, hookAt: outside}
 	if got := r.hookDisplay(); got != outside {
 		t.Errorf("hookDisplay = %q, want the absolute %q", got, outside)
 	}
 
 	inside := filepath.Join(root, ".git", "hooks", "commit-msg")
-	r = &removal{root: root, hookAt: inside}
+	r = &removal{disk: vfs.OS{}, root: root, hookAt: inside}
 	if got := r.hookDisplay(); got != ".git/hooks/commit-msg" {
 		t.Errorf("hookDisplay = %q, want the path relative to the repository", got)
 	}
@@ -73,6 +75,7 @@ func TestHookDisplayFallsBackToTheAbsolutePath(t *testing.T) {
 func TestApplyToleratesWhatIsAlreadyGone(t *testing.T) {
 	root := t.TempDir()
 	r := &removal{
+		disk:      vfs.OS{},
 		root:      root,
 		dirs:      nil,
 		files:     []string{"WRITRUN.md"},
@@ -91,7 +94,7 @@ func TestPlanSeparatesWhatGoesFromWhatIsGone(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, ".github/workflows/writrun-issues.yml")); err != nil {
 		t.Fatal(err)
 	}
-	r, err := plan(root, filepath.Join(root, ".git", "hooks", "commit-msg"))
+	r, err := plan(vfs.OS{}, root, filepath.Join(root, ".git", "hooks", "commit-msg"))
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}

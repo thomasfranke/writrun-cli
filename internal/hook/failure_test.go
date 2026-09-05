@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // readOnly makes dir unwritable for the rest of the test, so a write
@@ -27,14 +29,14 @@ func TestInstallReportsAnUnwritableDirectory(t *testing.T) {
 	readOnly(t, dir)
 
 	// The hooks directory cannot be created.
-	if err := Install(filepath.Join(dir, "hooks", "commit-msg")); err == nil {
+	if err := Install(vfs.OS{}, filepath.Join(dir, "hooks", "commit-msg")); err == nil {
 		t.Error("installing under an unwritable parent was not an error")
 	} else if !strings.Contains(err.Error(), "installing the commit-msg hook") {
 		t.Errorf("the error does not name the act: %v", err)
 	}
 
 	// The directory is there, but the file cannot be written into it.
-	if err := Install(filepath.Join(dir, "commit-msg")); err == nil {
+	if err := Install(vfs.OS{}, filepath.Join(dir, "commit-msg")); err == nil {
 		t.Error("writing into an unwritable directory was not an error")
 	}
 }
@@ -46,7 +48,7 @@ func TestInspectReportsAnUnreadableHook(t *testing.T) {
 	if err := os.Mkdir(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Inspect(dir); err == nil {
+	if _, err := Inspect(vfs.OS{}, dir); err == nil {
 		t.Error("a directory where the hook should be was read as a hook")
 	}
 }

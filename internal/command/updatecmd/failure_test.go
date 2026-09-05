@@ -8,6 +8,8 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // readOnly makes dir unwritable for the rest of the test, so a refresh
@@ -45,7 +47,7 @@ func TestApplyReportsWhatItCouldNotWrite(t *testing.T) {
 	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
 	readOnly(t, filepath.Join(root, ".writrun"))
 
-	r := &refresh{root: root, template: template, to: newTag,
+	r := &refresh{disk: vfs.OS{}, root: root, template: template, to: newTag,
 		dirs: []string{".writrun/skills"}, agentsPath: filepath.Join(root, "AGENTS.md")}
 	err := r.apply()
 	if err == nil {
@@ -64,7 +66,7 @@ func TestApplyReportsAWorkflowItCouldNotWrite(t *testing.T) {
 	write(t, root, rel, "name: check, older\n")
 	readOnly(t, filepath.Join(root, ".github", "workflows"))
 
-	r := &refresh{root: root, template: template, to: newTag,
+	r := &refresh{disk: vfs.OS{}, root: root, template: template, to: newTag,
 		changes:    []change{{rel: rel, verb: changed, src: filepath.Join(template, rel), mode: 0o644}},
 		agentsPath: filepath.Join(root, "AGENTS.md")}
 	if err := r.apply(); err == nil {
@@ -80,7 +82,7 @@ func TestApplyReportsATagItCouldNotRecord(t *testing.T) {
 	// lets an existing file be overwritten.
 	readOnlyFile(t, filepath.Join(root, ".writrun", "VERSION"))
 
-	r := &refresh{root: root, template: t.TempDir(), to: newTag,
+	r := &refresh{disk: vfs.OS{}, root: root, template: t.TempDir(), to: newTag,
 		agentsPath: filepath.Join(root, "AGENTS.md")}
 	err := r.apply()
 	if err == nil {
@@ -98,7 +100,7 @@ func TestApplyReportsAnAgentsItCouldNotRefresh(t *testing.T) {
 	write(t, root, "AGENTS.md", "# Ours\n")
 	readOnlyFile(t, filepath.Join(root, "AGENTS.md"))
 
-	r := &refresh{root: root, template: t.TempDir(), to: newTag,
+	r := &refresh{disk: vfs.OS{}, root: root, template: t.TempDir(), to: newTag,
 		agentsPath: filepath.Join(root, "AGENTS.md"),
 		agents:     []byte("# refreshed\n")}
 	// The tag lands first and lands fine; what fails here is the
@@ -113,7 +115,7 @@ func TestApplyReportsAnAgentsItCouldNotRefresh(t *testing.T) {
 }
 
 func TestCopyTreeReportsWhatItCouldNotRead(t *testing.T) {
-	if err := copyTree(filepath.Join(t.TempDir(), "not-there"), t.TempDir()); err == nil {
+	if err := copyTree(vfs.OS{}, filepath.Join(t.TempDir(), "not-there"), t.TempDir()); err == nil {
 		t.Error("copying a tree that is not there succeeded")
 	}
 }
@@ -127,7 +129,7 @@ func TestDiffTreeReportsAnUnreadableTree(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, ".writrun", "skills"), 0o755) })
 
-	if _, err := diffTree(root, template, ".writrun/skills"); err == nil {
+	if _, err := diffTree(vfs.OS{}, root, template, ".writrun/skills"); err == nil {
 		t.Error("a tree that cannot be walked was diffed all the same")
 	}
 }
@@ -166,7 +168,7 @@ func TestRunReportsAGitThatCannotAnswer(t *testing.T) {
 	write(t, root, "AGENTS.md", agentsAt("The flow's text."))
 	var out strings.Builder
 	ctx := &command.Ctx{Stdout: &out, Stderr: &out, Terminal: &command.FakeTerminal{}, Root: root, Yes: true}
-	err := run(ctx, Deps{Tag: newTag, Source: makeSource(t), Git: gitx.Run}, nil)
+	err := run(ctx, Deps{Tag: newTag, Source: makeSource(t), Git: gitx.Run, Files: vfs.OS{}}, nil)
 	if err == nil {
 		t.Fatal("the working tree was read outside a repository")
 	}
@@ -191,7 +193,7 @@ func TestDiffTreeNamesAFileTheTagDropped(t *testing.T) {
 	write(t, root, ".writrun/skills/gone/SKILL.md", "# Gone\n")
 	write(t, template, ".writrun/skills/kept/SKILL.md", "# Kept\n")
 
-	cs, err := diffTree(root, template, ".writrun/skills")
+	cs, err := diffTree(vfs.OS{}, root, template, ".writrun/skills")
 	if err != nil {
 		t.Fatalf("diffTree: %v", err)
 	}
@@ -224,13 +226,13 @@ func TestReadTreeReportsAFileItCannotRead(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
 
-	if _, err := readTree(dir); err == nil {
+	if _, err := readTree(vfs.OS{}, dir); err == nil {
 		t.Error("a file that cannot be read was read")
 	}
 }
 
 func TestRenderSaysWhenTheSectionAlreadyMatches(t *testing.T) {
-	r := &refresh{from: oldTag, to: newTag, changes: []change{
+	r := &refresh{disk: vfs.OS{}, from: oldTag, to: newTag, changes: []change{
 		{rel: ".writrun/skills/select/SKILL.md", verb: changed},
 		{rel: ".writrun/VERSION", verb: changed},
 	}}
@@ -249,7 +251,7 @@ func TestApplyReportsADirectoryItCouldNotRemove(t *testing.T) {
 	readOnly(t, filepath.Join(root, ".writrun"))
 
 	// The template ships no skills/ at all, so the removal is what fails.
-	r := &refresh{root: root, template: template, to: newTag,
+	r := &refresh{disk: vfs.OS{}, root: root, template: template, to: newTag,
 		dirs: []string{".writrun/skills"}, agentsPath: filepath.Join(root, "AGENTS.md")}
 	err := r.apply()
 	if err == nil {
@@ -268,7 +270,7 @@ func TestApplyReportsAWorkflowItCouldNotRemove(t *testing.T) {
 	write(t, root, ".writrun/VERSION", oldTag+"\n")
 	readOnly(t, filepath.Join(root, ".github", "workflows"))
 
-	r := &refresh{root: root, template: t.TempDir(), to: newTag,
+	r := &refresh{disk: vfs.OS{}, root: root, template: t.TempDir(), to: newTag,
 		changes:    []change{{rel: rel, verb: removed}},
 		agentsPath: filepath.Join(root, "AGENTS.md")}
 	if err := r.apply(); err == nil {
@@ -289,7 +291,7 @@ func TestCopyFileReportsADirectoryItCouldNotCreate(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(guarded, 0o755) })
 
-	if err := copyFile(src, filepath.Join(guarded, "nested", "dst.txt"), 0o644); err == nil {
+	if err := copyFile(vfs.OS{}, src, filepath.Join(guarded, "nested", "dst.txt"), 0o644); err == nil {
 		t.Error("copying under an uncreatable directory succeeded")
 	}
 }
@@ -320,7 +322,7 @@ func TestADeclineRefreshesNothing(t *testing.T) {
 		Terminal: &command.FakeTerminal{In: true, ConfirmAnswer: false},
 		Root:     root, Adopted: true,
 	}
-	if err := run(ctx, Deps{Tag: newTag, Source: src, Git: gitx.Run}, nil); err == nil {
+	if err := run(ctx, Deps{Tag: newTag, Source: src, Git: gitx.Run, Files: vfs.OS{}}, nil); err == nil {
 		t.Fatal("a decline was not reported")
 	}
 	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {

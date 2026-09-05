@@ -10,6 +10,8 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func gitT(t *testing.T, dir string, args ...string) string {
@@ -107,14 +109,14 @@ func runUninstall(t *testing.T, root string, args ...string) (string, error) {
 		Adopted:  true,
 		Yes:      true,
 	}
-	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run)}, args)
+	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run), Files: vfs.OS{}}, args)
 	return out.String(), err
 }
 
 func TestRemovesTheKitAndKeepsTheRecord(t *testing.T) {
 	root := makeAdopted(t)
 	installed := hookAt(t, root)
-	if err := hook.Install(installed); err != nil {
+	if err := hook.Install(vfs.OS{}, installed); err != nil {
 		t.Fatal(err)
 	}
 

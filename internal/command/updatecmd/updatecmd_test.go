@@ -3,6 +3,8 @@ package updatecmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestCompareTags(t *testing.T) {
@@ -29,10 +31,10 @@ func TestCompareTags(t *testing.T) {
 func TestRecordedTagRefusesAnEmptyFile(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, ".writrun/VERSION", "   \n")
-	if _, err := recordedTag(root); err == nil {
+	if _, err := recordedTag(vfs.OS{}, root); err == nil {
 		t.Fatal("an empty VERSION was accepted")
 	}
-	if _, err := recordedTag(t.TempDir()); err == nil {
+	if _, err := recordedTag(vfs.OS{}, t.TempDir()); err == nil {
 		t.Fatal("a missing VERSION was accepted")
 	}
 }

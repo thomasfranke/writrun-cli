@@ -11,6 +11,8 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // planFixture clones the test source the way run does and plans an
@@ -24,7 +26,7 @@ func planFixture(t *testing.T, target string, stage int) *adoption {
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}
-	a, err := plan(target, filepath.Join(clone, "template"), testTag, src, stage, hookAt, gitx.Run)
+	a, err := plan(vfs.OS{}, target, filepath.Join(clone, "template"), testTag, src, stage, hookAt, gitx.Run)
 	if err != nil {
 		t.Fatalf("plan = %v", err)
 	}

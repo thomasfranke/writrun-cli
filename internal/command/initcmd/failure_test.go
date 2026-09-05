@@ -10,6 +10,8 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func readOnly(t *testing.T, path string, mode os.FileMode) {
@@ -87,7 +89,7 @@ func TestATemplateThatCannotBeWalkedIsReported(t *testing.T) {
 	template := filepath.Join(clone, "writrun", "template")
 	readOnly(t, filepath.Join(template, ".writrun"), 0o000)
 
-	_, err := plan(makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run)
+	_, err := plan(vfs.OS{}, makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run)
 	if err == nil {
 		t.Fatal("a template that cannot be walked was planned over")
 	}
@@ -104,7 +106,7 @@ func TestATemplateWithNoAgentsIsNotAWritRunRepository(t *testing.T) {
 	if err := os.Remove(filepath.Join(template, "AGENTS.md")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := plan(makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run); err == nil {
+	if _, err := plan(vfs.OS{}, makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run); err == nil {
 		t.Fatal("a template with no AGENTS.md was planned over")
 	}
 }
@@ -118,7 +120,7 @@ func TestApplyReportsEachWriteItCouldNotMake(t *testing.T) {
 
 	// A copy that cannot land.
 	target := makeTarget(t)
-	a, err := plan(target, template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run)
+	a, err := plan(vfs.OS{}, target, template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +133,7 @@ func TestApplyReportsEachWriteItCouldNotMake(t *testing.T) {
 }
 
 func TestApplyAgentsReportsATemplateItCannotRead(t *testing.T) {
-	a := &adoption{root: t.TempDir(), template: t.TempDir(), agents: agentsSkeleton}
+	a := &adoption{disk: vfs.OS{}, root: t.TempDir(), template: t.TempDir(), agents: agentsSkeleton}
 	if err := a.applyAgents(); err == nil {
 		t.Fatal("a template with no AGENTS.md was grafted from")
 	}
@@ -142,7 +144,7 @@ func TestApplyAgentsReportsAnExistingDocumentItCannotRead(t *testing.T) {
 	// one that cannot be read by the time apply runs is a fault.
 	template := t.TempDir()
 	write(t, template, "AGENTS.md", templateAgents)
-	a := &adoption{root: t.TempDir(), template: template, agents: agentsGraft}
+	a := &adoption{disk: vfs.OS{}, root: t.TempDir(), template: template, agents: agentsGraft}
 	if err := a.applyAgents(); err == nil {
 		t.Fatal("a document that is not there was grafted onto")
 	}
@@ -150,7 +152,7 @@ func TestApplyAgentsReportsAnExistingDocumentItCannotRead(t *testing.T) {
 
 func TestRewriteFileReportsWhatItCouldNotRead(t *testing.T) {
 	same := func(s string) (string, error) { return s, nil }
-	if err := rewriteFile(filepath.Join(t.TempDir(), "not-there"), same); err == nil {
+	if err := rewriteFile(vfs.OS{}, filepath.Join(t.TempDir(), "not-there"), same); err == nil {
 		t.Fatal("a file that is not there was rewritten")
 	}
 
@@ -161,7 +163,7 @@ func TestRewriteFileReportsWhatItCouldNotRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	readOnly(t, path, 0o000)
-	if err := rewriteFile(path, same); err == nil {
+	if err := rewriteFile(vfs.OS{}, path, same); err == nil {
 		t.Fatal("a file that cannot be read was rewritten")
 	}
 }
@@ -169,7 +171,7 @@ func TestRewriteFileReportsWhatItCouldNotRead(t *testing.T) {
 func TestApplyVocabularyReportsTheFirstFileItCouldNotRewrite(t *testing.T) {
 	// The conventions file is missing, so the first rewrite fails and
 	// the second is never reached.
-	err := applyVocabulary(t.TempDir(), vocabulary{Types: []string{"feat"}, Source: "history"})
+	err := applyVocabulary(vfs.OS{}, t.TempDir(), vocabulary{Types: []string{"feat"}, Source: "history"})
 	if err == nil {
 		t.Fatal("a vocabulary was applied to a kit that is not there")
 	}
@@ -185,6 +187,7 @@ func TestTheForgeReadsThatCouldNotAnswerAreNamed(t *testing.T) {
 		return "", errors.New("the API said no\nand said more about it")
 	}
 	d := Deps{
+		Files:    vfs.OS{},
 		LookPath: func(name string) (string, error) { return "/usr/bin/" + name, nil },
 		Gh:       failing,
 	}
@@ -206,7 +209,7 @@ func TestTheForgeReadsThatCouldNotAnswerAreNamed(t *testing.T) {
 
 func TestAMissingAgentsIsNamedAsAGap(t *testing.T) {
 	target := makeTarget(t)
-	gaps := checkFiles(target)
+	gaps := checkFiles(vfs.OS{}, target)
 	var text string
 	for _, g := range gaps {
 		text += g.Text + "\n"
@@ -329,6 +332,7 @@ func TestAOneLineForgeReasonIsReportedWhole(t *testing.T) {
 	// firstLine returns the whole string where there is no newline to
 	// cut at — the common case, and the one that must not lose text.
 	d := Deps{
+		Files:    vfs.OS{},
 		LookPath: func(name string) (string, error) { return "/usr/bin/" + name, nil },
 		Gh: func(args ...string) (string, error) {
 			if len(args) > 1 && args[0] == "auth" {

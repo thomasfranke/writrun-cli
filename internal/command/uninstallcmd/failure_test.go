@@ -9,6 +9,8 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func readOnly(t *testing.T, dir string) {
@@ -34,7 +36,7 @@ func TestTheCommandNewReturnsDoesTheWork(t *testing.T) {
 		Terminal: &command.FakeTerminal{},
 		Root:     root, Adopted: true, Yes: true,
 	}
-	if err := New(Deps{Git: hook.GitRunner(gitx.Run)}).Run(ctx, nil); err != nil {
+	if err := New(Deps{Git: hook.GitRunner(gitx.Run), Files: vfs.OS{}}).Run(ctx, nil); err != nil {
 		t.Fatalf("uninstall through New: %v\n%s", err, out.String())
 	}
 	if _, statErr := os.Stat(filepath.Join(root, ".writrun")); statErr == nil {
@@ -48,7 +50,7 @@ func TestRunReportsAGitThatCannotAnswer(t *testing.T) {
 	root := t.TempDir()
 	var out strings.Builder
 	ctx := &command.Ctx{Stdout: &out, Stderr: &out, Terminal: &command.FakeTerminal{}, Root: root, Yes: true}
-	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run)}, nil)
+	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run), Files: vfs.OS{}}, nil)
 	if err == nil {
 		t.Fatal("the hooks directory was resolved outside a repository")
 	}
@@ -66,7 +68,7 @@ func TestADeclineRemovesNothing(t *testing.T) {
 		Terminal: &command.FakeTerminal{In: true, ConfirmAnswer: false},
 		Root:     root, Adopted: true,
 	}
-	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run)}, nil)
+	err := run(ctx, Deps{Git: hook.GitRunner(gitx.Run), Files: vfs.OS{}}, nil)
 	if err == nil {
 		t.Fatal("a decline was not reported")
 	}
@@ -85,7 +87,7 @@ func TestAnUnreadableAgentsIsAFault(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "AGENTS.md"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := plan(root, filepath.Join(root, ".git", "hooks", "commit-msg")); err == nil {
+	if _, err := plan(vfs.OS{}, root, filepath.Join(root, ".git", "hooks", "commit-msg")); err == nil {
 		t.Error("a directory where AGENTS.md should be was read as a document")
 	}
 }
@@ -95,17 +97,17 @@ func TestApplyReportsWhatItCouldNotRemove(t *testing.T) {
 	root := makeAdopted(t)
 	readOnly(t, root)
 
-	r := &removal{root: root, dirs: []string{".writrun"}, hookState: hook.Absent}
+	r := &removal{disk: vfs.OS{}, root: root, dirs: []string{".writrun"}, hookState: hook.Absent}
 	if err := r.apply(); err == nil {
 		t.Fatal("removing under an unwritable root succeeded")
 	}
 
-	r = &removal{root: root, files: []string{"WRITRUN.md"}, hookState: hook.Absent}
+	r = &removal{disk: vfs.OS{}, root: root, files: []string{"WRITRUN.md"}, hookState: hook.Absent}
 	if err := r.apply(); err == nil {
 		t.Fatal("removing a file under an unwritable root succeeded")
 	}
 
-	r = &removal{root: root, agentsWhole: true, hookState: hook.Absent}
+	r = &removal{disk: vfs.OS{}, root: root, agentsWhole: true, hookState: hook.Absent}
 	if err := r.apply(); err == nil {
 		t.Fatal("removing AGENTS.md under an unwritable root succeeded")
 	}
@@ -116,7 +118,7 @@ func TestApplyReportsWhatItCouldNotRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, "AGENTS.md"), 0o644) })
-	r = &removal{root: root, agents: []byte("# Ours\n"), hookState: hook.Absent}
+	r = &removal{disk: vfs.OS{}, root: root, agents: []byte("# Ours\n"), hookState: hook.Absent}
 	if err := r.apply(); err == nil {
 		t.Fatal("editing an unwritable AGENTS.md succeeded")
 	}
@@ -130,12 +132,12 @@ func TestApplyReportsAHookItCouldNotRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 	installed := filepath.Join(hooks, "commit-msg")
-	if err := hook.Install(installed); err != nil {
+	if err := hook.Install(vfs.OS{}, installed); err != nil {
 		t.Fatal(err)
 	}
 	readOnly(t, hooks)
 
-	r := &removal{root: root, hookAt: installed, hookState: hook.Ours}
+	r := &removal{disk: vfs.OS{}, root: root, hookAt: installed, hookState: hook.Ours}
 	if err := r.apply(); err == nil {
 		t.Fatal("removing a hook under an unwritable directory succeeded")
 	}
@@ -153,7 +155,7 @@ func TestAKitDirectoryAlreadyGoneIsNamed(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(root, ".writrun")); err != nil {
 		t.Fatal(err)
 	}
-	r, err := plan(root, filepath.Join(root, ".git", "hooks", "commit-msg"))
+	r, err := plan(vfs.OS{}, root, filepath.Join(root, ".git", "hooks", "commit-msg"))
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
@@ -179,7 +181,7 @@ func TestAHookThatCannotBeReadIsAFault(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(hooks, "commit-msg"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := plan(root, filepath.Join(hooks, "commit-msg")); err == nil {
+	if _, err := plan(vfs.OS{}, root, filepath.Join(hooks, "commit-msg")); err == nil {
 		t.Error("a directory where the hook should be was inspected as a hook")
 	}
 }

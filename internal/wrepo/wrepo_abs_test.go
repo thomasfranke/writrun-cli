@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestAWorkingDirectoryThatIsGoneIsReported(t *testing.T) {
@@ -26,7 +28,7 @@ func TestAWorkingDirectoryThatIsGoneIsReported(t *testing.T) {
 	if err := os.RemoveAll(gone); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := Find("."); err == nil {
+	if _, _, err := Find(vfs.OS{}, "."); err == nil {
 		t.Skip("this platform still resolves a deleted working directory")
 	}
 }

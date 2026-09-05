@@ -11,6 +11,8 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // runInit drives the whole command against a target repository, the
@@ -25,6 +27,9 @@ func runInit(t *testing.T, target string, d Deps, term *command.FakeTerminal, ye
 	}
 	if d.Gh == nil {
 		d.Gh = func(args ...string) (string, error) { return "", nil }
+	}
+	if d.Files == nil {
+		d.Files = vfs.OS{}
 	}
 	var out bytes.Buffer
 	ctx := &command.Ctx{

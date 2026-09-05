@@ -9,6 +9,8 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 const (
@@ -149,6 +151,6 @@ func runUpdate(t *testing.T, root, source string, args ...string) (string, error
 		Adopted:  true,
 		Yes:      true,
 	}
-	err := run(ctx, Deps{Tag: newTag, Source: source, Git: gitx.Run}, args)
+	err := run(ctx, Deps{Tag: newTag, Source: source, Git: gitx.Run, Files: vfs.OS{}}, args)
 	return out.String(), err
 }
