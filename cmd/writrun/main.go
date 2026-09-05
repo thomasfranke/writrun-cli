@@ -7,8 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"runtime/debug"
+	"time"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/command/finishcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/listcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/takecmd"
@@ -89,6 +91,13 @@ func commands() []command.Command {
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),
 		takecmd.New(takecmd.Deps{Scripts: kit.Run}),
+		finishcmd.New(finishcmd.Deps{
+			Scripts: kit.Run,
+			Files:   disk,
+			Git:     gitx.Run,
+			Gh:      gh.Run,
+			Now:     time.Now,
+		}),
 	}
 }
 
