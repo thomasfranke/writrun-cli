@@ -39,16 +39,7 @@ jobs:
             CGO_ENABLED=0 GOOS="${target%/*}" GOARCH="${target#*/}" go build ./...
           done
       - name: unit, with the coverage gate
-        run: |
-          go test -coverpkg=./internal/... -coverprofile=cover.out ./...
-          go tool cover -func=cover.out | awk '
-            $1 == "total:" {
-              seen = 1
-              sub(/%/, "", $3)
-              printf "coverage over internal/: %s%%\n", $3
-              if ($3 + 0 < 85) { print "below the 85% gate"; exit 1 }
-            }
-            END { if (!seen) { print "no total: line in the cover output"; exit 1 } }'
+        run: make cover
       - name: integration
         run: make test-integration
       - name: e2e
