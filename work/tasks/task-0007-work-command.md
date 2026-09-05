@@ -1,8 +1,8 @@
 ---
 id: task-0007
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0007]
 doc_ref: product/queue/work.md
 origin: rule
