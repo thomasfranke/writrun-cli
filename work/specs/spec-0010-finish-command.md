@@ -83,10 +83,10 @@ already declared are reported, never restamped.
 
 Two things noticed and recorded rather than settled: the completion
 edits are never committed, so preflight's two range-reading stages judge
-a branch that does not yet carry them (report-0009); and a declined
+a branch that does not yet carry them (report-0014); and a declined
 finish exits with those edits already made, which `shape.md`'s "a
 refused command leaves nothing behind" does not describe
-(report-0010). `finishing.md` is upstream WritRun's flow document and is
+(report-0015). `finishing.md` is upstream WritRun's flow document and is
 not in this repository — the order asserted by
 `TestTheGreenPathRunsTheSequenceInOrder` and by the integration cases is
 the one this spec's **Steps** fix.
