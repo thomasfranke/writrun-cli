@@ -81,13 +81,13 @@ under its finding unedited.
 Two stage-2 answers are recommendations rather than breakages, against
 the spec's plainest reading: `main` governed by no ruleset, and a
 ruleset over `main` naming no bypass actor. Neither refuses a
-fast-forward push on its own — `report-0010` records the evidence from
+fast-forward push on its own — `report-0013` records the evidence from
 this repository. What refuses the push is one of the four rules, and
 those are `breaks`.
 
 `.writrun/VERSION` is parsed inside this package rather than through a
 shared parser: `updatecmd` reads the same file to order two releases,
-which is a different question. `report-0009` records the checks
+which is a different question. `report-0012` records the checks
 `initcmd` and `doctorcmd` now write twice.
 
 Tests: 84 Go cases in `internal/command/doctorcmd/` (97.5% of the
