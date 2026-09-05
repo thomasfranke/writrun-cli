@@ -15,18 +15,15 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// planFixture clones the test source the way run does and plans an
-// adoption of the target at the given stage.
+// planFixture plans an adoption of the target at the given stage, over
+// the template a fetch hands the command.
 func planFixture(t *testing.T, target string, stage int) *adoption {
 	t.Helper()
-	src := makeSource(t)
-	clone := filepath.Join(t.TempDir(), "writrun")
-	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", testTag, src, clone)
 	hookAt, err := hook.Path(target, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)
 	}
-	a, err := plan(vfs.OS{}, target, filepath.Join(clone, "template"), testTag, src, stage, hookAt, gitx.Run)
+	a, err := plan(vfs.OS{}, target, makeTemplate(t), testTag, "the source", stage, hookAt, gitx.Run)
 	if err != nil {
 		t.Fatalf("plan = %v", err)
 	}

@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // testTag is the tag every test fixture pins; the tests' Deps name it
@@ -89,26 +91,55 @@ const templateSettings = `{
 }
 `
 
+// writeTemplate writes the kit's template tree under dir: the files
+// init touches, one copy, whether a clone put them there or not.
+func writeTemplate(t *testing.T, dir string) {
+	t.Helper()
+	write(t, dir, "AGENTS.md", templateAgents)
+	write(t, dir, "WRITRUN.md", "# This project uses WritRun\n")
+	write(t, dir, ".writrun/settings.json", templateSettings)
+	write(t, dir, ".writrun/VERSION", testTag+"\n")
+	write(t, dir, ".writrun/conventions/commits.md", templateCommits)
+	write(t, dir, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
+	if err := os.Chmod(filepath.Join(dir, ".writrun/scripts/stage-2-pull-requests/check_observance.sh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(t, dir, "docs/product/README.md", "# Product skeleton\n")
+	write(t, dir, "docs/technical/README.md", "# Technical skeleton\n")
+	write(t, dir, "work/tasks/README.md", "# Tasks\n")
+	write(t, dir, "work/specs/README.md", "# Specs\n")
+	write(t, dir, "work/reports/README.md", "# Reports\n")
+}
+
+// makeTemplate is the template a fake fetch hands over: the same tree
+// makeSource commits, without the repository and without the clone.
+func makeTemplate(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeTemplate(t, dir)
+	return dir
+}
+
+// fakeKit is the fake fetch every test drives init through, holding a
+// template no clone produced.
+func fakeKit(t *testing.T) *kitfetch.Fake {
+	t.Helper()
+	return kitfetch.NewFake(makeTemplate(t))
+}
+
+// realKit is the production fetcher — the one case per command that
+// checks the fake against the thing it fakes.
+func realKit() kitfetch.Clone {
+	return kitfetch.Clone{Files: vfs.OS{}, Git: gitx.Run}
+}
+
 // makeSource builds a local WritRun repository: a template/ with the
 // files init touches, committed and tagged testTag.
 func makeSource(t *testing.T) string {
 	t.Helper()
 	src := t.TempDir()
 	gitT(t, src, "init", "-q")
-	write(t, src, "template/AGENTS.md", templateAgents)
-	write(t, src, "template/WRITRUN.md", "# This project uses WritRun\n")
-	write(t, src, "template/.writrun/settings.json", templateSettings)
-	write(t, src, "template/.writrun/VERSION", testTag+"\n")
-	write(t, src, "template/.writrun/conventions/commits.md", templateCommits)
-	write(t, src, "template/.writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
-	if err := os.Chmod(filepath.Join(src, "template/.writrun/scripts/stage-2-pull-requests/check_observance.sh"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	write(t, src, "template/docs/product/README.md", "# Product skeleton\n")
-	write(t, src, "template/docs/technical/README.md", "# Technical skeleton\n")
-	write(t, src, "template/work/tasks/README.md", "# Tasks\n")
-	write(t, src, "template/work/specs/README.md", "# Specs\n")
-	write(t, src, "template/work/reports/README.md", "# Reports\n")
+	writeTemplate(t, filepath.Join(src, "template"))
 	gitT(t, src, "add", ".")
 	gitT(t, src, "commit", "-q", "-m", "the kit")
 	gitT(t, src, "tag", testTag)

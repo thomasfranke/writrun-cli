@@ -10,27 +10,32 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 func TestNewDefaultsTheSourceToTheCanonicalRepository(t *testing.T) {
 	// An empty Source is the canonical repository, resolved once at
-	// wiring time; the fetch then fails on the network, not on an
-	// empty URL.
+	// wiring time; the fetch is asked for that one, never for an empty
+	// URL.
 	target := makeTarget(t)
-	_, err := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
-	if err == nil {
-		t.Skip("this machine reached the canonical repository")
+	kit := fakeKit(t)
+	out, err := runInit(t, target, Deps{Tag: testTag, Kit: kit}, &command.FakeTerminal{}, true, "--stage", "1")
+	if err != nil {
+		t.Fatalf("init = %v\n%s", err, out)
 	}
-	if !strings.Contains(err.Error(), "github.com/thomasfranke/writrun") {
-		t.Errorf("the default source was not used: %v", err)
+	if len(kit.Asked) != 1 {
+		t.Fatalf("the fetch was asked %d times, want 1: %v", len(kit.Asked), kit.Asked)
+	}
+	if kit.Asked[0].Source != "https://github.com/thomasfranke/writrun" {
+		t.Errorf("the default source was not used: %q", kit.Asked[0].Source)
 	}
 }
 
 func TestAnUnknownFlagIsRefused(t *testing.T) {
 	target := makeTarget(t)
-	_, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--nope")
+	_, err := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--nope")
 	if err == nil {
 		t.Fatal("an unknown flag was accepted")
 	}
@@ -40,7 +45,7 @@ func TestAWorkingTreeGitCannotReadStopsTheAdoption(t *testing.T) {
 	// Outside a repository there is no tree to read, and an adoption
 	// may not proceed without knowing whether one is dirty.
 	target := t.TempDir()
-	_, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil {
 		t.Fatal("the adoption proceeded outside a repository")
 	}
@@ -50,14 +55,11 @@ func TestAWorkingTreeGitCannotReadStopsTheAdoption(t *testing.T) {
 }
 
 func TestATemplateWithNoAgentsIsNotAWritRunRepository(t *testing.T) {
-	src := makeSource(t)
-	clone := t.TempDir()
-	gitT(t, "", "clone", "-q", "--depth", "1", "--branch", testTag, src, filepath.Join(clone, "writrun"))
-	template := filepath.Join(clone, "writrun", "template")
+	template := makeTemplate(t)
 	if err := os.Remove(filepath.Join(template, "AGENTS.md")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := plan(vfs.OS{}, makeTarget(t), template, testTag, src, 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run); err == nil {
+	if _, err := plan(vfs.OS{}, makeTarget(t), template, testTag, "the source", 1, filepath.Join(t.TempDir(), "commit-msg"), gitx.Run); err == nil {
 		t.Fatal("a template with no AGENTS.md was planned over")
 	}
 }
@@ -147,7 +149,7 @@ func TestThePlanNamesWhatTheProjectAlreadyOwns(t *testing.T) {
 	gitT(t, target, "add", "-A")
 	gitT(t, target, "commit", "-q", "-m", "our docs")
 
-	out, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -160,14 +162,14 @@ func TestThePlanNamesWhatTheProjectAlreadyOwns(t *testing.T) {
 }
 
 func TestThePlanSaysWhichWayAgentsGoes(t *testing.T) {
-	source := makeSource(t)
+	kit := fakeKit(t)
 
 	// Present without the markers: grafted.
 	target := makeTarget(t)
 	write(t, target, "AGENTS.md", "# Ours\n\nRules we already had.\n")
 	gitT(t, target, "add", "-A")
 	gitT(t, target, "commit", "-q", "-m", "agents")
-	out, err := runInit(t, target, Deps{Tag: testTag, Source: source}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, target, Deps{Tag: testTag, Kit: kit}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -180,7 +182,7 @@ func TestThePlanSaysWhichWayAgentsGoes(t *testing.T) {
 	write(t, kept, "AGENTS.md", templateAgents)
 	gitT(t, kept, "add", "-A")
 	gitT(t, kept, "commit", "-q", "-m", "agents")
-	out, err = runInit(t, kept, Deps{Tag: testTag, Source: source}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err = runInit(t, kept, Deps{Tag: testTag, Kit: kit}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -194,7 +196,7 @@ func TestThePlanNamesTheExtractedVocabulary(t *testing.T) {
 	// reports each differently, because absence is no vote against the
 	// shipped list.
 	scoped := makeTarget(t, "feat(product): a thing", "fix(technical): another")
-	out, err := runInit(t, scoped, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err := runInit(t, scoped, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -206,7 +208,7 @@ func TestThePlanNamesTheExtractedVocabulary(t *testing.T) {
 	}
 
 	bare := makeTarget(t, "feat: a thing", "fix: another")
-	out, err = runInit(t, bare, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	out, err = runInit(t, bare, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -228,7 +230,7 @@ func TestAForeignHookStopsTheAdoptionBeforeTheNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := runInit(t, target, Deps{Tag: testTag, Source: makeSource(t)}, &command.FakeTerminal{}, true, "--stage", "1")
+	_, err := runInit(t, target, Deps{Tag: testTag}, &command.FakeTerminal{}, true, "--stage", "1")
 	if err == nil {
 		t.Fatal("an adoption over a foreign hook succeeded")
 	}
@@ -354,5 +356,60 @@ func TestRewriteFileReportsWhatItCouldNotTouch(t *testing.T) {
 	disk.Fail("/repo/commits.md", boom)
 	if err := rewriteFile(disk, "/repo/commits.md", same); !errors.Is(err, boom) {
 		t.Errorf("a file that cannot be read was rewritten: %v", err)
+	}
+}
+
+// fakeGit answers the two reads init makes through git: the working
+// tree's status, and where the commit-msg hook lives.
+func fakeGit(root string) gitx.Runner {
+	return func(dir string, args ...string) (string, error) {
+		if len(args) > 0 && args[0] == "rev-parse" {
+			return filepath.Join(root, ".git", "hooks", "commit-msg") + "\n", nil
+		}
+		return "", nil
+	}
+}
+
+func TestAPartialAdoptionNamesTheCommandsThatUndoIt(t *testing.T) {
+	// The write fails after the fetch succeeded, which is the one
+	// state the adoption cannot leave clean: the message is what tells
+	// the user how to get back (spec-0016).
+	disk, root, template := fakeTemplate(t)
+	disk.FailOp("write", root+"/WRITRUN.md", errors.New("that file will not land"))
+
+	d := Deps{Tag: testTag, Source: "the source", Git: fakeGit(root), Files: disk, Kit: kitfetch.NewFake(template)}
+	_, err := runInit(t, root, d, &command.FakeTerminal{}, true, "--stage", "1")
+	if err == nil {
+		t.Fatal("an adoption that could not write succeeded")
+	}
+	for _, want := range []string{"the adoption is partial", "git checkout -- .", "git clean -fd", "rm -f " + root + "/.git/hooks/commit-msg", "rerun writrun init"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the partial-state message does not name %q: %v", want, err)
+		}
+	}
+}
+
+func TestTheFetchIsCleanedUpWhateverTheAdoptionDid(t *testing.T) {
+	// The cleanup is the fetch's half of the contract: a checkout the
+	// command never releases is a leak the fake has to be able to see.
+	kit := fakeKit(t)
+	out, err := runInit(t, makeTarget(t), Deps{Tag: testTag, Kit: kit}, &command.FakeTerminal{}, true, "--stage", "1")
+	if err != nil {
+		t.Fatalf("init = %v\n%s", err, out)
+	}
+	if kit.Cleaned != 1 {
+		t.Errorf("the fetch was cleaned up %d times, want 1", kit.Cleaned)
+	}
+
+	failing := fakeKit(t)
+	disk, root, template := fakeTemplate(t)
+	failing.Template = template
+	disk.FailOp("write", root+"/WRITRUN.md", errors.New("that file will not land"))
+	d := Deps{Tag: testTag, Git: fakeGit(root), Files: disk, Kit: failing}
+	if _, err := runInit(t, root, d, &command.FakeTerminal{}, true, "--stage", "1"); err == nil {
+		t.Fatal("an adoption that could not write succeeded")
+	}
+	if failing.Cleaned != 1 {
+		t.Errorf("a failed adoption cleaned up %d times, want 1", failing.Cleaned)
 	}
 }

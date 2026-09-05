@@ -9,6 +9,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -83,32 +84,56 @@ Present the derived tasks in the session before opening the PR.
 `
 }
 
+// writeTemplateOld writes the template tree oldTag ships, under dir.
+func writeTemplateOld(t *testing.T, dir string) {
+	t.Helper()
+	write(t, dir, "AGENTS.md", agentsAt("The flow's text."))
+	write(t, dir, ".writrun/VERSION", oldTag+"\n")
+	write(t, dir, ".writrun/settings.json", "{\n  \"stage\": 1\n}\n")
+	write(t, dir, ".writrun/conventions/commits.md", "# Commits\n")
+	write(t, dir, ".writrun/skills/select/SKILL.md", "# Select\n")
+	write(t, dir, ".writrun/scripts/take.sh", "echo take\n")
+	write(t, dir, ".writrun/templates/task.md", "# Task\n")
+	for _, wf := range []string{"approve", "check", "issues", "progress"} {
+		write(t, dir, ".github/workflows/writrun-"+wf+".yml", "name: writrun "+wf+"\n")
+	}
+}
+
+// writeTemplateNew writes the template tree newTag ships: oldTag's,
+// with a reworded skill, an added template and a reworded workflow —
+// one of each verb the plan reports.
+func writeTemplateNew(t *testing.T, dir string) {
+	t.Helper()
+	writeTemplateOld(t, dir)
+	write(t, dir, "AGENTS.md", agentsAt("The flow's text, reworded."))
+	write(t, dir, ".writrun/VERSION", newTag+"\n")
+	write(t, dir, ".writrun/skills/select/SKILL.md", "# Select, reworded\n")
+	write(t, dir, ".writrun/templates/spec.md", "# Spec\n")
+	write(t, dir, ".github/workflows/writrun-check.yml", "name: writrun check\n# reworded\n")
+}
+
+// makeTemplate is the template newTag ships, as a fake fetch hands it
+// over: the same tree makeSource commits, without the repository and
+// without the clone.
+func makeTemplate(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeTemplateNew(t, dir)
+	return dir
+}
+
 // makeSource builds a local WritRun repository with two tags: oldTag,
-// then newTag with a reworded skill, an added template and a reworded
-// workflow — one of each verb the plan reports.
+// then newTag.
 func makeSource(t *testing.T) string {
 	t.Helper()
 	src := t.TempDir()
 	gitT(t, src, "init", "-q")
-	write(t, src, "template/AGENTS.md", agentsAt("The flow's text."))
-	write(t, src, "template/.writrun/VERSION", oldTag+"\n")
-	write(t, src, "template/.writrun/settings.json", "{\n  \"stage\": 1\n}\n")
-	write(t, src, "template/.writrun/conventions/commits.md", "# Commits\n")
-	write(t, src, "template/.writrun/skills/select/SKILL.md", "# Select\n")
-	write(t, src, "template/.writrun/scripts/take.sh", "echo take\n")
-	write(t, src, "template/.writrun/templates/task.md", "# Task\n")
-	for _, wf := range []string{"approve", "check", "issues", "progress"} {
-		write(t, src, "template/.github/workflows/writrun-"+wf+".yml", "name: writrun "+wf+"\n")
-	}
+	writeTemplateOld(t, filepath.Join(src, "template"))
 	gitT(t, src, "add", ".")
 	gitT(t, src, "commit", "-q", "-m", "the kit, one release back")
 	gitT(t, src, "tag", oldTag)
 
-	write(t, src, "template/AGENTS.md", agentsAt("The flow's text, reworded."))
-	write(t, src, "template/.writrun/VERSION", newTag+"\n")
-	write(t, src, "template/.writrun/skills/select/SKILL.md", "# Select, reworded\n")
-	write(t, src, "template/.writrun/templates/spec.md", "# Spec\n")
-	write(t, src, "template/.github/workflows/writrun-check.yml", "name: writrun check\n# reworded\n")
+	writeTemplateNew(t, filepath.Join(src, "template"))
 	gitT(t, src, "add", ".")
 	gitT(t, src, "commit", "-q", "-m", "the kit")
 	gitT(t, src, "tag", newTag)
@@ -138,10 +163,40 @@ func makeAdopted(t *testing.T) string {
 	return root
 }
 
-// runUpdate drives the command the way the frame does, with every
-// question already answered.
-func runUpdate(t *testing.T, root, source string, args ...string) (string, error) {
+// fakeKit is the fake fetch every test drives update through, holding
+// the template newTag ships and no clone produced.
+func fakeKit(t *testing.T) *kitfetch.Fake {
 	t.Helper()
+	return kitfetch.NewFake(makeTemplate(t))
+}
+
+// realKit is the production fetcher — the one case per command that
+// checks the fake against the thing it fakes.
+func realKit() kitfetch.Clone {
+	return kitfetch.Clone{Files: vfs.OS{}, Git: gitx.Run}
+}
+
+// runUpdate drives the command the way the frame does, with every
+// question already answered. The fetch is faked unless the case asked
+// for the real one: driving update end to end is not a reason to clone
+// (spec-0016).
+func runUpdate(t *testing.T, root string, d Deps, args ...string) (string, error) {
+	t.Helper()
+	if d.Tag == "" {
+		d.Tag = newTag
+	}
+	if d.Source == "" {
+		d.Source = sourceDefault
+	}
+	if d.Git == nil {
+		d.Git = gitx.Run
+	}
+	if d.Files == nil {
+		d.Files = vfs.OS{}
+	}
+	if d.Kit == nil {
+		d.Kit = fakeKit(t)
+	}
 	var out bytes.Buffer
 	ctx := &command.Ctx{
 		Stdout:   &out,
@@ -151,6 +206,6 @@ func runUpdate(t *testing.T, root, source string, args ...string) (string, error
 		Adopted:  true,
 		Yes:      true,
 	}
-	err := run(ctx, Deps{Tag: newTag, Source: source, Git: gitx.Run, Files: vfs.OS{}}, args)
+	err := run(ctx, d, args)
 	return out.String(), err
 }

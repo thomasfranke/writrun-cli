@@ -39,6 +39,10 @@ func TestRecordedTagRefusesAnEmptyFile(t *testing.T) {
 	}
 }
 
+// TestRefreshMovesTheKitAndLeavesTheProject is update's one case
+// against the real fetch: a local WritRun repository, cloned at the
+// tag, so the fake is compared with the thing it fakes rather than
+// assumed equal to it (spec-0016).
 func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	src := makeSource(t)
 	root := makeAdopted(t)
@@ -51,7 +55,7 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "our answers")
 
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{Source: src, Kit: realKit()})
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
@@ -99,13 +103,12 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 }
 
 func TestTheSameTagChangesNothing(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	write(t, root, ".writrun/VERSION", newTag+"\n")
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "already current")
 
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{})
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
@@ -118,13 +121,12 @@ func TestTheSameTagChangesNothing(t *testing.T) {
 }
 
 func TestADowngradeIsRefused(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	write(t, root, ".writrun/VERSION", "v99.0.0\n")
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "a kit from the future")
 
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{})
 	if err == nil {
 		t.Fatalf("the downgrade was accepted:\n%s", out)
 	}
@@ -134,14 +136,13 @@ func TestADowngradeIsRefused(t *testing.T) {
 }
 
 func TestADamagedFenceStopsEverything(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	agents := read(t, root, "AGENTS.md")
 	write(t, root, "AGENTS.md", strings.Replace(agents, "<!-- writrun:end -->", "", 1))
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "a damaged fence")
 
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{})
 	if err == nil {
 		t.Fatalf("a damaged fence was accepted:\n%s", out)
 	}
@@ -157,11 +158,10 @@ func TestADamagedFenceStopsEverything(t *testing.T) {
 }
 
 func TestADirtyTreeIsRefused(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
 	write(t, root, ".writrun/scripts/take.sh", "echo edited by hand\n")
 
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{})
 	if err == nil {
 		t.Fatalf("a dirty tree was accepted:\n%s", out)
 	}
@@ -174,17 +174,15 @@ func TestADirtyTreeIsRefused(t *testing.T) {
 }
 
 func TestAnUnexpectedArgumentIsRefused(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
-	if _, err := runUpdate(t, root, src, "v1.2.3"); err == nil {
+	if _, err := runUpdate(t, root, Deps{}, "v1.2.3"); err == nil {
 		t.Fatal("an argument was accepted")
 	}
 }
 
 func TestRenderNamesWhatItWillNotTouch(t *testing.T) {
-	src := makeSource(t)
 	root := makeAdopted(t)
-	out, err := runUpdate(t, root, src)
+	out, err := runUpdate(t, root, Deps{})
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
