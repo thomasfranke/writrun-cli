@@ -71,6 +71,15 @@ func (t Terminal) Confirm(question string) (bool, error) {
 	return ok, err
 }
 
+// Input renders a free-text question and returns what was typed.
+func (t Terminal) Input(question string) (string, error) {
+	answer := ""
+	err := t.run(huh.NewForm(huh.NewGroup(
+		huh.NewInput().Title(question).Value(&answer),
+	)))
+	return answer, err
+}
+
 // Spin runs work behind a spinner; the work's own error is the
 // verdict. Where stdout is no terminal the spinner would be escape
 // sequences in machine-read output, so only the work runs. The work is
