@@ -11,6 +11,8 @@ already defines; it never decides in the methodology's place.
 - `init` is the exception: it runs where the kit is absent, and refuses
   where it is already present.
 - `--version` and `--help` always answer, anywhere.
+- `writrun` with no command opens the [screen](screen.md), which only
+  dispatches the commands these rules govern.
 
 ## What no command ever does
 
