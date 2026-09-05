@@ -10,6 +10,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
+	"github.com/thomasfranke/writrun-cli/internal/command/updatecmd"
 	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/term"
@@ -64,6 +65,11 @@ func commands() []command.Command {
 			Git:      gitx.Run,
 			Gh:       gh.Run,
 			LookPath: exec.LookPath,
+		}),
+		updatecmd.New(updatecmd.Deps{
+			Tag:    writrunTag,
+			Source: source,
+			Git:    gitx.Run,
 		}),
 	}
 }

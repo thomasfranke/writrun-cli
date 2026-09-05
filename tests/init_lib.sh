@@ -27,6 +27,9 @@ make_source() {
     git_q init -q
     mkdir -p template/.writrun/conventions \
              template/.writrun/scripts/stage-2-pull-requests \
+             template/.writrun/skills/writrun-select-next-task \
+             template/.writrun/templates \
+             template/.github/workflows \
              template/docs/product template/docs/technical \
              template/work/tasks template/work/specs template/work/reports
 
@@ -43,6 +46,20 @@ make_source() {
 ### Picking work
 
 The flow's text.
+
+### Human gates
+
+<!-- yours: this table is the project's own answers; it survives updates. -->
+
+| Transition | Who |
+|---|---|
+| Writing docs | <!-- TODO — default: human reviews --> |
+| Everything else | Agent, autonomously. |
+
+### Deriving work
+
+Present the derived tasks in the session before opening the PR.
+<!-- yours: keep, invert, or drop this default — it is the project's. -->
 
 <!-- writrun:end -->
 EOF
@@ -74,6 +91,14 @@ exit 0
 EOF
     chmod +x template/.writrun/scripts/stage-2-pull-requests/check_observance.sh
 
+    printf '# Select next task\n' > template/.writrun/skills/writrun-select-next-task/SKILL.md
+    printf 'echo listing\n' > template/.writrun/skills/writrun-select-next-task/list_tasks.sh
+    printf '# Task template\n' > template/.writrun/templates/task.md
+    for wf in approve check issues progress; do
+      printf 'name: writrun %s\non: pull_request\n' "$wf" \
+        > "template/.github/workflows/writrun-$wf.yml"
+    done
+    printf '# How to work this kit\n' > template/docs/writrun-instructions.md
     printf '%s\n' "$TAG" > template/.writrun/VERSION
     printf '# This project uses WritRun\n' > template/WRITRUN.md
     printf '# Product skeleton\n' > template/docs/product/README.md
@@ -82,10 +107,41 @@ EOF
     printf '# Specs\n' > template/work/specs/README.md
     printf '# Reports\n' > template/work/reports/README.md
 
+    # The older release: the same kit, one tag back. `update` moves
+    # between these two, so the diff a case asserts on is a real one.
+    git_q add .
+    git_q commit -q -m "the kit, one release back"
+    git_q tag "$OLD_TAG"
+
+    # What the pinned tag changed: a refreshed skill, a new template
+    # file, a reworded workflow — one of each verb the plan reports.
+    printf '# Select next task, reworded\n' > template/.writrun/skills/writrun-select-next-task/SKILL.md
+    printf '# Spec template\n' > template/.writrun/templates/spec.md
+    printf 'name: writrun check\non: pull_request\n# reworded\n' > template/.github/workflows/writrun-check.yml
     git_q add .
     git_q commit -q -m "the kit"
     git_q tag "$TAG"
   )
+}
+
+# OLD_TAG is the release before the one the binary pins.
+OLD_TAG="v0.0.00"
+
+# age_kit <target> — puts an adopted repository back on OLD_TAG: the
+# kit-owned paths as that release shipped them, and the VERSION file
+# recording it. What the project owns is left exactly as it is, which
+# is the whole point of what the refresh must not touch.
+age_kit() {
+  local target="$1" old
+  old=$(mktemp -d)
+  git_q -C "$SOURCE" worktree add -q --detach "$old" "$OLD_TAG"
+  rm -rf "$target/.writrun/skills" "$target/.writrun/templates" "$target/.writrun/scripts"
+  cp -R "$old/template/.writrun/skills"    "$target/.writrun/skills"
+  cp -R "$old/template/.writrun/templates" "$target/.writrun/templates"
+  cp -R "$old/template/.writrun/scripts"   "$target/.writrun/scripts"
+  cp -R "$old/template/.github/workflows/." "$target/.github/workflows/"
+  printf '%s\n' "$OLD_TAG" > "$target/.writrun/VERSION"
+  git_q -C "$SOURCE" worktree remove --force "$old"
 }
 
 # make_target <dir> [subject…] — a repository to adopt: one commit per
