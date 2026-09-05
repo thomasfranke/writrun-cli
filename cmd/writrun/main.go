@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/command/doctorcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/listcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/takecmd"
@@ -85,6 +86,12 @@ func commands() []command.Command {
 			Git:    gitx.Run,
 			Files:  disk,
 			Kit:    fetcher,
+		}),
+		doctorcmd.New(doctorcmd.Deps{
+			Scripts:  kit.Run,
+			Gh:       gh.Run,
+			Files:    disk,
+			LookPath: exec.LookPath,
 		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),
