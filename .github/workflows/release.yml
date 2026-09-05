@@ -1,0 +1,53 @@
+name: release
+
+# The tag is the trigger. `scripts/release.sh` cuts it — changelog,
+# suite, commit, tag, push, then the GitHub release with generated
+# notes — and this job fills that release in: the platform binaries,
+# the checksums, the footer naming the pinned WritRun tag, and the
+# Homebrew tap (technical/distribution/pipeline.md).
+#
+# GoReleaser appends to the release the cut created (`release.mode` in
+# .goreleaser.yaml) instead of creating one, so the notes stay the
+# cut's. A build that fails publishes nothing and fails the job.
+#
+# YAML here is wiring only: the pinned tag is read by
+# scripts/writrun-tag.sh, and everything else is .goreleaser.yaml's.
+#
+# Every action is pinned by commit SHA, and every tool by version tag
+# (technical/testing/ci.md#rules).
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  GORELEASER: v2.18.0
+
+jobs:
+  goreleaser:
+    name: build the binaries, fill the release, update the tap
+    runs-on: ubuntu-latest
+    steps:
+      # Full history: GoReleaser reads the tag and the commit it points at.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: stable
+
+      - name: the WritRun tag this release pins
+        run: echo "WRITRUN_TAG=$(bash scripts/writrun-tag.sh)" >> "$GITHUB_ENV"
+
+      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          version: ${{ env.GORELEASER }}
+          args: release --clean
+        env:
+          # The release lives here; the tap lives in another repository,
+          # which GITHUB_TOKEN cannot reach.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

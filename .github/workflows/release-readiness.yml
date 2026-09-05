@@ -19,6 +19,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GORELEASER: v2.18.0
+
 jobs:
   suite:
     name: script suite
@@ -28,5 +31,12 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: stable
+      # The e2e release case runs `goreleaser check` when the tool is on
+      # PATH. Installing it here is what puts the release configuration
+      # inside main's verdict, and the tool never releases: `install-only`.
+      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          version: ${{ env.GORELEASER }}
+          install-only: true
       - name: Run tests
         run: make tests
