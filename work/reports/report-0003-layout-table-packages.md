@@ -1,10 +1,10 @@
 ---
 id: report-0003
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0016]
 doc_ref: technical/layout/tree.md
 created: 2026-09-05T10:48:47Z
-triaged: null
+triaged: 2026-09-05T12:50:58Z
 ---
 
 # The layout table omits the packages this change extracted
