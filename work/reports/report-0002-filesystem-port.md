@@ -1,15 +1,15 @@
 ---
 id: report-0002
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0016]
 doc_ref: technical/engineering/boundaries.md
 created: 2026-09-05T11:37:19Z
-triaged: null
+triaged: 2026-09-05T12:28:30Z
 ---
 
 # The filesystem is the one boundary no command puts behind a port
 
-**References:** [technical/engineering/boundaries.md](../../docs/technical/engineering/boundaries.md)
+**References:** [technical/engineering/boundaries.md](../../docs/technical/engineering/boundaries.md) · [task-0016](../tasks/task-0016-put-the-filesystem.md)
 
 `docs/technical/engineering/boundaries.md` states that everything
 leaving the process — script execution, `gh`, **the filesystem**, the
