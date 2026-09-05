@@ -1,7 +1,7 @@
 ---
 id: spec-0016
 task_ref: task-0017
-status: approved
+status: implemented
 created: 2026-09-05T13:58:36Z
 ---
 
@@ -71,11 +71,11 @@ than assumed equal.
 
 ## Definition of Done
 
-- [ ] No unit test clones.
-- [ ] The partial-state message of each command is proven by a test.
-- [ ] One case per command still exercises the real fetch.
-- [ ] The integration suite passes unmodified.
-- [ ] Suite green.
+- [x] No unit test clones.
+- [x] The partial-state message of each command is proven by a test.
+- [x] One case per command still exercises the real fetch.
+- [x] The integration suite passes unmodified.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -88,4 +88,30 @@ than assumed equal.
 
 ## Outcome
 
-_(fill after execution)_
+`kitfetch.Fetcher` is the interface: `Fetch(tag, source)` handing back
+a template directory and its cleanup. `kitfetch.Clone` is the
+production implementation and `kitfetch.Fake` the one the tests
+inject; both refusals are built by the constructors the real fetch
+uses, so the fake says what the user is told. `Fail` answers a clone
+that could not run, `FailNoTemplate` a repository that is not a
+WritRun one, and the handed-over cleanup is counted, so a leak is
+assertable. `initcmd.Deps.Kit` and `updatecmd.Deps.Kit` carry it;
+`cmd/writrun/main.go` is the only production wiring that changed.
+
+The clone's own behaviour is untouched: the depth, the tag it asks for
+and the refusal when the clone carries no `template/` are exactly as
+they were. `internal/vfs` is untouched.
+
+Both partial-state messages are now proven — `git checkout -- .` and
+`git clean -fd` for each command, over a fake filesystem refusing the
+write the fetch had already been paid for. Two further cases assert
+the cleanup runs whichever way the command ended. No unit case of
+either command clones; `TestInitAdoptsEndToEnd` and
+`TestRefreshMovesTheKitAndLeavesTheProject` keep the real fetch
+against a local repository.
+
+Go suite: 274 cases green in 15 packages.
+`make test-integration`: 104 assertions, 0 failures, with no edit to
+any case. `bash tests/run.sh`: 48 case files passed, 0 failed.
+`make cover`: 98.3% over `internal/` (floor 90%), `internal/kitfetch`
+at 100% (floor 80%).
