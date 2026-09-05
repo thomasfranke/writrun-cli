@@ -1,8 +1,8 @@
 ---
 id: task-0017
-status: ready
+status: in-review
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0016]
 doc_ref: technical/engineering/boundaries.md
 origin: report
