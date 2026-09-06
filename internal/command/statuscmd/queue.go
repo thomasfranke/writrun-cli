@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -184,68 +185,18 @@ func openReports(files vfs.FS, root string) string {
 	return fmt.Sprintf("%d open, waiting to be triaged", open)
 }
 
-// recordedTag is the tag the kit records. The file is read here rather
-// than through a shared reader: `update` reads the same file to decide
-// a refresh, this command reads it to name a difference, and one small
-// duplication is cheaper than a package two commands would have to
-// agree on before either could land.
+// recordedTag is the tag the kit records. The file and its parsing are
+// kittag's, shared with `update` and `doctor`; what an unrecorded tag
+// means to a status line is this command's.
 func recordedTag(files vfs.FS, root string) (string, error) {
-	path := filepath.Join(root, ".writrun", "VERSION")
-	raw, err := files.ReadFile(path)
+	tag, err := kittag.Read(files, root)
 	if err != nil {
 		return "", fmt.Errorf(".writrun/VERSION could not be read")
 	}
-	tag := strings.TrimSpace(string(raw))
 	if tag == "" {
 		return "", fmt.Errorf(".writrun/VERSION records no tag")
 	}
 	return tag, nil
-}
-
-// sameRelease reports whether two tags name one release. The components
-// are read as numbers, so `v0.0.03` and `v0.0.3` are the same release
-// and a mismatch is never announced over a spelling. Two tags neither
-// side can read are the same only when they are the same text.
-func sameRelease(a, b string) bool {
-	if a == b {
-		return true
-	}
-	x, okA := numbers(a)
-	y, okB := numbers(b)
-	if !okA || !okB {
-		return false
-	}
-	for i := 0; i < len(x) || i < len(y); i++ {
-		var xi, yi int
-		if i < len(x) {
-			xi = x[i]
-		}
-		if i < len(y) {
-			yi = y[i]
-		}
-		if xi != yi {
-			return false
-		}
-	}
-	return true
-}
-
-// numbers reads a tag's components; ok is false for anything that is
-// not `vN.N.N`.
-func numbers(tag string) ([]int, bool) {
-	t := strings.TrimPrefix(strings.TrimSpace(tag), "v")
-	if t == "" {
-		return nil, false
-	}
-	var out []int
-	for _, p := range strings.Split(t, ".") {
-		n, err := strconv.Atoi(p)
-		if err != nil {
-			return nil, false
-		}
-		out = append(out, n)
-	}
-	return out, true
 }
 
 // queueFile finds the file holding one queue id. The number is what

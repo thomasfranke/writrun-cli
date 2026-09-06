@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -26,12 +27,10 @@ type gap struct {
 func checkStages(root string, stage int, d Deps) []gap {
 	var gaps []gap
 
-	// Stage 0 — environment: the wrapped scripts' own requirements
-	// (technical/runtime/requirements.md).
-	for _, bin := range []string{"git", "bash", "awk", "sed"} {
-		if _, err := d.LookPath(bin); err != nil {
-			gaps = append(gaps, gap{0, bin + " is not on the PATH — the wrapped scripts require it"})
-		}
+	// Stage 0 — environment: the wrapped scripts' own requirements,
+	// listed in internal/requirements. doctor probes the same list.
+	for _, bin := range requirements.Missing(d.LookPath) {
+		gaps = append(gaps, gap{0, bin + " is not on the PATH — the wrapped scripts require it"})
 	}
 
 	if stage >= 1 {
@@ -58,6 +57,16 @@ func checkStages(root string, stage int, d Deps) []gap {
 // of the adopter, the docs/ and work/ split, and the gates answered in
 // AGENTS.md. The kit's own files were just written, so what can gape
 // here is the project's half.
+//
+// doctor checks stage 1 too, and the two are deliberately not shared
+// (task-0019, spec-0018). init reports on the adoption it has just
+// run: the stage is the flag's, AGENTS.md is tested for the
+// placeholders the kit wrote, and none of the repository's own scripts
+// is run against a repository still being set up. doctor reports on a
+// repository in use: the stage comes from `read_setting.sh`, each of
+// the four gates is named, and `check_front_matter.sh` and
+// `check_settings.sh` decide. Each is right for its command, so one
+// shared stage-1 would give one of them the other's question.
 func checkFiles(disk vfs.FS, root string) []gap {
 	var gaps []gap
 

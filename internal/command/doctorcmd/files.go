@@ -8,24 +8,20 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
+	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// requirements are the wrapped scripts' own, and this binary adds none
-// (docs/technical/runtime/requirements.md). `gh` is not among them: it
-// is asked for at stage 2, where the flows already reach the forge.
-var requirements = []string{"git", "bash", "awk", "sed"}
-
 // stage0 is the environment: every requirement named where it is
 // missing, one finding each, so a reader installs all of them in one
-// pass rather than one per run.
+// pass rather than one per run. The list is internal/requirements —
+// `init` probes the same one.
 func stage0(d Deps) []finding {
 	var found []finding
-	for _, bin := range requirements {
-		if _, err := d.LookPath(bin); err != nil {
-			found = append(found, finding{stage: 0, level: breaks,
-				text: bin + " is not on the PATH — the wrapped scripts require it"})
-		}
+	for _, bin := range requirements.Missing(d.LookPath) {
+		found = append(found, finding{stage: 0, level: breaks,
+			text: bin + " is not on the PATH — the wrapped scripts require it"})
 	}
 	return found
 }
@@ -33,7 +29,9 @@ func stage0(d Deps) []finding {
 // stage1 is the files: the three documents the methodology requires of
 // the adopter, the docs/ and work/ split, the gates answered in
 // AGENTS.md, the fence intact, the kit's tag recorded, and the two
-// checks whose verdict is the repository's own.
+// checks whose verdict is the repository's own. `init` checks the same
+// stage with its own copy; why the two are not shared is written at
+// initcmd.checkFiles (task-0019).
 func stage1(root string, d Deps) []finding {
 	var found []finding
 
@@ -183,46 +181,20 @@ func unanswered(who string) bool {
 	return strings.TrimSpace(who) == "" || strings.Contains(who, "TODO")
 }
 
-// kitVersion reads `.writrun/VERSION`. The tag is parsed here rather
-// than through a shared parser on purpose: `writrun update` reads the
-// same file to order two releases, and one type answering both would
-// tie a refresh's ordering to a health report's parse.
+// kitVersion reads `.writrun/VERSION` through kittag, the one reader of
+// that file, and grades what it finds here: a tag no refresh could act
+// on breaks a flow, and saying so is doctor's alone.
 func kitVersion(disk vfs.FS, root string) []finding {
-	raw, err := disk.ReadFile(filepath.Join(root, ".writrun", "VERSION"))
+	tag, err := kittag.Read(disk, root)
 	if err != nil {
 		return []finding{{stage: 1, level: breaks,
 			text: ".writrun/VERSION — the kit's tag is not recorded, so no refresh can tell what is installed"}}
 	}
-	tag := strings.TrimSpace(string(raw))
-	if !parseableTag(tag) {
+	if !kittag.Readable(tag) {
 		return []finding{{stage: 1, level: breaks,
 			text: fmt.Sprintf(".writrun/VERSION — %q is not a readable tag; vMAJOR.MINOR.PATCH is expected", tag)}}
 	}
 	return nil
-}
-
-// parseableTag reports whether a recorded tag can be read as a WritRun
-// release: a leading `v` and two or more all-digit components. `v0.0.03`
-// is one, and so is a two-component tag a later release may carry.
-func parseableTag(tag string) bool {
-	if !strings.HasPrefix(tag, "v") {
-		return false
-	}
-	parts := strings.Split(strings.TrimPrefix(tag, "v"), ".")
-	if len(parts) < 2 {
-		return false
-	}
-	for _, part := range parts {
-		if part == "" {
-			return false
-		}
-		for _, r := range part {
-			if r < '0' || r > '9' {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 // script runs one of the repository's own checks and turns its verdict

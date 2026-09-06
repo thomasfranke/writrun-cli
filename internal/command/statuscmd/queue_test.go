@@ -5,28 +5,6 @@ import (
 	"testing"
 )
 
-func TestSameReleaseReadsTagsAsNumbers(t *testing.T) {
-	for _, tc := range []struct {
-		a, b string
-		same bool
-	}{
-		{"v0.0.03", "v0.0.03", true},
-		{"v0.0.03", "v0.0.3", true},  // one release, two spellings
-		{"v0.0.3", "v0.1.3", false},  // a real difference
-		{"v0.0.10", "v0.0.1", false}, // not string order
-		{"v1.0", "v1.0.0", true},     // a missing component is zero
-		{"v1.0", "v1.0.1", false},    // and it is still read as zero
-		{"main", "v0.0.03", false},   // unreadable against a tag
-		{"main", "main", true},       // unreadable against itself
-		{"nightly", "main", false},   // two unreadable, two things
-		{"", "v0.0.03", false},       // no tag is not the pinned one
-	} {
-		if got := sameRelease(tc.a, tc.b); got != tc.same {
-			t.Errorf("sameRelease(%q, %q) = %v; want %v", tc.a, tc.b, got, tc.same)
-		}
-	}
-}
-
 func TestIdNumberReadsWhatTheQueueSpells(t *testing.T) {
 	for _, tc := range []struct {
 		name, prefix string
