@@ -13,7 +13,7 @@
 # own and closed by a two-space `}` line of its own. Inside a section:
 # scalar pairs at four spaces. Values are `true`, `false`, an unquoted
 # integer, or a double-quoted string. This is what enforces all of it
-# (docs/technical/README.md#the-shape-is-a-checked-contract), including
+# (docs/technical/settings/schema.md#the-shape-is-a-checked-contract), including
 # that every documented key sits in its documented home.
 #
 # **Strictness is scoped to where the risk is.** `stage` is parsed by the
@@ -48,7 +48,7 @@ close() {
   echo "" >&2
   echo "The shape is a checked contract because read_setting.sh reads it" >&2
   echo "line by line and would misread anything else in silence" >&2
-  echo "(docs/technical/README.md#the-shape-is-a-checked-contract)." >&2
+  echo "(docs/technical/settings/schema.md#the-shape-is-a-checked-contract)." >&2
   exit 1
 }
 

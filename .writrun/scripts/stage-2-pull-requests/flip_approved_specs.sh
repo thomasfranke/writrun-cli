@@ -26,70 +26,28 @@
 set -euo pipefail
 RANGE="${1:?usage: flip_approved_specs.sh <diff-range>}"
 
+. "$(dirname "$0")/queue_lib.sh"
+
 # The approved→draft move is read from the front matter at the range's
 # two ends, never grepped out of the diff text — a body edit swapping
 # quoted `status:` lines is not an amendment.
-case "$RANGE" in
-  *...*)
-    left="${RANGE%%...*}"
-    right="${RANGE##*...}"
-    # The same rule as the diff below: a merge-base that could not be
-    # computed is not a base of "nothing", it is an unanswered question.
-    if ! BASE=$(git merge-base "${left:-HEAD}" "${right:-HEAD}" 2>&1); then
-      echo "git merge-base ${left:-HEAD} ${right:-HEAD} failed:" >&2
-      printf '%s\n' "$BASE" | head -n 2 >&2
-      exit 3
-    fi
-    ;;
-  *..*) BASE="${RANGE%%..*}" ;;
-  *)    BASE="$RANGE" ;;
-esac
-fm_field() {
-  awk -v f="$1" '
-    NR == 1 { if ($0 != "---") exit; next }
-    /^---$/ { exit }
-    sub("^" f ": *", "") { sub(/[[:space:]]*$/, ""); print; exit }
-  '
-}
-
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields exactly the same empty string
-# whether nothing matched or nothing ran, and two of these checks are
-# gates (spec-0013).
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent — the very shape of the bug being removed.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
+ql_range_ends "$RANGE"
+BASE="$QL_BASE"
 
 # This one mutates and otherwise always exits 0, so a swallowed failure
 # does not merely misreport — it records no approval at all, silently, on
 # a merge that granted one.
-git_read "git diff --name-only --diff-filter=A ${RANGE} -- work/specs" \
+ql_git_read "git diff --name-only --diff-filter=A ${RANGE} -- 'work/specs/*.md'" \
   diff --name-only --diff-filter=A "$RANGE" -- 'work/specs/*.md'
-added="$GIT_OUT"
+added="$QL_GIT_OUT"
 
 redrafted=""
-git_read "git diff --name-only --diff-filter=M ${RANGE} -- work/specs" \
+ql_git_read "git diff --name-only --diff-filter=M ${RANGE} -- 'work/specs/*.md'" \
   diff --name-only --diff-filter=M "$RANGE" -- 'work/specs/*.md'
-for s in $GIT_OUT; do
+for s in $QL_GIT_OUT; do
   [ -f "$s" ] || continue
-  [ "$(fm_field status < "$s")" = "draft" ] || continue
-  [ "$(git show "${BASE}:$s" 2>/dev/null | fm_field status)" = "approved" ] || continue
+  [ "$(ql_fm_field_in status < "$s")" = "draft" ] || continue
+  [ "$(git show "${BASE}:$s" 2>/dev/null | ql_fm_field_in status)" = "approved" ] || continue
   redrafted="$redrafted $s"
 done
 

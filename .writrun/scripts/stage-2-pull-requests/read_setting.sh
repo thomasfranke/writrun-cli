@@ -19,13 +19,13 @@
 #
 # **The address, not the name, is a key's identity.** The file carries one
 # top-level `stage` and one object per stage holding the keys that stage's
-# readers act on (docs/technical/settings.md#settings), so the same name in
+# readers act on (docs/technical/settings/schema.md#settings), so the same name in
 # two sections would be two keys.
 #
 # The file is JSON in a restricted shape — two levels and nothing deeper,
 # one `"key": value` per line, values `true`, `false`, an unquoted integer,
 # or a double-quoted string
-# (docs/technical/settings.md#the-shape-is-a-checked-contract). That
+# (docs/technical/settings/schema.md#the-shape-is-a-checked-contract). That
 # restriction is what lets this read it with `awk` alone: one nesting
 # level, entered and left on lines of fixed shape, is a two-state line
 # reader. Requiring `jq` would be this project's first runtime dependency,
@@ -70,7 +70,7 @@ SETTINGS=".writrun/settings.json"
 LEGACY=".writrun/conventions/settings.json"
 
 # The documented defaults, addressed the way the schema addresses them
-# (docs/technical/settings.md#settings). Each is the behaviour from before
+# (docs/technical/settings/schema.md#settings). Each is the behaviour from before
 # its key existed, so a project without the file, or without the key,
 # behaves exactly as it did.
 default_for() {

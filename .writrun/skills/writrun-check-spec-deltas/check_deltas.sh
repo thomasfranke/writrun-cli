@@ -56,7 +56,7 @@ done
 # A bullet line looks like: - `path/to/doc.md#anchor` — note
 #
 # Spec paths are written relative to docs/ (product/..., technical/...,
-# about.md), per the schema in docs/technical/schemas.md. `git diff
+# about.md), per the schema in docs/technical/schemas/README.md. `git diff
 # --name-only` reports relative to the repository root. The trailing
 # `sed 's|^|docs/|'` normalises the former to the latter — without it every
 # promised path reports MISSING and every touched doc reports UNDECLARED,

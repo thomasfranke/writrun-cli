@@ -54,44 +54,9 @@ TAB=$(printf '\t')
 # passing precisely where it should fire.
 PR_FETCH_LIMIT=200
 
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields exactly the same empty string
-# whether nothing matched or nothing ran, and this one is a gate
-# (spec-0013).
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent — the very shape of the bug being removed.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
-
 # The left end of the range — the branch this change is measured against.
-case "$RANGE" in
-  *...*)
-    left="${RANGE%%...*}"
-    right="${RANGE##*...}"
-    if ! BASE=$(git merge-base "${left:-HEAD}" "${right:-HEAD}" 2>&1); then
-      echo "git merge-base ${left:-HEAD} ${right:-HEAD} failed:" >&2
-      printf '%s\n' "$BASE" | head -n 2 >&2
-      exit 3
-    fi
-    ;;
-  *..*) BASE="${RANGE%%..*}" ;;
-  *)    BASE="$RANGE" ;;
-esac
+ql_range_ends "$RANGE"
+BASE="$QL_BASE"
 
 # --- what this change returns to draft ------------------------------------
 #
@@ -99,14 +64,14 @@ esac
 # the diff text: a spec body quoting `status: draft` at column 0 is prose,
 # not an amendment.
 
-git_read "git diff --name-only ${RANGE} -- work/specs" \
+ql_git_read "git diff --name-only ${RANGE} -- 'work/specs/*.md'" \
   diff --name-only "$RANGE" -- 'work/specs/*.md'
 
-# Read line by line and never with `for s in $GIT_OUT`: word splitting
+# Read line by line and never with `for s in $QL_GIT_OUT`: word splitting
 # turns one path containing a space into two paths that exist nowhere,
 # each skipped by the `-f` test below — an amendment dropped in silence,
 # which for a gate is the same failure as reading nothing at all.
-touched="$GIT_OUT"
+touched="$QL_GIT_OUT"
 
 amended=""
 while IFS= read -r s; do
@@ -125,18 +90,18 @@ while IFS= read -r s; do
   [ -f "$s" ] || continue
   [ "$(ql_fm_field status "$s")" = "draft" ] || continue
 
-  # What the spec was at the base, through git_read for the reason its
+  # What the spec was at the base, through ql_git_read for the reason its
   # own comment gives: `$(git … ) || was=""` cannot tell "this spec is
   # new on the branch" from "git could not be read", and the second one
   # silently becomes "nothing is suspended" — the gate passing exactly
   # where it must fire. `ls-tree` separates the two: absent from a tree
   # it could read is an answer, a tree it could not read is not.
-  git_read "git ls-tree ${BASE} -- ${s}" ls-tree "$BASE" -- "$s"
-  if [ -z "$GIT_OUT" ]; then
+  ql_git_read "git ls-tree ${BASE} -- ${s}" ls-tree "$BASE" -- "$s"
+  if [ -z "$QL_GIT_OUT" ]; then
     continue    # not in the base tree: a new spec, never an amendment
   fi
-  git_read "git show ${BASE}:${s}" show "${BASE}:$s"
-  was=$(printf '%s\n' "$GIT_OUT" | ql_fm_field status /dev/stdin)
+  ql_git_read "git show ${BASE}:${s}" show "${BASE}:$s"
+  was=$(printf '%s\n' "$QL_GIT_OUT" | ql_fm_field_in status)
 
   case "$was" in approved|implemented) ;; *) continue ;; esac
   amended="${amended}$(ql_fm_field id "$s")"$'\n'
@@ -202,22 +167,60 @@ if [ "$forge_view" = "none" ]; then
   exit 0
 fi
 
+# --- the rows this check can read -----------------------------------------
+#
+# The carried set of every open pull request, resolved once. Once,
+# because the lookup below runs per suspended task and the answer is the
+# same every time — and because a row skipped for claiming too much owes
+# one notice per pull request, not one per task that asked about it.
+#
+# Another pull request's over-ceiling claim is its author's fault, and
+# failing this act over it would let one hostile title stop every
+# amendment. The row is skipped, with the notice on stderr, and the fact
+# that one was skipped is remembered: what the lookup can no longer
+# answer, the verdict must not report as an answer.
+#
+# The rows go through `ql_row_fields`, never `IFS="$TAB" read`: a tab is
+# IFS whitespace, so an empty field would vanish and shift every field
+# after it — a head branch this check cannot read as a task, and a
+# suspended pull request reported as one that does not exist. The helper's
+# header carries the whole hazard.
+readable=""
+skipped=""
+while IFS= read -r row; do
+  ql_row_fields 3 "$row" || continue
+  num="$QL_F1"; branch="$QL_F2"; ptitle="$QL_F3"
+  [ -n "$num" ] || continue
+  carried=$(ql_carried_of "$branch" "${ptitle:-}")
+  case "$carried" in
+    over-ceiling:*)
+      echo "pull request #${num} claims ${carried#over-ceiling:} distinct tasks — over the ceiling of ${QL_CARRIED_MAX}; its row is skipped" >&2
+      skipped="${skipped}#${num} "
+      continue
+      ;;
+  esac
+  readable="${readable}${num}${TAB}${carried}"$'\n'
+done <<EOF
+$pr_lines
+EOF
+
 # task_pr <task-id> — the number of the open pull request working that
 # task, or nothing. This pull request is skipped: the amendment is not
 # the work, and a queue/ branch carries no id anyway.
 task_pr() {
-  local want="$1" num branch ptitle carried c
-  while IFS="$TAB" read -r num branch ptitle; do
+  local want="$1" num carried c row
+  while IFS= read -r row; do
+    ql_row_fields 2 "$row" || continue
+    num="$QL_F1"; carried="$QL_F2"
     [ -n "$num" ] || continue
     [ "$num" = "$PR" ] && continue
-    carried=$(ql_carried_of "$branch" "${ptitle:-}")
     for c in $carried; do
       if [ "$(ql_task_num "$c")" = "$(ql_task_num "$want")" ]; then
         printf '%s' "$num"; return 0
       fi
     done
   done <<EOF
-$pr_lines
+$readable
 EOF
   return 0
 }
@@ -230,12 +233,25 @@ EOF
 
 missing=0
 seen=""
-while IFS="$TAB" read -r task spec; do
+while IFS= read -r row; do
+  ql_row_fields 2 "$row" || continue
+  task="$QL_F1"; spec="$QL_F2"
   [ -n "$task" ] || continue
   case "$seen" in *" $task "*) continue ;; esac
   seen="${seen} ${task} "
 
   num=$(task_pr "$task")
+  if [ -z "$num" ] && [ -n "$skipped" ]; then
+    # A row was skipped, so "no open pull request works it" is not
+    # something this check knows — the skipped one may be exactly it.
+    # Said rather than passed off as a clean answer, and still not
+    # failed: the best-effort contract above holds for a question that
+    # cannot be asked, however it came to be unaskable.
+    echo "${task} reads as in flight and no readable pull request works it." >&2
+    echo "Skipped for claiming over the ceiling: ${skipped% }. The one to name" >&2
+    echo "may be among them. Check by hand that this body references it." >&2
+    continue
+  fi
   if [ -z "$num" ]; then
     echo "${task} reads as in flight but no open pull request works it —"
     echo "nothing to name. Its flight state is stale, not this change's business."

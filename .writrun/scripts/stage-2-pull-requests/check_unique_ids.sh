@@ -7,7 +7,7 @@
 #   test suite).
 #
 # An id is unique across the queue *and* across every open pull request
-# (docs/technical/README.md#task-schema). The generator mints from one
+# (docs/technical/schemas/task.md#task-schema). The generator mints from one
 # branch's view, so two branches cut from the same authority branch both
 # see the same highest id and both take the next one — and until now
 # nothing rejected it: the collision surfaced at the second merge, after
@@ -49,6 +49,14 @@ RANGE="${1:?usage: check_unique_ids.sh <diff-range> <owner/repo> <pr-number>}"
 REPO="${2:?usage: check_unique_ids.sh <diff-range> <owner/repo> <pr-number>}"
 PR="${3:?usage: check_unique_ids.sh <diff-range> <owner/repo> <pr-number>}"
 
+# `ql_row_fields`, the reader every tab-delimited row in this repository
+# goes through — the rows below are assembled here and never leave, which
+# is exactly why a private parse was tempting and why it is refused: the
+# collapse is a property of `read`, not of where the row came from. Also
+# `ql_range_ends` and `ql_git_read`, for the reason the lib's header
+# gives: private copies of these drifted before.
+. "$(dirname "$0")/queue_lib.sh"
+
 TAB=$(printf '\t')
 
 # gh defaults to 30 open pull requests, and a silently truncated list
@@ -59,19 +67,8 @@ PR_FETCH_LIMIT=200
 
 # The left end of the range, which is the branch this change is measured
 # against — `A...B`, `A..B`, and a bare ref all name it differently.
-case "$RANGE" in
-  *...*)
-    left="${RANGE%%...*}"
-    right="${RANGE##*...}"
-    if ! BASE=$(git merge-base "${left:-HEAD}" "${right:-HEAD}" 2>&1); then
-      echo "git merge-base ${left:-HEAD} ${right:-HEAD} failed:" >&2
-      printf '%s\n' "$BASE" | head -n 2 >&2
-      exit 3
-    fi
-    ;;
-  *..*) BASE="${RANGE%%..*}" ;;
-  *)    BASE="$RANGE" ;;
-esac
+ql_range_ends "$RANGE"
+BASE="$QL_BASE"
 
 # queue_id <path> — "<kind><TAB><number>" for a queue file, where kind is
 # task, spec or report and number is the id's digits with leading zeros
@@ -102,40 +99,44 @@ queue_id() {
 
 # --- what this change claims ---------------------------------------------
 
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields exactly the same empty string
-# whether nothing matched or nothing ran, and two of these checks are
-# gates (spec-0013).
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent — the very shape of the bug being removed.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
-
+# **A rename is a claim, and a release.** A queue filename is an id plus
+# a subject slug, so renumbering a file changes its path and git pairs it
+# as a rename rather than a modification — invisible to `--diff-filter=A`,
+# which is how a change that frees an id and then claims it was refused
+# for colliding with itself. So the claim side reads additions and
+# renames both: a rename's destination is a claim like any other, and its
+# source is a release, subtracted from the base below.
 mine=""
-git_read "git diff --name-only --diff-filter=A ${RANGE} -- work/tasks work/specs work/reports" \
-  diff --name-only --diff-filter=A "$RANGE" -- 'work/tasks/*.md' 'work/specs/*.md' 'work/reports/*.md'
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  k=$(queue_id "$f")
+released=""
+ql_git_read "git diff --name-status --diff-filter=AR ${RANGE} -- 'work/tasks/*.md' 'work/specs/*.md' 'work/reports/*.md'" \
+  diff --name-status --diff-filter=AR "$RANGE" -- 'work/tasks/*.md' 'work/specs/*.md' 'work/reports/*.md'
+while IFS= read -r row; do
+  [ -n "$row" ] || continue
+  # A status row is status<TAB>path, or status<TAB>src<TAB>dst for a
+  # rename. A row with no tab is not one of ours; skipping it is the same
+  # answer the filename-shape guard gives a path that is not a queue file.
+  case "$row" in *"$TAB"*) ;; *) continue ;; esac
+  status=${row%%"$TAB"*}
+  rest=${row#*"$TAB"}
+  case "$status" in
+    # R comes scored — R100, R087 — and the score is the heuristic's
+    # confidence, not part of the verdict.
+    R*)
+      ql_row_fields 2 "$rest" || continue
+      src="$QL_F1"; dst="$QL_F2"
+      k=$(queue_id "$src")
+      [ -n "$k" ] && released="${released}${k}"$'\n'
+      ;;
+    A)
+      src=""; dst="$rest"
+      ;;
+    *) continue ;;
+  esac
+  k=$(queue_id "$dst")
   [ -n "$k" ] || continue
-  mine="${mine}${k}${TAB}${f}"$'\n'
+  mine="${mine}${k}${TAB}${dst}"$'\n'
 done <<EOF
-$GIT_OUT
+$QL_GIT_OUT
 EOF
 
 if [ -z "$mine" ]; then
@@ -146,7 +147,7 @@ fi
 # --- what the base branch already holds -----------------------------------
 
 held=""
-git_read "git ls-tree -r --name-only ${BASE} -- work/tasks work/specs work/reports" \
+ql_git_read "git ls-tree -r --name-only ${BASE} -- work/tasks work/specs work/reports" \
   ls-tree -r --name-only "$BASE" -- work/tasks work/specs work/reports
 while IFS= read -r f; do
   [ -n "$f" ] || continue
@@ -154,15 +155,41 @@ while IFS= read -r f; do
   [ -n "$k" ] || continue
   held="${held}${k}${TAB}${f}"$'\n'
 done <<EOF
-$GIT_OUT
+$QL_GIT_OUT
 EOF
+
+# An id whose only holder on the base is a file this change renamed away
+# is not held any more — the other half of the same blindness, and the
+# half that makes a renumber and the claim it frees one change instead of
+# two. Subtracted by id, never by path: the point of a renumber is that
+# the path changed, and a rename that moves only the slug releases and
+# claims the same id, which cancels exactly as it should.
+if [ -n "$released" ]; then
+  kept=""
+  while IFS= read -r row; do
+    ql_row_fields 3 "$row" || continue
+    if printf '%s' "$released" | awk -F"$TAB" -v k="$QL_F1" -v n="$QL_F2" \
+         '$1 == k && $2 == n { found = 1 } END { exit !found }'; then
+      continue
+    fi
+    kept="${kept}${row}"$'\n'
+  done <<EOF
+$held
+EOF
+  held="$kept"
+fi
 
 # --- what other open pull requests claim ----------------------------------
 #
 # Per pull request, because only the API's file list carries `status`, and
-# without it a modification would read as a claim. The pull request being
-# checked is skipped: its own additions are the ones under examination and
-# must not collide with themselves.
+# without it a modification would read as a claim — and a rename would
+# read as nothing at all. The destination of a rename is asked for and
+# the source is not: what this reader wants to know is which ids somebody
+# else has taken, and a pull request that renames a file away has not
+# released that id to anyone. It still holds it until it merges.
+#
+# The pull request being checked is skipped: its own additions are the
+# ones under examination and must not collide with themselves.
 
 claimed=""
 forge_view="none"
@@ -178,7 +205,7 @@ if command -v gh >/dev/null 2>&1; then
       count=$((count + 1))
       if [ "$n" = "$PR" ]; then continue; fi
       files=$(gh api "repos/${REPO}/pulls/${n}/files" --paginate \
-        --jq '.[] | select(.status == "added") | .filename' 2>/dev/null || true)
+        --jq '.[] | select(.status == "added" or .status == "renamed") | .filename' 2>/dev/null || true)
       while IFS= read -r f; do
         [ -n "$f" ] || continue
         k=$(queue_id "$f")
@@ -194,8 +221,17 @@ fi
 
 # --- the verdict ----------------------------------------------------------
 
+# The rows go through `ql_row_fields`, never `IFS="$TAB" read`. These
+# three fields are assembled here rather than read off a forge, but the
+# parse is the same one and the collapse is the same collapse — a tab is
+# IFS whitespace, so an empty field would take the next field's place and
+# the verdict would name the wrong file. One reader for every row this
+# repository splits on tabs is what keeps the class closed; the hazard is
+# written out in the helper's header.
 collisions=0
-while IFS="$TAB" read -r kind num file; do
+while IFS= read -r row; do
+  ql_row_fields 3 "$row" || continue
+  kind="$QL_F1"; num="$QL_F2"; file="$QL_F3"
   [ -n "$kind" ] || continue
 
   other=$(printf '%s' "$held" | awk -F"$TAB" -v k="$kind" -v n="$num" \
@@ -220,7 +256,7 @@ EOF
 if [ "$collisions" -gt 0 ]; then
   echo "" >&2
   echo "An id is unique across the queue and every open pull request" >&2
-  echo "(docs/technical/README.md#task-schema). A number a branch has not" >&2
+  echo "(docs/technical/schemas/task.md#task-schema). A number a branch has not" >&2
   echo "merged is not yet an id, so renumbering costs nothing — renumber" >&2
   echo "this change's files, and the reference to them, above the ids" >&2
   echo "named here." >&2

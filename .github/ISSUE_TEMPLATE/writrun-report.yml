@@ -1,0 +1,39 @@
+# Shipped by WritRun — the report form. It shapes a human submission of
+# an observation; an agent routing a finding here shapes its own issue
+# the same way. The shape is a convenience, never the gate: the form
+# sets no label, because the gate is a maintainer applying
+# `writrun:report`, which is the judgement that the observation deserves
+# a file (docs/product/stage-3-github-issues/intake.md).
+name: Report an observation
+description: Something seen that this project should remember — a defect, a contradiction, a surprise.
+title: "What was observed, in one sentence"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A report says something was **seen** — what should be done about
+        it is triage's output, not this form's. If a maintainer labels
+        this issue `writrun:report`, it becomes a file in
+        `work/reports/` and this issue becomes its mirror.
+  - type: textarea
+    id: observed
+    attributes:
+      label: What was observed
+      description: State the observation itself — what happened, where, against which expectation.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Whatever is at hand — the error, the log excerpt, the commands run, links. Thin is fine.
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Version consumed
+      description: For a defect in something consumed — a kit defect names the tag in `.writrun/VERSION`.
+      placeholder: v0.0.03
+    validations:
+      required: false

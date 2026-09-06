@@ -18,40 +18,19 @@ set -euo pipefail
 RANGE="${1:?usage: check_queue_impact.sh <diff-range>}"
 : "${GITHUB_STEP_SUMMARY:=/dev/null}"
 
+. "$(dirname "$0")/queue_lib.sh"
+
 # docs/writrun-instructions.md is process metadata — nothing derives
 # from it, so it can never put queued work at risk.
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields exactly the same empty string
-# whether nothing matched or nothing ran, and two of these checks are
-# gates (spec-0013).
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent — the very shape of the bug being removed.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
 
 # This check is advisory by contract — it never fails a change — but an
 # advisory that could not look must say it did not look. A failed read is
 # the one case where it exits non-zero: reporting "no permanent doc
 # changed" without having read the diff is the lie, not the exit code.
-git_read "git diff --name-only ${RANGE} -- docs" \
+ql_git_read "git diff --name-only ${RANGE} -- docs" \
   diff --name-only "$RANGE" -- docs
 # The `|| true` that stays is grep's, not git's: no match is an answer.
-docs_changed=$(printf '%s\n' "$GIT_OUT" \
+docs_changed=$(printf '%s\n' "$QL_GIT_OUT" \
   | grep -vxF 'docs/writrun-instructions.md' || true)
 if [ -z "$docs_changed" ]; then
   echo "No permanent doc changed."

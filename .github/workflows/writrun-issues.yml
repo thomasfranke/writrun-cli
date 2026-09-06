@@ -25,6 +25,17 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, closed]
 
+# One writer per pull request's mirrors, and the group is shared with
+# writrun-approve.yml because both write the same artifact: two events a
+# second apart ran this pass concurrently, each run missed the other's
+# mint, and one record got two mirrors (report-0038, decision 0073).
+# Queue, never cancel — every pass here is a reconciler, so the run that
+# waits reconciles the newest state anyway, while a cancelled run can
+# die between two writes it meant as one.
+concurrency:
+  group: writrun-mirror-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   issues: write

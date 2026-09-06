@@ -1,0 +1,89 @@
+name: writrun intake
+
+# A maintainer's label turns an issue into a report. Anyone can open an
+# issue, so an issue's arrival writes nothing into work/ — the gate is
+# someone with triage rights applying `writrun:report`, and on that
+# event this workflow mints the next report id, records the file on the
+# authority branch, and makes the issue that report's mirror
+# (docs/product/stage-3-github-issues/intake.md).
+#
+# Every step's logic lives in .writrun/scripts/, where the test suite's
+# integration tier executes it — YAML here only wires the event onto
+# intake_report.sh, which is also where the two refusals live: a label
+# that is not the gate, and a title already carrying a mirror tag (an
+# existing mirror is another workflow's). A re-applied label is a no-op
+# because the script finds the report already naming the issue — the
+# file is the guard, not the title.
+#
+# The issue's fields travel through env, never inline interpolation —
+# the title and body are a stranger's, and they are data
+# (docs/technical/reporting/intake.md).
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+# One intake per issue at a time. The group is per issue on purpose: a
+# shared group would let a third label event *cancel* the pending run of
+# an unrelated issue — GitHub queues one pending run per group and
+# cancels the rest, it does not serialize them — and a cancelled intake
+# is an issue that silently never becomes a report. Two different
+# issues minting the same id is the script's own race to lose: it
+# re-reads the tree after every rebase and mints again on a collision.
+concurrency:
+  group: writrun-intake-${{ github.event.issue.number }}
+
+jobs:
+  gate:
+    name: adoption stage
+    runs-on: ubuntu-latest
+    # Every labelled event on every issue fires this workflow, and
+    # almost none of them are the gate. The `if` is a pre-filter on the
+    # event payload, not a relocated refusal — the script keeps its own
+    # label check, and the integration tier still tests it there; this
+    # only spares two runners and a full-history clone for the `bug`
+    # and `duplicate` labels of ordinary triage.
+    if: github.event.label.name == 'writrun:report'
+    # The stage gates the whole workflow rather than each job, and it is
+    # a job rather than a first step so a project below the stage starts
+    # no runner at all. It always succeeds: a job that did not run is not
+    # a failure, and stage_gate.sh says which of the two happened.
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        run: bash .writrun/scripts/stage-2-pull-requests/stage_gate.sh 3
+
+  intake:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # The authority branch with full history: the id is minted over
+      # the directory, the history and the open pull requests, and the
+      # recording rebases onto whatever landed since the checkout.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Record the labelled issue as a report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.repository.default_branch }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_CREATED_AT: ${{ github.event.issue.created_at }}
+          LABEL_NAME: ${{ github.event.label.name }}
+        run: |
+          bash .writrun/scripts/stage-3-github-issues/intake_report.sh \
+            "${{ github.repository }}" \
+            "${{ github.event.issue.number }}"

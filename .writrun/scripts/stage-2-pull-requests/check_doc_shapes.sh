@@ -10,7 +10,7 @@
 # every example a chapter prints is unheld, and examples drift — this
 # repository's own concept chapters printed front matter no checker would
 # accept, and the adoption kit shipped it that way
-# (docs/technical/README.md#front-matter-is-canonical).
+# (docs/technical/schemas/front-matter.md#front-matter-is-canonical).
 #
 # Two halves, and neither reads English.
 #
@@ -290,7 +290,7 @@ if [ "$faults" -ne 0 ]; then
   echo "" >&2
   echo "A shape a chapter shows is documentation that lies with a straight" >&2
   echo "face: it is copied, and the first check refuses what it taught" >&2
-  echo "(docs/technical/README.md#front-matter-is-canonical)." >&2
+  echo "(docs/technical/schemas/front-matter.md#front-matter-is-canonical)." >&2
   exit 1
 fi
 

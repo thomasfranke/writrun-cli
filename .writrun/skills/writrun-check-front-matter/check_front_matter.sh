@@ -38,12 +38,14 @@
 #   - `origin` is `rule` or `report`, always present on a task — how it
 #     came to exist is a fact, and there is no third answer
 #   - a report's `status` is the route triage took, not a lifecycle:
-#     `open` and the four ends, and `triaged` is set exactly when the
-#     status is one of the four. Null while `open` because nothing has
+#     `open` and the five ends, and `triaged` is set exactly when the
+#     status is one of the five. Null while `open` because nothing has
 #     been decided; set when something has, because a judgement with no
 #     date is a judgement nothing can be ordered against. The two ends
 #     this file can follow carry what names their outcome with them:
-#     `tracked` a non-empty `task_ref`, `authored` a `doc_ref`
+#     `tracked` a non-empty `task_ref`, `authored` a `doc_ref` — while
+#     `routed` sent the work upstream, so a `task_ref` here would claim
+#     work this queue does not own
 #     (docs/product/concepts/report.md#statuses--the-route-not-a-lifecycle)
 #   - `provenance` is the one field allowed to open a block list, and the
 #     only shape it may take is a dash-opened line per entry, each entry a
@@ -51,10 +53,10 @@
 #     the other legal spelling. An entry opened as a block mapping — its
 #     keys on lines of their own — is refused, because that is precisely
 #     the shape the line-based readers cannot see
-#     (docs/technical/README.md#task-schema).
+#     (docs/technical/schemas/task.md#task-schema).
 #
 # Unknown keys in canonical shape are allowed — an adopter may extend.
-# The schemas themselves: docs/technical/schemas.md.
+# The schemas themselves: docs/technical/schemas/README.md.
 #
 # Exit codes: 0 every file canonical (or nothing to validate); 1 a file
 # is malformed; 3 usage error.
@@ -105,7 +107,7 @@ require_once() {   # require_once <file> <block> <field>
 # carries — who did the work and who answers for it; `model` belongs to an
 # agent's entry alone, and the four counts are the platform's own numbers,
 # kept as counts because a stored currency figure becomes a lie about the
-# past the next time a price changes (docs/technical/README.md#task-schema).
+# past the next time a price changes (docs/technical/schemas/task.md#task-schema).
 LEDGER_KEYS="by model login input output cache_read cache_write"
 LEDGER_COUNTS="input output cache_read cache_write"
 
@@ -277,6 +279,21 @@ check_date() {   # check_date <file> <block> <field> <null-ok>
   return 0
 }
 
+
+# doc_declares_draft <file> — does that chapter's **first line** declare
+# it a draft? Trailing whitespace trimmed, nothing else: a marker
+# indented, on line two, or inside a fence is prose about the marker
+# rather than the marker. A chapter that documents it names it in prose,
+# so presence anywhere in the file is not the question.
+doc_declares_draft() {
+  local blob first
+  [ -f "$1" ] || return 1
+  blob=$(cat "$1")
+  first=${blob%%$'\n'*}
+  first=$(printf '%s' "$first" | sed 's/[[:space:]]*$//')
+  [ "$first" = '/// writrun:draft' ]
+}
+
 check_doc_ref() {   # check_doc_ref <file> <block>
   # Relative to docs/ — a docs/ prefix would double when the machinery
   # prefixes it back (queue impact, the delta check). One rule, one copy:
@@ -300,6 +317,42 @@ check_doc_ref() {   # check_doc_ref <file> <block>
       target="${DOCS_DIR}/${ref%%#*}"
       [ -f "$target" ] \
         || fail "$1" "doc_ref '$ref' names no file — ${target} does not exist"
+      # **Resolving is no longer the whole question.** A chapter that
+      # declares itself a draft is not a rule, and nothing derives from
+      # one — so a doc_ref into it is derivation from a rule the project
+      # has not made
+      # (product/stage-1-tasks-and-specs/authoring.md#a-chapter-that-is-not-a-rule-yet).
+      # The refusal says that rather than "names no file": the file is
+      # right there, and a resolution message would send the reader
+      # looking for a typo that is not there.
+      #
+      # Read here rather than borrowed: this check is a skill, standalone
+      # so it runs at every adoption stage, and the copy in
+      # scripts/stage-2-pull-requests/queue_lib.sh is on the far side of
+      # that boundary. Two copies of four lines, and the boundary is the
+      # reason — the two stage-2 readers share one.
+      # **The refusal binds what still derives.** "Nothing derives from
+      # a draft chapter" is present tense: a done or dropped task, or a
+      # report triage already routed, derives nothing — its doc_ref
+      # records what it derived from, as the chapter stood then. Refusing
+      # those would make the sanctioned demotion (rule to draft, with a
+      # declaration — check_derived_work.sh's fourth row) poison the
+      # queue retroactively: every finished record into the chapter
+      # failing every later sweep, repairable only by editing history,
+      # the one repair this methodology forbids. The line is the one
+      # conflicts.md draws — an edit under docs/ answers to the
+      # *non-completed* tasks pointing into it. Task and report statuses
+      # are disjoint vocabularies, so one case serves both callers; a
+      # status this case does not know is judged live — strict by
+      # default, and it already failed the status check on its own.
+      case "$(get "$2" status)" in
+        done|dropped|tracked|authored|fixed|declined|routed) ;;
+        *)
+          if [ -f "$target" ] && doc_declares_draft "$target"; then
+            fail "$1" "doc_ref '$ref' names a draft chapter — nothing derives from a chapter that is not a rule yet"
+          fi
+          ;;
+      esac
       ;;
     *) fail "$1" "doc_ref '$ref' is not null or a .md path (optionally with #anchor)" ;;
   esac
@@ -374,7 +427,7 @@ check_task() {   # check_task <file>
   # from an authored rule, or born from a report of work an existing rule
   # already authorizes. Written once at creation and never rewritten, so
   # the only thing left to hold is that it is there and says one of the
-  # two (docs/technical/README.md#task-schema).
+  # two (docs/technical/schemas/task.md#task-schema).
   org=$(get "$block" origin)
   case "$org" in
     rule|report) ;;
@@ -448,14 +501,14 @@ check_report() {   # check_report <file>
   check_id "$f" "$block"
 
   # The route triage took, not a lifecycle: one non-terminal value and
-  # the four ends. There is no `resolved` — whether the underlying work
+  # the five ends. There is no `resolved` — whether the underlying work
   # is done is the task's status, one hop away through task_ref, and a
   # second copy of that fact would need a second writer to stay true
   # (docs/product/concepts/report.md).
   st=$(get "$block" status)
   case "$st" in
-    open|tracked|authored|fixed|declined) ;;
-    *) fail "$f" "status '$st' is not a report status (open|tracked|authored|fixed|declined)" ;;
+    open|tracked|authored|fixed|declined|routed) ;;
+    *) fail "$f" "status '$st' is not a report status (open|tracked|authored|fixed|declined|routed)" ;;
   esac
 
   # A list even with one element, because triage can split one finding
@@ -477,7 +530,7 @@ check_report() {   # check_report <file>
     fail "$f" "status is open but triaged is '$tri' — a report carries the date only once triage has ended it"
   fi
   case "$st" in
-    tracked|authored|fixed|declined)
+    tracked|authored|fixed|declined|routed)
       [ "$tri" != "null" ] \
         || fail "$f" "status is '$st' but triaged is null — the date is when triage decided, and every end has one"
       ;;
@@ -486,10 +539,14 @@ check_report() {   # check_report <file>
   # An end and the field that names its outcome are one judgement written
   # twice, so they are paired the way `triaged` is. The table in
   # concepts/report.md is the contract: `tracked` is named by `task_ref`,
-  # `authored` by the `doc_ref` the rule was written into. The other two
+  # `authored` by the `doc_ref` the rule was written into. The other
   # ends name their outcome where this checker cannot follow — `fixed` in
-  # the git history, `declined` in the body — so they are not paired here,
-  # and that asymmetry is the concept's, not an omission.
+  # the git history, `declined` and `routed` in the body (the reason, the
+  # upstream issue) — so they are not paired here, and that asymmetry is
+  # the concept's, not an omission. `routed` is bounded from the other
+  # side instead: it sent the work to the repository that owns the
+  # defect, so a task named here would claim work this queue never
+  # gained.
   #
   # Unpaired, `status: tracked` with `task_ref: []` passed every gate: a
   # report permanently claiming work that nothing carries, and a mirror
@@ -501,6 +558,9 @@ check_report() {   # check_report <file>
     authored)
       [ "$(get "$block" doc_ref)" != "null" ] \
         || fail "$f" "status is authored but doc_ref is null — authored means a rule was written, and doc_ref is what names it" ;;
+    routed)
+      [ "$(get "$block" task_ref)" = "[]" ] \
+        || fail "$f" "status is routed but task_ref names a task — routed sent the work upstream, and the body names the issue it became" ;;
   esac
   return 0
 }

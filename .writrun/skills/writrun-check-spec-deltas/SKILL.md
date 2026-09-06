@@ -23,7 +23,7 @@ The range defaults to the working tree vs. `HEAD`; a branch comparison is
 `main...HEAD`. A change completing several specs passes them
 comma-separated — `spec-0004,spec-0005` — and **never one at a time
 against the same diff**:
-[`technical/distribution.md#running-the-checks`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/distribution.md#running-the-checks)
+[`technical/distribution/checks.md#running-the-checks`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/distribution/checks.md#running-the-checks)
 says why, and what each verdict means for the promise.
 
 - **0 / OK** — every promised path was touched, nothing undeclared under

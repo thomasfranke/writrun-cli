@@ -9,7 +9,7 @@ Every reader in this methodology is line-based on purpose, and YAML
 permits the same meaning in shapes those readers silently misread. The
 canonical form is therefore a checked contract, not an assumption —
 the contract itself is
-[`technical/schemas.md#front-matter-is-canonical`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/schemas.md#front-matter-is-canonical),
+[`technical/schemas/front-matter.md#front-matter-is-canonical`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/schemas/front-matter.md#front-matter-is-canonical),
 and this script is where it is enforced.
 
 ## Run it
@@ -21,7 +21,7 @@ bash .writrun/skills/writrun-check-front-matter/check_front_matter.sh \
 
 Defaults to `work/tasks`, `work/specs`, `docs` and `work/reports`. **Pass
 all four or none** — the reason is
-[`technical/distribution.md#running-the-checks`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/distribution.md#running-the-checks).
+[`technical/distribution/checks.md#running-the-checks`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/distribution/checks.md#running-the-checks).
 
 - **0** — every file is canonical.
 - **1** — one is not; the output names the file and what is wrong with

@@ -6,7 +6,7 @@ description: Use this skill when creating a new task, spec or report in a projec
 # Create a task, its spec when warranted, or a report
 
 `new.sh` writes the front matter, so the schema —
-[`technical/schemas.md`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/schemas.md)
+[`technical/schemas/README.md`](https://github.com/thomasfranke/writrun/blob/main/docs/technical/schemas/README.md)
 — is never re-derived from memory; a file written by hand goes through
 `writrun-check-front-matter` before it is committed. Read the target
 project's own `docs/technical/` where it exists: it may state adopter
@@ -100,6 +100,22 @@ the merge contract `writrun-check-spec-deltas` reads. "none" only where
 genuinely nothing in that category changes. **Leave `status: draft`** —
 approval is a human gate, never written here.
 
+**A spec drafted for a task already in the queue takes a `report/`
+branch of its own** — the same branch kind the route that tracked the
+task took, because this change puts a plan in the queue and works
+nothing:
+
+```bash
+git switch -c report/<short-name>
+```
+
+Its pull request states the spec it drafts and names the task **in the
+body only** — never as a `[TASK-NNNN]` title tag and never in the branch
+name, both of which read as the task being worked. Such a task waits
+`blocked` until then, so the same change clears its `status` and
+`blocked_reason` back to `backlog` and `null`. The merge is the
+approval.
+
 ## Recording a report
 
 ```bash
@@ -131,7 +147,7 @@ bash .writrun/skills/writrun-create-task-and-spec/new.sh task "<title>" \
 
 `--from-report` states the origin (so `--origin rule` beside it is
 refused), appends the new task's id to the report's `task_ref`, stamps
-`triaged`, and moves an `open` report to `tracked`. The other three ends
+`triaged`, and moves an `open` report to `tracked`. The other four ends
 are written by hand — the status and the `triaged` timestamp together, in
 the change that took the route. A ridden `tracked` is refused by the
 generator and by `check_state.sh` alike.

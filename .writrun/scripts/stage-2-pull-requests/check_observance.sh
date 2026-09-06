@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check_observance.sh — the settings an agent is told to obey, checked
 # where disobedience leaves a trace
-# (docs/technical/README.md#observance-is-checked-where-it-leaves-a-trace).
+# (docs/technical/settings/observance.md#observance-is-checked-where-it-leaves-a-trace).
 #
 # Usage: check_observance.sh <diff-range>
 #   The PR title and body arrive via $PR_TITLE and $PR_BODY — through the
@@ -48,6 +48,7 @@ set -euo pipefail
 RANGE="${1:?usage: check_observance.sh <diff-range>}"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$HERE/queue_lib.sh"
 READ_SETTING="$HERE/read_setting.sh"
 
 faults=0
@@ -59,29 +60,6 @@ fault() { echo "REJECTED: $*" >&2; faults=$((faults + 1)); }
 # while what makes these commits exempt is who wrote them — and only the
 # identity says that.
 BOT_COMMITTER="github-actions[bot]"
-
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields the same empty string whether
-# nothing matched or nothing ran, and this is a gate.
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
 
 # ---------------------------------------------------------------- title
 
@@ -201,33 +179,16 @@ the-model claude gpt copilot"
 # judged as if this one had written it. The two ends are resolved here
 # and one side is asked for, the same derivation check_derived_work.sh
 # makes when it needs a base.
-  case "$RANGE" in
-    *...*)
-      left="${RANGE%%...*}"
-      right="${RANGE##*...}"
-      # A merge-base that could not be computed is not a base of
-      # "nothing", it is an unanswered question — and this is a gate.
-      if ! BASE=$(git merge-base "${left:-HEAD}" "${right:-HEAD}" 2>&1); then
-        echo "git merge-base ${left:-HEAD} ${right:-HEAD} failed:" >&2
-        printf '%s\n' "$BASE" | head -n 2 >&2
-        exit 3
-      fi
-      TIP="${right:-HEAD}"
-      ;;
-    *..*)
-      BASE="${RANGE%%..*}"
-      TIP="${RANGE##*..}"
-      TIP="${TIP:-HEAD}"
-      ;;
-    *)
-      BASE="$RANGE"
-      TIP="HEAD"
-      ;;
-  esac
+  # The ends come from queue_lib.sh's one parse (spec-0086). This
+  # script reads commits, so the bare shape's working-tree sentinel
+  # becomes HEAD here — `git log` against a working tree is nothing.
+  ql_range_ends "$RANGE"
+  BASE="$QL_BASE"
+  TIP="${QL_HEADREF:-HEAD}"
 
-  git_read "git log --format ${BASE}..${TIP}" \
+  ql_git_read "git log --format='%h%x09%cn%x09%p' ${BASE}..${TIP}" \
     log --format='%h%x09%cn%x09%p' "${BASE}..${TIP}"
-  shas=$(printf '%s\n' "$GIT_OUT" \
+  shas=$(printf '%s\n' "$QL_GIT_OUT" \
     | grep -vF "	${BOT_COMMITTER}	" \
     | cut -f1 || true)
 
@@ -245,7 +206,7 @@ the-model claude gpt copilot"
   # forms are indistinguishable, which is exactly how a broken version of
   # this passed locally and faulted in CI, where the forge's own synthetic
   # merge makes a second one.
-  merges=$(printf '%s\n' "$GIT_OUT" \
+  merges=$(printf '%s\n' "$QL_GIT_OUT" \
     | awk -F'	' 'NF >= 3 && $3 ~ / / { print $1 }' | tr '\n' ' ' || true)
 
 body="${PR_BODY:-}"
@@ -254,8 +215,8 @@ case "$CREDIT" in
 false)
   for sha in $shas; do
     [ -n "$sha" ] || continue
-    git_read "git log -1 --format=%B ${sha}" log -1 --format='%B' "$sha"
-    hit=$(printf '%s\n' "$GIT_OUT" \
+    ql_git_read "git log -1 --format=%B ${sha}" log -1 --format='%B' "$sha"
+    hit=$(printf '%s\n' "$QL_GIT_OUT" \
       | grep -E "$CREDIT_LINES|$CREDIT_PROSE" | head -n 1 || true)
     [ -z "$hit" ] || fault "commit ${sha} carries platform credit while agent_coauthor is false: ${hit}"
   done
@@ -304,8 +265,8 @@ true)
   else
     for sha in $authored; do
       [ -n "$sha" ] || continue
-      git_read "git log -1 --format=%B ${sha}" log -1 --format='%B' "$sha"
-      trailers=$(printf '%s\n' "$GIT_OUT" | grep -E "$TRAILER" || true)
+      ql_git_read "git log -1 --format=%B ${sha}" log -1 --format='%B' "$sha"
+      trailers=$(printf '%s\n' "$QL_GIT_OUT" | grep -E "$TRAILER" || true)
       if [ -z "$trailers" ]; then
         fault "commit ${sha} carries no Co-Authored-By: trailer while agent_coauthor is true and this pull request declares agent work"
         continue
@@ -359,7 +320,7 @@ if [ "$faults" -ne 0 ]; then
   echo "" >&2
   echo "These are settings the project declared and an agent was told to" >&2
   echo "obey. What leaves a trace is checked rather than trusted" >&2
-  echo "(docs/technical/README.md#observance-is-checked-where-it-leaves-a-trace)." >&2
+  echo "(docs/technical/settings/observance.md#observance-is-checked-where-it-leaves-a-trace)." >&2
   exit 1
 fi
 
