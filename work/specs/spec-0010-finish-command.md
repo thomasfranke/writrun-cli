@@ -20,10 +20,11 @@ the task's `status` line (the machinery's, always); the merge.
 ## Steps
 
 1. Run `check_deltas.sh` for the branch's specs; stop on non-zero — nothing else runs.
-2. Require the spec's `## Outcome` filled; write `status: implemented` on the spec and the task's `completed` UTC timestamp. Touch the task's `status` line never.
+2. Require the spec's `## Outcome` filled; write `status: implemented` on the spec and the task's `completed` UTC timestamp, remembering the bytes each write replaced. Touch the task's `status` line never.
 3. Run `record_provenance.sh` unconditionally — it reads the ledger setting itself.
 4. Run `preflight.sh`; exit 0 required.
 5. Show what will happen; on confirmation mark the pull request ready for review.
+6. Any end after step 2 that is not a success — a refused ledger, a non-zero preflight, a forge that will not answer, a no at the question — puts the two writes back before it exits, and a restore that fails says so and exits non-zero rather than leaving the tree half-written (amended by [spec-0017](spec-0017-finish-write-order.md)).
 
 ## Acceptance criteria (EARS)
 
