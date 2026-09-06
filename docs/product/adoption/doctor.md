@@ -15,13 +15,15 @@ assumes. Reports; it never repairs.
   `docs/`, who declares a rule finished, who approves a spec, who acts
   on a task without one — the fenced markers intact, the kit's version
   recorded, the queue readable, the settings canonical.
-- **Stage 2 — the forge:** `gh` authenticated; Actions workflow
-  permissions read-and-write, so the recording bot can push to `main`;
-  squash merging on; `main` protected and reachable by the Actions
-  bot — on the ruleset's bypass list where the forge offers one; and
-  the rules that block the recording push named when on: restrict
-  updates, required signatures, required status checks, and
-  require-pull-request on a user-owned repository.
+- **Stage 2 — the forge:** `gh` authenticated; the recording push able
+  to reach `main` — Actions workflow permissions read-and-write, or
+  read where every workflow that pushes to `main` raises
+  `contents: write` of its own; squash merging on; `main` protected,
+  and a ruleset governing it named where it lists no bypass actor and
+  enables a rule that refuses the push; and the rules that block the
+  recording push named when on: restrict updates, required signatures,
+  required status checks, and require-pull-request on a user-owned
+  repository.
 - **Stage 3 — Issues:** enabled, so the mirror has somewhere to land.
 - A recommended setting missing is a recommendation. Only a finding
   that breaks a flow makes the exit status non-zero; every finding

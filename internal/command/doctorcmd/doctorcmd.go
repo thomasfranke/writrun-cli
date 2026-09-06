@@ -118,7 +118,7 @@ func examine(root string, stage int, d Deps, found []finding) []finding {
 		found = append(found, stage1(root, d)...)
 	}
 	if stage >= 2 {
-		forge, reachable := stage2(d)
+		forge, reachable := stage2(root, d)
 		found = append(found, forge...)
 		if stage >= 3 {
 			found = append(found, stage3(d, reachable)...)

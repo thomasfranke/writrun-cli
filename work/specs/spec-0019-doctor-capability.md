@@ -1,7 +1,7 @@
 ---
 id: spec-0019
 task_ref: task-0020
-status: approved
+status: implemented
 created: 2026-09-06T00:37:44Z
 ---
 
@@ -66,10 +66,10 @@ regression report-0013 recorded.
 
 ## Definition of Done
 
-- [ ] `writrun doctor` reports no stage-2 finding against this repository.
-- [ ] A configuration that genuinely blocks the recording push still fails, proven by a test.
-- [ ] `doctor.md` states the end rather than one means to it.
-- [ ] Suite green.
+- [x] `writrun doctor` reports no stage-2 finding against this repository.
+- [x] A configuration that genuinely blocks the recording push still fails, proven by a test.
+- [x] `doctor.md` states the end rather than one means to it.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -82,4 +82,18 @@ regression report-0013 recorded.
 
 ## Outcome
 
-_(fill after execution)_
+Stage 2 reads the capability. `canWrite` passes a repository default of
+read-and-write outright, and passes a default of `read` where every
+workflow that pushes to `main` raises `contents: write` of its own —
+naming the workflow file that does not. `mainReachable` reports an
+empty bypass list only where the same ruleset enables one of the four
+rules that refuse a fast-forward push, and names that rule; the
+entry's `ruleset_id` in the forge's `rules/branches/main` answer is
+what attributes a rule to a ruleset. The four blocking-rule checks are
+unchanged.
+
+`writrun doctor` reports no stage-2 finding against this repository,
+where the binary built from `origin/main` reported the two report-0013
+recorded. Eight cases were added in
+`internal/command/doctorcmd/forge_test.go`, including the live shape of
+`.github/workflows` read from disk.

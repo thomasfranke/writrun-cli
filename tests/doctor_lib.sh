@@ -152,6 +152,18 @@ forge_healthy() {
   gh_reply "api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type" "Integration"
 }
 
+# workflow <name> <body> — one file in the target's
+# `.github/workflows`, which stage 2 reads only where the repository's
+# Actions default is `read`.
+workflow() {
+  mkdir -p "$TARGET/.github/workflows"
+  printf '%s\n' "$2" > "$TARGET/.github/workflows/$1"
+}
+
+# no_workflows — the directory removed, so the repository pushes from
+# nowhere.
+no_workflows() { rm -rf "$TARGET/.github"; }
+
 # forge_offline — gh answers nothing at all, the way an unauthenticated
 # one does.
 forge_offline() {
