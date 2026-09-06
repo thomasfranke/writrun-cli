@@ -1,8 +1,8 @@
 ---
 id: task-0018
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0017]
 doc_ref: product/pull-requests/shape.md
 origin: report
