@@ -1,10 +1,10 @@
 ---
 id: report-0011
-status: open
+status: fixed
 task_ref: []
 doc_ref: technical/testing/suites.md
 created: 2026-09-05T18:21:04Z
-triaged: null
+triaged: 2026-09-05T19:03:11Z
 ---
 
 # The fixtures table in suites.md lists five of the eight fixtures
@@ -21,3 +21,9 @@ did not promise may not be touched. The section above the table states
 that no file lists the suites and that a case is registered by its path
 — which is true of the cases and not of this table, so the one list
 that has to be maintained by hand is the one nothing checks.
+
+**Fixed here, with [[report-0009]], which is this same finding seen
+independently on another branch.** This report named the reason the
+other did not: the paragraph above the table claimed nothing lists the
+suites while the table below it was a hand-kept list nothing checked.
+The table is gone rather than corrected.
