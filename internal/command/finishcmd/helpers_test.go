@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -227,8 +231,59 @@ func (f *truncateThenFail) WriteFile(name string, data []byte, perm fs.FileMode)
 	return f.err
 }
 
+// syncWriter is a captured stream two goroutines may write to. A
+// caught signal puts one on the guard's goroutine beside the command's
+// own, and production answers that with an *os.File, which is safe for
+// concurrent use; a bytes.Buffer standing in for one has to be too, or
+// the race detector reads the fixture as the defect.
+type syncWriter struct {
+	lock *sync.Mutex
+	buf  bytes.Buffer
+}
+
+func (w *syncWriter) Write(p []byte) (int, error) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *syncWriter) String() string {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	return w.buf.String()
+}
+
+func (w *syncWriter) Reset() {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+	w.buf.Reset()
+}
+
+// syncFS is the same answer for the fake tree: production's filesystem
+// is the disk, which two goroutines may reach at once, and the fake
+// standing in for it takes the fixture's lock so they may too.
+type syncFS struct {
+	vfs.FS
+	lock *sync.Mutex
+}
+
+func (f *syncFS) ReadFile(name string) ([]byte, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	return f.FS.ReadFile(name)
+}
+
+func (f *syncFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	return f.FS.WriteFile(name, data, perm)
+}
+
 // harness is one finish: every port faked, the streams captured.
 type harness struct {
+	// lock is the fixture's own, held by everything both goroutines
+	// touch: the two streams and the fake tree.
+	lock    sync.Mutex
 	scripts *fakeScripts
 	files   *vfs.Fake
 	// fs is what the command is wired to — the fake tree, unless a
@@ -238,9 +293,10 @@ type harness struct {
 	git  *fakeGit
 	gh   *fakeGh
 	term *command.FakeTerminal
+	died *deaths
 	ctx  *command.Ctx
-	out  bytes.Buffer
-	errb bytes.Buffer
+	out  syncWriter
+	errb syncWriter
 }
 
 // deniedAfterWrite makes the second write to rel fail — the undo, when
@@ -262,6 +318,8 @@ func (h *harness) ledgerAppends(entry string) {
 	h.scripts.replies[provenanceScript] = reply{
 		out: "appended to " + taskPath + ": " + entry + "\n",
 		does: func() {
+			h.lock.Lock()
+			defer h.lock.Unlock()
 			p := path.Join(root, taskPath)
 			b, err := h.files.ReadFile(p)
 			if err != nil {
@@ -278,7 +336,11 @@ func (h *harness) ledgerAppends(entry string) {
 // command.
 func (h *harness) editedDuring(script, rel, content string) {
 	r := h.scripts.replies[script]
-	r.does = func() { _ = h.files.WriteFile(path.Join(root, rel), []byte(content), 0o644) }
+	r.does = func() {
+		h.lock.Lock()
+		defer h.lock.Unlock()
+		_ = h.files.WriteFile(path.Join(root, rel), []byte(content), 0o644)
+	}
 	h.scripts.replies[script] = r
 }
 
@@ -296,8 +358,10 @@ func newHarness(t *testing.T) *harness {
 		},
 		gh:   &fakeGh{view: draftPR},
 		term: &command.FakeTerminal{In: true, ConfirmAnswer: true},
+		died: newDeaths(),
 	}
 	h.fs = h.files
+	h.out.lock, h.errb.lock = &h.lock, &h.lock
 	h.seed(taskPath, taskFixture("in-progress", "spec-0010", "null"))
 	h.seed(specPath, specFixture("approved", "What was built, and what diverged."))
 	h.ctx = &command.Ctx{Stdout: &h.out, Stderr: &h.errb, Terminal: h.term, Root: root, Adopted: true}
@@ -305,12 +369,16 @@ func newHarness(t *testing.T) *harness {
 }
 
 func (h *harness) seed(rel, content string) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	h.files.Seed(path.Join(root, rel), []byte(content), 0o644)
 }
 
 func (h *harness) read(t *testing.T, rel string) string {
 	t.Helper()
+	h.lock.Lock()
 	b, err := h.files.ReadFile(path.Join(root, rel))
+	h.lock.Unlock()
 	if err != nil {
 		t.Fatalf("reading %s: %v", rel, err)
 	}
@@ -318,15 +386,60 @@ func (h *harness) read(t *testing.T, rel string) string {
 }
 
 // deps is the wiring, with the clock stopped so the stamped date is
-// assertable.
+// assertable and the death faked, because the production one kills the
+// test binary.
 func (h *harness) deps() Deps {
 	at, _ := time.Parse(time.RFC3339, stamped)
 	return Deps{
 		Scripts: h.scripts.run,
-		Files:   h.fs,
+		Files:   &syncFS{FS: h.fs, lock: &h.lock},
 		Git:     h.git.run,
 		Gh:      h.gh.run,
 		Now:     func() time.Time { return at },
+		Die:     h.died.record,
+	}
+}
+
+// raisingTerminal is the confirmation with a signal arriving while it
+// holds the terminal — huh's own path, where bubbletea answers the
+// signal and the form returns rather than the guard acting.
+type raisingTerminal struct {
+	command.Terminal
+	t   *testing.T
+	sig syscall.Signal
+}
+
+func (r *raisingTerminal) Confirm(question string) (bool, error) {
+	raise(r.t, r.sig)
+	return r.Terminal.Confirm(question)
+}
+
+// deaths records what the guard asked to die of. The production Die
+// never returns; this one does, so the watcher's goroutine ends and a
+// case can assert on the signal it carried.
+type deaths struct {
+	got  chan os.Signal
+	seen atomic.Int32
+}
+
+func newDeaths() *deaths { return &deaths{got: make(chan os.Signal, 4)} }
+
+func (d *deaths) record(sig os.Signal) {
+	d.seen.Add(1)
+	d.got <- sig
+}
+
+// waitFor is the signal the guard died of, or a failure naming what it
+// waited for — a case never blocks the suite on a handler that did not
+// fire.
+func (d *deaths) waitFor(t *testing.T) os.Signal {
+	t.Helper()
+	select {
+	case sig := <-d.got:
+		return sig
+	case <-time.After(10 * time.Second):
+		t.Fatal("the guard never died of the signal")
+		panic("unreachable")
 	}
 }
 

@@ -131,6 +131,7 @@ func commands() []command.Command {
 			Git:     gitx.Run,
 			Gh:      gh.Run,
 			Now:     time.Now,
+			Die:     finishcmd.Die,
 		}),
 		amendcmd.New(amendcmd.Deps{
 			Scripts: kit.Run,
