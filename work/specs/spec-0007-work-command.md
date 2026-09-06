@@ -1,7 +1,7 @@
 ---
 id: spec-0007
 task_ref: task-0007
-status: approved
+status: implemented
 created: 2026-09-03T22:30:39Z
 ---
 
@@ -42,8 +42,8 @@ Integration with a stub agent command recording its invocation.
 
 ## Definition of Done
 
-- [ ] A stub agent receives task id, brief and instructions for every fixture.
-- [ ] Suite green.
+- [x] A stub agent receives task id, brief and instructions for every fixture.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -55,4 +55,22 @@ Integration with a stub agent command recording its invocation.
 
 ## Outcome
 
-_(fill after execution)_
+`internal/command/workcmd/` reads `writrun.agent` through `gitx.Run`,
+selects with `list_tasks.sh`, assembles with `brief.sh`, and hands the
+result to a `Launcher`.
+
+**The launcher is the one new port, and its signature carries no
+writers.** `Launcher` is declared in `workcmd/launcher.go` — where it is
+consumed — with `FakeLauncher` beside it and `internal/agentx` as the
+production side. An agent draws on the terminal and reads keys from it,
+so the child inherits the process's own stdin, stdout and stderr rather
+than the frame's writers; a port taking writers would promise a
+redirection the launch cannot honour. No test starts a real agent.
+
+The launched command's error is passed up unedited, so its exit code is
+the command's verdict rather than a status `work` invents.
+
+Completed by a second session: the first agent reached a green unit
+tier and was cut off by a session limit before the bookkeeping. The
+implementation is its work, verified here — `make tests` exit 0, 104
+case files passed, 0 failed.

@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/thomasfranke/writrun-cli/internal/agentx"
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/command/doctorcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/finishcmd"
@@ -19,6 +20,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command/takecmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/uninstallcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/updatecmd"
+	"github.com/thomasfranke/writrun-cli/internal/command/workcmd"
 	"github.com/thomasfranke/writrun-cli/internal/forge"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
@@ -99,6 +101,11 @@ func commands() []command.Command {
 		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),
+		workcmd.New(workcmd.Deps{
+			Git:     gitx.Run,
+			Scripts: kit.Run,
+			Launch:  agentx.Run,
+		}),
 		statuscmd.New(statuscmd.Deps{
 			Tag:     writrunTag,
 			Git:     gitx.Run,
