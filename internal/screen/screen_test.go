@@ -1,6 +1,7 @@
 package screen
 
 import (
+	"io"
 	"strings"
 	"testing"
 
@@ -168,5 +169,83 @@ func TestParseDropsNoLineButTrailingBlanks(t *testing.T) {
 	}
 	if rows[0].Text != "a" || rows[1].Text != "" || rows[2].Text != "b" {
 		t.Errorf("rows = %+v", rows)
+	}
+}
+
+// Open drives the real program. The suite has no terminal, so the input
+// is a reader and the output a buffer — the same seam the term port
+// uses so a guarded flow stays exercisable end to end.
+func TestOpenRunsTheProgramAndReturnsWhatWasChosen(t *testing.T) {
+	act, err := Open(listing, strings.NewReader("q"), io.Discard)
+	if err != nil {
+		t.Fatalf("Open = %v", err)
+	}
+	if act != (Action{}) {
+		t.Errorf("q resolved to %+v, want the zero action", act)
+	}
+}
+
+func TestOpenCarriesTheChosenCommandOut(t *testing.T) {
+	act, err := Open(listing, strings.NewReader("w"), io.Discard)
+	if err != nil {
+		t.Fatalf("Open = %v", err)
+	}
+	if act.Command != "work" || act.Arg != "task-0020" {
+		t.Errorf("Open = %+v, want work on the first selectable row", act)
+	}
+}
+
+// Init asks for nothing: the rows arrived already read, so there is no
+// first command to run.
+func TestInitAsksForNothing(t *testing.T) {
+	if cmd := newModel(rowsOf(t)).Init(); cmd != nil {
+		t.Error("the screen asked for work on start; the rows are already read")
+	}
+}
+
+// Scrolling back up brings the window with it.
+func TestTheWindowFollowsTheSelectionUpward(t *testing.T) {
+	m := newModel(rowsOf(t))
+	out, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 4})
+	m = out.(model)
+	for i := 0; i < 5; i++ {
+		m.move(1)
+	}
+	for i := 0; i < 5; i++ {
+		m.move(-1)
+	}
+	// The window follows the selection, not the top of the list: the
+	// first selectable row is the second line, so a window starting
+	// there is the selection in view.
+	if m.top > m.cursor {
+		t.Errorf("top = %d is past the cursor %d", m.top, m.cursor)
+	}
+	if !strings.Contains(m.View(), "task-0020") {
+		t.Error("the selected row is outside the window after scrolling back")
+	}
+}
+
+// A window of one line still renders, rather than dividing by nothing.
+func TestAWindowTooShortForAnythingStillRenders(t *testing.T) {
+	m := newModel(rowsOf(t))
+	out, _ := m.Update(tea.WindowSizeMsg{Width: 20, Height: 1})
+	m = out.(model)
+	if got := m.height; got != 1 {
+		t.Errorf("height = %d, want the floor of 1", got)
+	}
+	if m.View() == "" {
+		t.Error("a one-line window rendered nothing")
+	}
+}
+
+// An unknown key changes nothing.
+func TestAnUnknownKeyIsIgnored(t *testing.T) {
+	m := newModel(rowsOf(t))
+	out, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
+	if out.(model).action != (Action{}) || cmd != nil {
+		t.Error("an unknown key did something")
+	}
+	if out.(model).selected() != "task-0020" {
+		t.Error("an unknown key moved the selection")
 	}
 }
