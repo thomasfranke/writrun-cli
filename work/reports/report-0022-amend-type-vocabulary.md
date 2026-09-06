@@ -1,13 +1,15 @@
 ---
 id: report-0022
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0024]
 doc_ref: null
 created: 2026-09-06T01:30:12Z
-triaged: null
+triaged: 2026-09-06T04:28:21Z
 ---
 
 # writrun amend judges no branch-prefix vocabulary and the forge is where that lands
+
+**References:** [task-0024](../tasks/task-0024-observance-at-composition.md)
 
 `writrun amend --type` accepts any lowercase word:
 `internal/command/amendcmd/amendcmd.go`'s `plainWord` now requires a
