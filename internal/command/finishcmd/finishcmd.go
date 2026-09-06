@@ -3,8 +3,10 @@
 // outcome recorded, the provenance appended, the completion gates run,
 // and the pull request marked ready on the human's word. Every check is
 // the adopted repository's own script; what this command adds is the
-// order, the two writes those scripts do not make, and the question
-// before the forge (docs/product/pull-requests/finish.md, spec-0010).
+// order, the two writes those scripts do not make, the question before
+// the forge, and the undo that keeps a refusal from leaving those two
+// writes behind (docs/product/pull-requests/finish.md, spec-0010,
+// spec-0017).
 package finishcmd
 
 import (
@@ -139,9 +141,13 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 			return fmt.Errorf("%s's ## Outcome is empty — record what was built before finishing (%s)", s.id, s.path)
 		}
 	}
+	// Every write from here on is remembered, so any end that is not a
+	// success can put the tree back exactly as it was found
+	// (spec-0017; product/pull-requests/shape.md).
+	undo := &journal{}
 	for _, s := range specs {
-		if err := write(ctx, d, s.path, s.content, "status", "implemented"); err != nil {
-			return err
+		if err := write(ctx, d, undo, s.path, s.content, "status", "implemented"); err != nil {
+			return undo.restore(ctx, d, err)
 		}
 	}
 	// The task's `completed` date, and nothing else on the task. Its
@@ -151,8 +157,8 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// second run reports it rather than restamping it.
 	if done := strings.TrimSpace(field(task, "completed")); done != "" && done != "null" {
 		fmt.Fprintf(ctx.Stdout, "unchanged: %s already carries completed: %s\n", taskPath, done)
-	} else if err := write(ctx, d, taskPath, task, "completed", d.Now().UTC().Format(time.RFC3339)); err != nil {
-		return err
+	} else if err := write(ctx, d, undo, taskPath, task, "completed", d.Now().UTC().Format(time.RFC3339)); err != nil {
+		return undo.restore(ctx, d, err)
 	}
 
 	// 3 — the ledger, unconditionally. The script reads the setting
@@ -165,17 +171,79 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		}
 	}
 	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, provenanceScript, prov...); err != nil {
-		return passthrough(provenanceScript, err)
+		return undo.restore(ctx, d, passthrough(provenanceScript, err))
 	}
 
 	// 4 — the completion gates. Exit 0 is required before the forge is
-	// asked for anything (spec-0010, step 4).
+	// asked for anything (spec-0010, step 4). They run after the writes
+	// because preflight's first stage sweeps the queue as it stands on
+	// disk and its completion warning reads the `completed` date off
+	// the same tree — a run before the writes is the run that stage
+	// tells you not to trust.
 	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, preflightScript, taskID, diffRange); err != nil {
-		return passthrough(preflightScript, err)
+		return undo.restore(ctx, d, passthrough(preflightScript, err))
 	}
 
-	// 5 — what will happen, then the question, then the forge.
-	return markReady(ctx, d, taskID, specs)
+	// 5 — what will happen, then the question, then the forge. A no
+	// here, or a forge that will not answer, ends with the two writes
+	// undone: the order stands and the refusal still leaves nothing
+	// behind (spec-0017, step 1).
+	if err := markReady(ctx, d, taskID, specs); err != nil {
+		return undo.restore(ctx, d, err)
+	}
+	return nil
+}
+
+// journal remembers what the completion writes replaced.
+//
+// The two writes sit at step 2, before `preflight.sh`, because the
+// gates read the queue off the working tree — moving them after the
+// question would ask the human to answer before the gates had spoken,
+// and would leave the same two edits behind whenever a gate then said
+// no. `shape.md` fixes that same order in its own sentence: checks,
+// then the status, then the composition, then the confirmation. So the
+// order stands, and the promise that a refused command leaves nothing
+// behind is kept by putting the writes back (spec-0017).
+type journal struct {
+	entries []undone
+}
+
+// undone is one file and the bytes it carried before this command
+// touched it.
+type undone struct {
+	rel    string
+	before []byte
+}
+
+// record remembers a write that actually happened. A field already
+// carrying its value was not written, so there is nothing to put back.
+func (j *journal) record(rel string, before []byte) {
+	j.entries = append(j.entries, undone{rel: rel, before: append([]byte(nil), before...)})
+}
+
+// restore puts every remembered write back and hands up the failure
+// that caused it, unedited — so a declined finish is still a decline
+// and a script's exit code is still that script's.
+//
+// A restore that fails is the one case that rewrites the verdict: the
+// tree is left changed, and saying so out loud matters more than
+// carrying a code up, because the frame passes an exit code through
+// without printing a word (spec-0017, edge cases).
+func (j *journal) restore(ctx *command.Ctx, d Deps, cause error) error {
+	var failed []string
+	for i := len(j.entries) - 1; i >= 0; i-- {
+		e := j.entries[i]
+		if err := d.Files.WriteFile(path.Join(ctx.Root, e.rel), e.before, 0o644); err != nil {
+			failed = append(failed, fmt.Sprintf("%s (%v)", e.rel, err))
+			continue
+		}
+		fmt.Fprintf(ctx.Stdout, "restored %s — the completion edit is undone\n", e.rel)
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("%v — and the completion edits could not be undone: %s. The working tree is left changed; put those files back by hand",
+			cause, strings.Join(failed, "; "))
+	}
+	return cause
 }
 
 // spec is one of the branch's specs: where it lives and what it says.
@@ -205,7 +273,7 @@ func readSpecs(files vfs.FS, root string, ids []string) ([]spec, error) {
 // already carrying the value is left alone and reported as such: the
 // command is rerunnable, and a second run must not restamp a date the
 // first one declared.
-func write(ctx *command.Ctx, d Deps, rel string, content []byte, name, value string) error {
+func write(ctx *command.Ctx, d Deps, undo *journal, rel string, content []byte, name, value string) error {
 	if strings.TrimSpace(field(content, name)) == value {
 		fmt.Fprintf(ctx.Stdout, "unchanged: %s already carries %s: %s\n", rel, name, value)
 		return nil
@@ -221,6 +289,7 @@ func write(ctx *command.Ctx, d Deps, rel string, content []byte, name, value str
 	if err := d.Files.WriteFile(path.Join(ctx.Root, rel), next, 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", rel, err)
 	}
+	undo.record(rel, content)
 	fmt.Fprintf(ctx.Stdout, "wrote %s: %s on %s\n", name, value, rel)
 	return nil
 }

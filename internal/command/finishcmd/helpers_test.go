@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"strings"
 	"testing"
@@ -169,16 +170,48 @@ func specFixture(status, outcome string) string {
 // draft.
 const draftPR = `{"number":45,"title":"[TASK-0011] Finish a task","state":"OPEN","isDraft":true}`
 
+// denyAfterFirstWrite lets one write to a path land and refuses every
+// later one. The fail table can say "this path is not writable", which
+// is a different state: what a failed undo needs is a write that
+// succeeded and a put-back that cannot, and only a decorator can say
+// that (spec-0017, edge cases).
+type denyAfterFirstWrite struct {
+	vfs.FS
+	path string
+	err  error
+	seen bool
+}
+
+func (f *denyAfterFirstWrite) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	if name == f.path {
+		if f.seen {
+			return f.err
+		}
+		f.seen = true
+	}
+	return f.FS.WriteFile(name, data, perm)
+}
+
 // harness is one finish: every port faked, the streams captured.
 type harness struct {
 	scripts *fakeScripts
 	files   *vfs.Fake
-	git     *fakeGit
-	gh      *fakeGh
-	term    *command.FakeTerminal
-	ctx     *command.Ctx
-	out     bytes.Buffer
-	errb    bytes.Buffer
+	// fs is what the command is wired to — the fake tree, unless a
+	// case wrapped it. Seeds and reads go to files either way, so a
+	// decorator never has to answer for the fixture.
+	fs   vfs.FS
+	git  *fakeGit
+	gh   *fakeGh
+	term *command.FakeTerminal
+	ctx  *command.Ctx
+	out  bytes.Buffer
+	errb bytes.Buffer
+}
+
+// deniedAfterWrite makes the second write to rel fail — the undo, when
+// the first write was the completion edit.
+func (h *harness) deniedAfterWrite(rel string, err error) {
+	h.fs = &denyAfterFirstWrite{FS: h.files, path: path.Join(root, rel), err: err}
 }
 
 // newHarness is the green path, ready to be spoiled one port at a time:
@@ -196,6 +229,7 @@ func newHarness(t *testing.T) *harness {
 		gh:   &fakeGh{view: draftPR},
 		term: &command.FakeTerminal{In: true, ConfirmAnswer: true},
 	}
+	h.fs = h.files
 	h.seed(taskPath, taskFixture("in-progress", "spec-0010", "null"))
 	h.seed(specPath, specFixture("approved", "What was built, and what diverged."))
 	h.ctx = &command.Ctx{Stdout: &h.out, Stderr: &h.errb, Terminal: h.term, Root: root, Adopted: true}
@@ -221,7 +255,7 @@ func (h *harness) deps() Deps {
 	at, _ := time.Parse(time.RFC3339, stamped)
 	return Deps{
 		Scripts: h.scripts.run,
-		Files:   h.files,
+		Files:   h.fs,
 		Git:     h.git.run,
 		Gh:      h.gh.run,
 		Now:     func() time.Time { return at },
