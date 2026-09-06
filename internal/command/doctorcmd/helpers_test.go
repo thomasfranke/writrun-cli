@@ -124,6 +124,33 @@ func readDefault(f *fixture) {
 	f.forge.replies["api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions"] = "read\n"
 }
 
+// rulesOnMain sets what the forge answers about the rules governing
+// main: one `rule@ruleset` argument per entry, in the order the forge
+// lists them. The two reads are one array's two columns, so a case
+// states them together or the columns drift apart.
+func rulesOnMain(f *fixture, entries ...string) {
+	var types, ids []string
+	for _, entry := range entries {
+		rule, id, _ := strings.Cut(entry, "@")
+		types = append(types, rule)
+		ids = append(ids, id)
+	}
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = strings.Join(types, "\n") + "\n"
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = strings.Join(ids, "\n") + "\n"
+}
+
+// bypass sets one ruleset's bypass list. No actor argument is a ruleset
+// that names none.
+func bypass(f *fixture, id string, actors ...string) {
+	f.forge.replies["api repos/{owner}/{repo}/rulesets/"+id+" --jq (.bypass_actors // [])[].actor_type"] = strings.Join(actors, "\n") + "\n"
+}
+
+// ownedBy sets the repository's owner type, which is "User" or
+// "Organization" — the two answers the forge gives.
+func ownedBy(f *fixture, kind string) {
+	f.forge.replies["api repos/{owner}/{repo} --jq .owner.type"] = kind + "\n"
+}
+
 // repoRoot is this repository, from the directory the package's tests
 // run in: the live `.github/workflows` the report-0013 regression is
 // about.

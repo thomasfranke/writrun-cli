@@ -19,13 +19,19 @@ check "Issues disabled is named at stage 3" 1 "Issues are disabled" -- "$WRITRUN
 forge_healthy
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" "required_signatures"
 check "a rule that blocks the recording push is named" 1 \
-  "the rule required_signatures (require signed commits) is on for main" -- "$WRITRUN" doctor
+  "ruleset 42 governs main and enables required_signatures (require signed commits)" \
+  -- "$WRITRUN" doctor
 
+# The pull-request rule is named on an organization too, where the
+# ruleset that enables it names no bypass actor: nothing there lets the
+# push land, and it used to be reported all clear (spec-0024).
 forge_healthy
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" "pull_request"
+gh_reply "api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type" ""
 gh_reply "api repos/{owner}/{repo} --jq .owner.type" "Organization"
-check "the pull-request rule is left alone on an organization" 0 \
-  "Stage 2 — the forge: all clear." -- "$WRITRUN" doctor
+check "the pull-request rule is named on an organization with no bypass actor" 1 \
+  "ruleset 42 governs main, enables pull_request (require a pull request before merging) and names no bypass actor" \
+  -- "$WRITRUN" doctor
 
 forge_healthy
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" ""

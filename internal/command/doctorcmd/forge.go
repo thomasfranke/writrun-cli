@@ -25,20 +25,19 @@ const workflowsDir = ".github/workflows"
 // blocker is one ruleset rule that stops the recording push the
 // workflows make, and how the finding names it.
 type blocker struct {
-	rule     string
-	names    string
-	userOnly bool
+	rule  string
+	names string
 }
 
-// blockers are the four rules the methodology calls out, named when
-// they are on. `pull_request` is named only on a user-owned repository:
-// there is no way to let the Actions bot past it, where an organization
-// can (product/adoption/doctor.md).
+// blockers are the four rules that refuse the recording push, in the
+// order a finding prefers them. Whether the Actions bot is past one is
+// the enabling ruleset's bypass list and the repository's owner to
+// answer, never the rule's (product/adoption/doctor.md).
 var blockers = []blocker{
 	{rule: "update", names: "restrict updates"},
 	{rule: "required_signatures", names: "require signed commits"},
 	{rule: "required_status_checks", names: "require status checks to pass"},
-	{rule: "pull_request", names: "require a pull request before merging", userOnly: true},
+	{rule: "pull_request", names: "require a pull request before merging"},
 }
 
 // stage2 is the forge. It reports whether the settings the recording
@@ -237,14 +236,14 @@ func want(d Deps, what, path, jq, expected, breakage string) []finding {
 // the Actions bot write to main.
 //
 // No ruleset over main leaves the branch unprotected with nothing in the
-// bot's way, which is a recommendation. An empty bypass list denies
-// nothing on its own — a plain fast-forward push meets none of
-// deletion, creation, non_fast_forward or required_linear_history — so
-// it is a finding only where the same ruleset enables one of the four
-// rules that do refuse the push, and the finding names that rule
-// (spec-0019). A ruleset that names bypass actors passes: which of them
-// the forge resolves the Actions token to is the forge's answer, and
-// deciding it here would be a second authority on it.
+// bot's way, which is a recommendation. Every ruleset that does govern
+// main is judged on its own, because a rule and the bypass list that
+// would clear it belong to the same ruleset: the rules it contributes
+// say whether it refuses the push, and its own bypass list says whether
+// the bot is past them. A plain fast-forward push meets none of
+// deletion, creation, non_fast_forward or required_linear_history, so a
+// ruleset enabling only those is no finding whatever its bypass list
+// holds (spec-0024).
 func mainReachable(d Deps) []finding {
 	types, err := lines(d, mainRulesAPI, ".[].type")
 	if err != nil {
@@ -261,51 +260,43 @@ func mainReachable(d Deps) []finding {
 			text: "main is governed by no ruleset — the methodology recommends protecting it; nothing blocks the recording push meanwhile"}}
 	}
 
-	on := blocking(d, types)
+	owner := &ownership{d: d}
 	var found []finding
 	for _, id := range distinct(ids) {
 		actors, err := lines(d, "repos/{owner}/{repo}/rulesets/"+id, "(.bypass_actors // [])[].actor_type")
-		switch {
-		case err != nil:
+		if err != nil {
 			found = append(found, finding{stage: 2, level: unread,
 				text: fmt.Sprintf("the bypass list of ruleset %s could not be read: %s", id, firstLine(err.Error()))})
-		case len(actors) == 0:
-			if b, refuses := firstOf(on, rulesOf(types, ids, id)); refuses {
-				found = append(found, finding{stage: 2, level: breaks,
-					text: fmt.Sprintf("ruleset %s governs main, enables %s (%s) and names no bypass actor — the Actions bot has no way past it; put the bot on the ruleset's bypass list", id, b.rule, b.names)})
-			}
-		}
-	}
-	found = append(found, named(on)...)
-	return found
-}
-
-// blocking is the rules among types that refuse the recording push, in
-// the order blockers states them. It is asked once per run, so the
-// ownership read the pull-request rule needs is made at most once.
-func blocking(d Deps, types []string) []blocker {
-	var on []blocker
-	for _, b := range blockers {
-		if !contains(types, b.rule) {
 			continue
 		}
-		if b.userOnly && !userOwned(d) {
+		b, refuses := firstOf(rulesOf(types, ids, id))
+		if !refuses {
 			continue
 		}
-		on = append(on, b)
-	}
-	return on
-}
-
-// named reports the rules that block the recording push, one finding
-// each.
-func named(on []blocker) []finding {
-	var found []finding
-	for _, b := range on {
+		// A bypass actor clears the rule only where the forge offers
+		// one the Actions token resolves to. Which of the actors it
+		// resolves to stays the forge's answer, and deciding it here
+		// would be a second authority on it.
+		if len(actors) > 0 && !owner.userOwned() {
+			continue
+		}
 		found = append(found, finding{stage: 2, level: breaks,
-			text: fmt.Sprintf("the rule %s (%s) is on for main — it refuses the recording push the workflows make", b.rule, b.names)})
+			text: refusal(id, b, owner.userOwned())})
 	}
 	return found
+}
+
+// refusal is the one sentence a ruleset that stops the recording push
+// earns: the rule it enables, and what closes the gap. The owner decides
+// the remedy — an organization can put the Actions bot on the ruleset's
+// bypass list, and the forge offers a person no bypass actor the bot is,
+// so the rule itself is all there is to take off
+// (product/adoption/doctor.md).
+func refusal(id string, b blocker, userOwned bool) string {
+	if userOwned {
+		return fmt.Sprintf("ruleset %s governs main and enables %s (%s) — the forge offers the Actions bot no bypass actor on a user-owned repository, so take the rule off main", id, b.rule, b.names)
+	}
+	return fmt.Sprintf("ruleset %s governs main, enables %s (%s) and names no bypass actor — the Actions bot has no way past it; put the bot on the ruleset's bypass list", id, b.rule, b.names)
 }
 
 // rulesOf is the rules one ruleset contributes to main. The forge
@@ -323,10 +314,11 @@ func rulesOf(types, ids []string, id string) []string {
 	return of
 }
 
-// firstOf is the first blocking rule among rules, in the order blockers
-// states them — the one a finding names where several are on at once.
-func firstOf(on []blocker, rules []string) (blocker, bool) {
-	for _, b := range on {
+// firstOf is the first rule among rules that refuses the recording push,
+// in the order blockers states them — the one a finding names where
+// several are on at once.
+func firstOf(rules []string) (blocker, bool) {
+	for _, b := range blockers {
 		if contains(rules, b.rule) {
 			return b, true
 		}
@@ -334,19 +326,28 @@ func firstOf(on []blocker, rules []string) (blocker, bool) {
 	return blocker{}, false
 }
 
+// ownership is who owns the repository, read from the forge at most once
+// per run: the answer is the same for every ruleset, and it is asked
+// once per ruleset that refuses the push. It is asked only where it
+// changes a finding, so a repository no ruleset refuses costs no read.
+type ownership struct {
+	d      Deps
+	asked  bool
+	byUser bool
+}
+
 // userOwned reports whether the repository belongs to a person rather
-// than an organization. It is asked only where the answer changes a
-// finding, so a repository with no pull-request rule costs no read.
-func userOwned(d Deps) bool {
-	out, err := d.Gh("api", repoAPI, "--jq", ".owner.type")
-	if err != nil {
-		// Unknown ownership is read as user-owned: naming a rule that
-		// may not block is a finding a reader can dismiss, where
-		// staying silent about one that does is a broken flow nobody
-		// was told about.
-		return true
+// than an organization. An owner type the forge will not answer is read
+// as a person's: that is the reading under which the finding stands, and
+// staying silent about a rule that does block is a broken flow nobody
+// was told about.
+func (o *ownership) userOwned() bool {
+	if !o.asked {
+		o.asked = true
+		out, err := o.d.Gh("api", repoAPI, "--jq", ".owner.type")
+		o.byUser = err != nil || strings.TrimSpace(out) == "User"
 	}
-	return strings.TrimSpace(out) == "User"
+	return o.byUser
 }
 
 // lines reads one forge query as the list of values it printed, blanks

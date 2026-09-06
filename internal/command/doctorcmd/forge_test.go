@@ -2,6 +2,7 @@ package doctorcmd
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -97,13 +98,19 @@ func TestAnEmptyBypassListWithNothingToBypassIsNoFinding(t *testing.T) {
 	}
 }
 
+// One fault is one finding. The rule and the bypass list that would
+// clear it belong to the same ruleset, so naming the ruleset says what a
+// second finding used to add — and the two used to contradict each
+// other's remedy (spec-0024).
 func TestARuleThatRefusesThePushWithNoBypassActorNamesTheRule(t *testing.T) {
 	f := newFixture(t, "3")
-	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "deletion\nupdate\n"
-	f.forge.replies["api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type"] = "\n"
+	rulesOnMain(f, "deletion@42", "update@42")
+	bypass(f, "42")
 	found := f.findings()
-	only(t, found, 2, breaks, "ruleset 42 governs main, enables update (restrict updates) and names no bypass actor")
-	only(t, found, 2, breaks, "the rule update (restrict updates) is on for main")
+	only(t, found, 2, breaks, "ruleset 42 governs main and enables update (restrict updates)")
+	if breaking(found) != 1 {
+		t.Errorf("breaking findings = %d, want 1:\n%s", breaking(found), texts(found))
+	}
 }
 
 // A rule one ruleset enables is not the other ruleset's: the forge
@@ -111,17 +118,95 @@ func TestARuleThatRefusesThePushWithNoBypassActorNamesTheRule(t *testing.T) {
 // says whose bypass list would let the bot past it.
 func TestTheBypassFindingNamesOnlyTheRulesetThatEnablesTheRule(t *testing.T) {
 	f := newFixture(t, "3")
-	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "deletion\nupdate\n"
-	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "42\n43\n"
-	f.forge.replies["api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type"] = "\n"
-	f.forge.replies["api repos/{owner}/{repo}/rulesets/43 --jq (.bypass_actors // [])[].actor_type"] = "Integration\n"
+	rulesOnMain(f, "deletion@42", "update@43")
+	bypass(f, "42")
+	bypass(f, "43", "Integration")
 	found := f.findings()
 	for _, got := range found {
-		if strings.Contains(got.text, "ruleset 42 governs main, enables") {
+		if strings.Contains(got.text, "ruleset 42 governs main") {
 			t.Errorf("ruleset 42 was named for a rule ruleset 43 enables:\n%s", texts(found))
 		}
 	}
-	only(t, found, 2, breaks, "the rule update (restrict updates) is on for main")
+	only(t, found, 2, breaks, "ruleset 43 governs main and enables update (restrict updates)")
+}
+
+// Two rulesets govern main, one of them bypassed: the finding names the
+// one that stops the push and leaves the other alone (spec-0024, edge
+// cases).
+func TestTheFindingNamesTheRulesetThatStopsThePush(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "update@42", "required_signatures@43")
+	bypass(f, "42", "Integration")
+	bypass(f, "43")
+	ownedBy(f, "Organization")
+	found := f.findings()
+	only(t, found, 2, breaks, "ruleset 43 governs main, enables required_signatures (require signed commits) and names no bypass actor")
+	if breaking(found) != 1 {
+		t.Errorf("breaking findings = %d, want only the ruleset that stops the push:\n%s", breaking(found), texts(found))
+	}
+}
+
+// Ownership and the ruleset's own bypass list together decide whether
+// the bot is past a rule: an organization can put GitHub Actions on the
+// list, and the forge offers a person no actor the bot is
+// (product/adoption/doctor.md).
+func TestABypassActorClearsARuleOnlyOnAnOrganization(t *testing.T) {
+	cases := []struct {
+		owner  string
+		actors []string
+		want   string
+	}{
+		{"Organization", []string{"Integration"}, ""},
+		{"Organization", nil, "ruleset 42 governs main, enables update (restrict updates) and names no bypass actor"},
+		{"User", []string{"Integration"}, "ruleset 42 governs main and enables update (restrict updates)"},
+		{"User", nil, "ruleset 42 governs main and enables update (restrict updates)"},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%s with %d bypass actor(s)", c.owner, len(c.actors)), func(t *testing.T) {
+			f := newFixture(t, "3")
+			rulesOnMain(f, "update@42")
+			bypass(f, "42", c.actors...)
+			ownedBy(f, c.owner)
+			found := f.findings()
+			if c.want == "" {
+				if len(found) != 0 {
+					t.Errorf("findings = %d, want none where the bot is past the rule:\n%s", len(found), texts(found))
+				}
+				return
+			}
+			only(t, found, 2, breaks, c.want)
+		})
+	}
+}
+
+// An owner type the forge will not answer is read as a person's: that is
+// the reading under which the finding stands, and a rule that does block
+// must not pass in silence (spec-0024, edge cases).
+func TestAnUnreadableOwnerTypeStillNamesTheRule(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "update@42")
+	bypass(f, "42", "Integration")
+	f.forge.fails["api repos/{owner}/{repo} --jq .owner.type"] = errors.New("gh api: HTTP 403")
+	only(t, f.findings(), 2, breaks, "ruleset 42 governs main and enables update (restrict updates)")
+}
+
+// Who owns the repository is one answer for the whole run, however many
+// rulesets ask for it.
+func TestOwnershipIsReadOnceForSeveralRulesets(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "update@42", "required_signatures@43")
+	bypass(f, "42")
+	bypass(f, "43")
+	f.findings()
+	asked := 0
+	for _, c := range f.forge.calls {
+		if c == "api repos/{owner}/{repo} --jq .owner.type" {
+			asked++
+		}
+	}
+	if asked != 1 {
+		t.Errorf("ownership was read %d times, want 1: %v", asked, f.forge.calls)
+	}
 }
 
 // The shape report-0013 recorded against this repository: workflow
@@ -151,31 +236,42 @@ func TestIssuesDisabledIsNamedAtStageThree(t *testing.T) {
 	only(t, f.findings(), 3, breaks, "Issues are disabled")
 }
 
-func TestTheFourBlockingRulesAreNamedWhenOn(t *testing.T) {
-	cases := []struct{ rule, expect string }{
-		{"update", "the rule update (restrict updates) is on for main"},
-		{"required_signatures", "the rule required_signatures (require signed commits) is on for main"},
-		{"required_status_checks", "the rule required_status_checks (require status checks to pass) is on for main"},
-		{"pull_request", "the rule pull_request (require a pull request before merging) is on for main"},
-	}
-	for _, c := range cases {
+// fourRules is every rule that refuses the recording push, with the
+// words a finding names it in.
+var fourRules = []struct{ rule, names string }{
+	{"update", "restrict updates"},
+	{"required_signatures", "require signed commits"},
+	{"required_status_checks", "require status checks to pass"},
+	{"pull_request", "require a pull request before merging"},
+}
+
+// A bypass actor on a user-owned repository is never the Actions bot, so
+// all four rules stand however the list is filled.
+func TestTheFourBlockingRulesAreNamedOnAUserOwnedRepository(t *testing.T) {
+	for _, c := range fourRules {
 		t.Run(c.rule, func(t *testing.T) {
 			f := newFixture(t, "3")
-			f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "deletion\n" + c.rule + "\n"
-			only(t, f.findings(), 2, breaks, c.expect)
+			rulesOnMain(f, "deletion@42", c.rule+"@42")
+			bypass(f, "42", "Integration")
+			only(t, f.findings(), 2, breaks,
+				fmt.Sprintf("ruleset 42 governs main and enables %s (%s)", c.rule, c.names))
 		})
 	}
 }
 
-// The pull-request rule is the one whose meaning depends on who owns
-// the repository: an organization can let the Actions bot past it, a
-// person cannot (product/adoption/doctor.md).
-func TestThePullRequestRuleIsNamedOnlyOnAUserOwnedRepository(t *testing.T) {
-	f := newFixture(t, "3")
-	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "pull_request\n"
-	f.forge.replies["api repos/{owner}/{repo} --jq .owner.type"] = "Organization\n"
-	if found := f.findings(); len(found) != 0 {
-		t.Errorf("findings = %d, want none on an organization:\n%s", len(found), texts(found))
+// On an organization the forge offers GitHub Actions as a bypass actor,
+// so a ruleset naming none stops the push — `pull_request` included,
+// which used to be dropped there and reported all clear (spec-0024).
+func TestTheFourBlockingRulesAreNamedOnAnOrganizationWithNoBypassActor(t *testing.T) {
+	for _, c := range fourRules {
+		t.Run(c.rule, func(t *testing.T) {
+			f := newFixture(t, "3")
+			rulesOnMain(f, "deletion@42", c.rule+"@42")
+			bypass(f, "42")
+			ownedBy(f, "Organization")
+			only(t, f.findings(), 2, breaks,
+				fmt.Sprintf("ruleset 42 governs main, enables %s (%s) and names no bypass actor", c.rule, c.names))
+		})
 	}
 }
 

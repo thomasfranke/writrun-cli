@@ -18,12 +18,13 @@ assumes. Reports; it never repairs.
 - **Stage 2 — the forge:** `gh` authenticated; the recording push able
   to reach `main` — Actions workflow permissions read-and-write, or
   read where every workflow that pushes to `main` raises
-  `contents: write` of its own; squash merging on; `main` protected,
-  and a ruleset governing it named where it lists no bypass actor and
-  enables a rule that refuses the push; and the rules that block the
-  recording push named when on: restrict updates, required signatures,
-  required status checks, and require-pull-request on a user-owned
-  repository.
+  `contents: write` of its own; squash merging on; `main` protected;
+  and a ruleset governing `main` named where it enables one of the four
+  rules that refuse the recording push — restrict updates, require
+  signed commits, require status checks to pass, require a pull request
+  before merging — and gives the Actions bot no way past it: always on
+  a user-owned repository, and on an organization-owned one where the
+  ruleset names no bypass actor.
 - **Stage 3 — Issues:** enabled, so the mirror has somewhere to land.
 - A recommended setting missing is a recommendation. Only a finding
   that breaks a flow makes the exit status non-zero; every finding
