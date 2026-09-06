@@ -11,6 +11,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/agentx"
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/command/authorcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/doctorcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/finishcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
@@ -113,6 +114,12 @@ func commands() []command.Command {
 			Scripts: kit.Run,
 		}),
 		takecmd.New(takecmd.Deps{Scripts: kit.Run}),
+		authorcmd.New(authorcmd.Deps{
+			Scripts: kit.Run,
+			Files:   disk,
+			Git:     gitx.Run,
+			Gh:      gh.Run,
+		}),
 		finishcmd.New(finishcmd.Deps{
 			Scripts: kit.Run,
 			Files:   disk,
