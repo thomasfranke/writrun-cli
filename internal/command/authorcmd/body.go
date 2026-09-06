@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path"
 	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 )
 
 // templatePath is the kit's one home for the pull-request body
@@ -56,11 +58,11 @@ func derived(d Deps, root, rng string) ([]row, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading %s: %w", p, err)
 		}
-		id := field(content, "id")
+		id := queue.Field(content, "id")
 		if id == "" {
 			id = strings.TrimSuffix(path.Base(p), ".md")
 		}
-		bySpec[id] = queueFile{id: id, taskRef: field(content, "task_ref"), heading: heading(content)}
+		bySpec[id] = queueFile{id: id, taskRef: queue.Field(content, "task_ref"), heading: subject(content)}
 		specOrder = append(specOrder, id)
 	}
 
@@ -71,15 +73,15 @@ func derived(d Deps, root, rng string) ([]row, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading %s: %w", p, err)
 		}
-		id := field(content, "id")
+		id := queue.Field(content, "id")
 		if id == "" {
 			id = strings.TrimSuffix(path.Base(p), ".md")
 		}
-		refs := list(content, "spec_ref")
+		refs := queue.List(content, "spec_ref")
 		for _, r := range refs {
 			claimed[r] = true
 		}
-		rows = append(rows, row{task: id, spec: joined(refs), what: heading(content)})
+		rows = append(rows, row{task: id, spec: joined(refs), what: subject(content)})
 	}
 	for _, id := range specOrder {
 		if claimed[id] {
@@ -100,6 +102,17 @@ func added(d Deps, root, rng, pathspec string) ([]string, error) {
 		return nil, fmt.Errorf("reading what %s adds under %s: %w", rng, pathspec, err)
 	}
 	return trimmedLines(out), nil
+}
+
+// subject is what the table's third column says a derived task or spec
+// is for: the file's title, less the id a spec's title opens with. The
+// id is already in the column beside it.
+func subject(content []byte) string {
+	title := queue.Heading(content)
+	if _, after, split := strings.Cut(title, " — "); split {
+		return strings.TrimSpace(after)
+	}
+	return title
 }
 
 // table renders the rows, or the declaration that there are none.

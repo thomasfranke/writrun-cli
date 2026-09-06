@@ -1,17 +1,14 @@
 package statuscmd
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"io/fs"
-	"path/filepath"
-	"regexp"
-	"strconv"
+	"path"
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -23,12 +20,10 @@ const (
 	reportsDir = "work/reports"
 )
 
-// taskBranch is the branch naming convention the queue's flow fixes:
-// `task/NNNN-short-name`. The leading zeros are part of how the queue
-// spells an id and no part of the number, so `task/0014-x` and
-// `task/14-x` name one task — the reading the methodology's own scripts
-// make of a branch.
-var taskBranch = regexp.MustCompile(`^task/0*([0-9]+)`)
+// branchPrefix is the branch naming convention the queue's flow fixes:
+// `task/NNNN-short-name`. What the number inside it is, is
+// `ql_task_num`'s answer and not this command's (internal/queue).
+const branchPrefix = "task/"
 
 // currentBranch is step 1's first half: the branch, in git's words.
 func currentBranch(git gitx.Runner, root string) (string, error) {
@@ -102,55 +97,64 @@ func (t task) lines() []line {
 
 // resolveTask is steps 1 and 2: the branch read as a task id, that id
 // resolved to a queue file, and the file's specs read after it.
+//
+// A queue file that cannot be read is a task the answer does not hold,
+// which is the line this command already gives for a branch naming one
+// the queue does not have. Naming the read is `finish`'s to do, on the
+// same file, when the same branch is finished.
 func resolveTask(files vfs.FS, root, branch string) task {
-	m := taskBranch.FindStringSubmatch(branch)
-	if m == nil {
+	if !strings.HasPrefix(branch, branchPrefix) {
 		return task{}
 	}
-	number, err := strconv.Atoi(m[1])
-	if err != nil {
+	num := queue.Num(queue.Task, branch)
+	if num == "" {
 		return task{}
 	}
-	t := task{named: true, id: fmt.Sprintf("task-%04d", number)}
+	t := task{named: true, id: taskID(num)}
 
-	path, ok := queueFile(files, filepath.Join(root, tasksDir), "task-", number)
-	if !ok {
+	rel, err := queue.Resolve(files, root, tasksDir, queue.Task, branch)
+	if err != nil {
 		return t
 	}
-	data, err := files.ReadFile(path)
+	data, err := files.ReadFile(path.Join(root, rel))
 	if err != nil {
 		return t
 	}
 	t.found = true
-	fm := frontMatter(data)
-	if id := fm["id"]; id != "" {
+	if id := queue.Field(data, "id"); id != "" {
 		t.id = id
 	}
-	t.status = value(fm["status"], "no status")
-	t.title = heading(data)
-	for _, id := range list(fm["spec_ref"]) {
+	t.status = value(queue.Field(data, "status"), "no status")
+	t.title = queue.Heading(data)
+	for _, id := range queue.List(data, "spec_ref") {
 		t.specs = append(t.specs, readSpec(files, root, id))
 	}
 	return t
 }
 
+// taskID spells a number the way the queue spells it: four digits, the
+// width every queue file is named at. A wider number keeps its width —
+// the padding is a spelling, not a limit.
+func taskID(num string) string {
+	if len(num) < 4 {
+		num = strings.Repeat("0", 4-len(num)) + num
+	}
+	return "task-" + num
+}
+
 // readSpec names one spec and the status its file records.
 func readSpec(files vfs.FS, root, id string) spec {
 	s := spec{id: id}
-	number, ok := idNumber(id, "spec-")
-	if !ok {
+	rel, err := queue.Resolve(files, root, specsDir, queue.Spec, id)
+	if err != nil {
 		return s
 	}
-	path, ok := queueFile(files, filepath.Join(root, specsDir), "spec-", number)
-	if !ok {
-		return s
-	}
-	data, err := files.ReadFile(path)
+	data, err := files.ReadFile(path.Join(root, rel))
 	if err != nil {
 		return s
 	}
 	s.found = true
-	s.status = value(frontMatter(data)["status"], "no status")
+	s.status = value(queue.Field(data, "status"), "no status")
 	return s
 }
 
@@ -158,20 +162,20 @@ func readSpec(files vfs.FS, root, id string) spec {
 // Anything beside them in the directory — the README, a file carrying
 // no front matter — holds no status and is not a report.
 func openReports(files vfs.FS, root string) string {
-	dir := filepath.Join(root, reportsDir)
+	dir := path.Join(root, reportsDir)
 	open := 0
-	err := files.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+	err := files.WalkDir(dir, func(p string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() || !strings.HasSuffix(path, ".md") {
+		if entry.IsDir() || !strings.HasSuffix(p, ".md") {
 			return nil
 		}
-		data, readErr := files.ReadFile(path)
+		data, readErr := files.ReadFile(p)
 		if readErr != nil {
 			return nil
 		}
-		if frontMatter(data)["status"] == "open" {
+		if queue.Field(data, "status") == "open" {
 			open++
 		}
 		return nil
@@ -197,106 +201,6 @@ func recordedTag(files vfs.FS, root string) (string, error) {
 		return "", fmt.Errorf(".writrun/VERSION records no tag")
 	}
 	return tag, nil
-}
-
-// queueFile finds the file holding one queue id. The number is what
-// matches, not the filename: the subject slug after the id is the
-// author's and no part of the identity.
-func queueFile(files vfs.FS, dir, prefix string, number int) (string, bool) {
-	found := ""
-	_ = files.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || found != "" {
-			return nil
-		}
-		if entry.IsDir() || !strings.HasSuffix(path, ".md") {
-			return nil
-		}
-		name := strings.TrimSuffix(filepath.Base(path), ".md")
-		if n, ok := idNumber(name, prefix); ok && n == number {
-			found = path
-		}
-		return nil
-	})
-	return found, found != ""
-}
-
-// idNumber reads the number a queue id carries: `task-0014-status` is
-// 14, and so is `task-14`.
-func idNumber(name, prefix string) (int, bool) {
-	if !strings.HasPrefix(name, prefix) {
-		return 0, false
-	}
-	digits := name[len(prefix):]
-	end := strings.IndexFunc(digits, func(r rune) bool { return r < '0' || r > '9' })
-	if end >= 0 {
-		digits = digits[:end]
-	}
-	if digits == "" {
-		return 0, false
-	}
-	n, err := strconv.Atoi(digits)
-	if err != nil {
-		return 0, false
-	}
-	return n, true
-}
-
-// frontMatter reads the leading `---` block of a queue file into its
-// fields. A file without one has no fields, which is the right answer
-// for a README sitting beside the queue.
-func frontMatter(data []byte) map[string]string {
-	out := map[string]string{}
-	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	opened := false
-	for sc.Scan() {
-		line := sc.Text()
-		if !opened {
-			if strings.TrimSpace(line) != "---" {
-				return out
-			}
-			opened = true
-			continue
-		}
-		if strings.TrimSpace(line) == "---" {
-			return out
-		}
-		key, val, ok := strings.Cut(line, ":")
-		if !ok || strings.HasPrefix(key, " ") {
-			continue
-		}
-		out[strings.TrimSpace(key)] = strings.TrimSpace(val)
-	}
-	return out
-}
-
-// heading is the file's first `# ` line — the title the queue gave it.
-func heading(data []byte) string {
-	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for sc.Scan() {
-		if line := sc.Text(); strings.HasPrefix(line, "# ") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "# "))
-		}
-	}
-	return ""
-}
-
-// list reads a front-matter list — `[spec-0013]`, `[]`, or a bare
-// value — into its entries.
-func list(raw string) []string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" || raw == "null" || raw == "[]" {
-		return nil
-	}
-	raw = strings.TrimSuffix(strings.TrimPrefix(raw, "["), "]")
-	var out []string
-	for _, p := range strings.Split(raw, ",") {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 // value is the field, or what to say where the file records none.

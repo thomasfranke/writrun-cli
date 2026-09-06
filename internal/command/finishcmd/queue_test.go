@@ -1,121 +1,15 @@
 package finishcmd
 
 import (
-	"strings"
 	"testing"
-
-	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// The id spellings a person retypes all resolve to the same number —
-// ql_task_num's rule.
-func TestNumOf(t *testing.T) {
-	cases := map[string]string{
-		"task-0011":              "11",
-		"0011":                   "11",
-		"11":                     "11",
-		"task/0011-finish":       "11",
-		"spec-0010":              "10",
-		"task-0011-finish-thing": "11",
-		"report/a-finding":       "",
-		"":                       "",
-	}
-	for in, want := range cases {
-		if got := numOf(in); got != want {
-			t.Errorf("numOf(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-// The file is found at whatever width its name was written, and a miss
-// names where it looked.
-func TestQueueFile(t *testing.T) {
-	f := vfs.NewFake()
-	f.Seed("/repo/work/tasks/task-0011-finish-command.md", []byte("---\nid: task-0011\n---\n"), 0o644)
-	f.Seed("/repo/work/tasks/task-0110-other.md", []byte("---\nid: task-0110\n---\n"), 0o644)
-	f.Seed("/repo/work/tasks/notes.txt", []byte("x"), 0o644)
-
-	got, err := queueFile(f, "/repo", tasksDir, "task", "11")
-	if err != nil {
-		t.Fatalf("queueFile: %v", err)
-	}
-	if got != "work/tasks/task-0011-finish-command.md" {
-		t.Errorf("queueFile = %q", got)
-	}
-	if got, err := queueFile(f, "/repo", tasksDir, "task", "task-0110"); err != nil || !strings.Contains(got, "0110") {
-		t.Errorf("queueFile(0110) = %q, %v — the padding was not respected", got, err)
-	}
-	if _, err := queueFile(f, "/repo", tasksDir, "task", "task-0099"); err == nil {
-		t.Error("a task that is not there resolved to something")
-	}
-	if _, err := queueFile(f, "/repo", tasksDir, "task", "nothing"); err == nil {
-		t.Error("a string naming no id resolved to something")
-	}
-}
-
-// Only the front-matter block counts: a body line spelling a field at
-// column 0 is prose.
-func TestFieldReadsTheFrontMatterOnly(t *testing.T) {
-	content := []byte("---\nid: task-0011\nstatus: ready\n---\n\n# A task\n\nstatus: done\n")
-	if got := field(content, "status"); got != "ready" {
-		t.Errorf("status = %q, want ready", got)
-	}
-	if got := field(content, "nothing"); got != "" {
-		t.Errorf("a field nobody wrote = %q", got)
-	}
-	if got := field([]byte("# no front matter\n\nstatus: done\n"), "status"); got != "" {
-		t.Errorf("a file with no front matter answered %q", got)
-	}
-	if got := field([]byte("---\nid: x\n"), "id"); got != "" {
-		t.Errorf("front matter that never closes answered %q", got)
-	}
-}
-
-func TestSetField(t *testing.T) {
-	content := []byte("---\nid: spec-0010\nstatus: approved\n---\n\n# body\n\nstatus: approved\n")
-
-	next, changed, err := setField(content, "status", "implemented")
-	if err != nil || !changed {
-		t.Fatalf("setField = %v, changed %v", err, changed)
-	}
-	if got := field(next, "status"); got != "implemented" {
-		t.Errorf("status = %q", got)
-	}
-	if !strings.HasSuffix(string(next), "# body\n\nstatus: approved\n") {
-		t.Errorf("the body was rewritten:\n%s", next)
-	}
-
-	if _, changed, err := setField(next, "status", "implemented"); err != nil || changed {
-		t.Errorf("rewriting the same value reported changed=%v, %v", changed, err)
-	}
-	if _, _, err := setField(content, "nonesuch", "x"); err == nil {
-		t.Error("a field the schema does not carry was added")
-	}
-	if _, _, err := setField([]byte("# no front matter\n"), "status", "x"); err == nil {
-		t.Error("a file with no front matter was written into")
-	}
-}
-
-func TestSpecRefs(t *testing.T) {
-	cases := map[string]int{
-		"spec_ref: [spec-0010]":            1,
-		"spec_ref: [spec-0010, spec-0011]": 2,
-		"spec_ref: []":                     0,
-		"spec_ref: null":                   0,
-		"spec_ref: [spec-0010,spec-0011]":  2,
-		"doc_ref: product/x.md":            0,
-	}
-	for line, want := range cases {
-		content := []byte("---\nid: task-0011\n" + line + "\n---\n")
-		if got := specRefs(content); len(got) != want {
-			t.Errorf("specRefs(%q) = %v, want %d", line, got, want)
-		}
-	}
-	got := specRefs([]byte("---\nspec_ref: [spec-0010, spec-0011]\n---\n"))
-	if strings.Join(got, ",") != "spec-0010,spec-0011" {
-		t.Errorf("specRefs = %v", got)
-	}
-}
+// How the front matter, the id and the file are read is
+// internal/queue's, and its tests hold where each disputed reading came
+// from — including the refusal of an id that declares the other kind,
+// which `finish spec-0012` used to carry to the write stage
+// (report-0020). What is held here is the one reading that is this
+// command's own.
 
 func TestOutcomeFilled(t *testing.T) {
 	cases := map[string]bool{
@@ -138,33 +32,5 @@ func TestOutcomeFilled(t *testing.T) {
 	// A spec with no Outcome heading at all has none filled.
 	if outcomeFilled([]byte("---\nid: spec-0010\n---\n\n# spec\n\nprose\n")) {
 		t.Error("a spec carrying no Outcome heading reported one")
-	}
-}
-
-// `finish spec-0012` resolved task-0012 and carried it to the write
-// stage: numOf keeps only the digits, and the two counters run
-// independently and are routinely one apart. amend refuses the mirror
-// of this; finish did not (report-0020).
-func TestAnIdDeclaringTheOtherKindIsRefused(t *testing.T) {
-	files := vfs.NewFake()
-	files.Seed("/repo/work/tasks/task-0012-amend-command.md", []byte("---\nid: task-0012\n---\n"), 0o644)
-	files.Seed("/repo/work/specs/spec-0012-release.md", []byte("---\nid: spec-0012\n---\n"), 0o644)
-	if _, err := queueFile(files, "/repo", tasksDir, "task", "spec-0012"); err == nil {
-		t.Error("a spec id resolved a task")
-	} else if !strings.Contains(err.Error(), "names a spec, and this resolves a task") {
-		t.Errorf("err = %v; the refusal did not name the mismatch", err)
-	}
-	if _, err := queueFile(files, "/repo", specsDir, "spec", "task-0012"); err == nil {
-		t.Error("a task id resolved a spec")
-	}
-	// A bare number declares no kind, so it still resolves.
-	if got, err := queueFile(files, "/repo", tasksDir, "task", "0012"); err != nil {
-		t.Errorf("a bare number was refused: %v", err)
-	} else if !strings.HasSuffix(got, "task-0012-amend-command.md") {
-		t.Errorf("got %q", got)
-	}
-	// The matching kind still resolves.
-	if _, err := queueFile(files, "/repo", tasksDir, "task", "task-0012"); err != nil {
-		t.Errorf("the declared kind was refused: %v", err)
 	}
 }

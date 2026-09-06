@@ -1,7 +1,7 @@
 ---
 id: spec-0022
 task_ref: task-0023
-status: approved
+status: implemented
 created: 2026-09-06T04:28:24Z
 ---
 
@@ -89,4 +89,98 @@ that reached a push, and streams alone cannot tell them apart.
 
 ## Outcome
 
-_(fill after execution)_
+`internal/queue` reads the queue for `amendcmd`, `finishcmd`,
+`authorcmd` and `statuscmd`, and none of the four holds a reader of its
+own. It is a leaf package: it reads through the caller's `vfs.FS`, owns
+no port, and holds no package-level variable another package writes.
+Its vocabulary is `task` and `spec` and stops there.
+
+### The disagreements, and the kit's answer
+
+| # | The point | Where the four copies stood | The kit's answer | Who moved |
+|---|---|---|---|---|
+| 1 | The opening fence | `amend`, `finish` matched `---` exactly; `author`, `status` trimmed it | `ql_fm_field`'s `NR == 1 { if ($0 != "---") exit }` matches exactly, and a CRLF file opens with `---\r` | `author`, `status` |
+| 2 | The closing fence | the same split | `/^---$/`, exactly | `author`, `status` |
+| 3 | A block never closed | `amend`, `finish`, `author` read no fields; `status` read every one, on to the end of the file | `fm_block` exits 1 — no fields | `status` |
+| 4 | Two lines carrying one key | `amend`, `finish`, `author` read the first; `status` read the last | `ql_fm_field` exits on the first, and `get` is `head -n1` | `status` |
+| 5 | `status : approved` | `amend`, `finish`, `author` read no field; `status` read one | `sub("^" f ": *", "")` wants the colon against the name — no field | `status` |
+| 6 | A line over 1 MiB | `amend`, `finish`, `author` read past it; `status` stopped its scanner and dropped every field after it in silence | awk and sed read a line of any length | `status` |
+| 7 | `spec_ref: [null]` | `amend`, `finish`, `author` read no entries; `status` read one named `null` | `ql_resting` deletes the brackets, makes the commas spaces, and keeps the word | `amend`, `finish`, `author` |
+| 8 | A list separated by spaces | all four split on commas alone | `tr ',' ' '` and word splitting take either | all four |
+| 9 | A field line's carriage return under an LF fence | `amend` kept it; `finish` dropped it | `ql_set_field` prints `field ": " value` and nothing else — dropped | `amend` |
+| 10 | A queue directory that cannot be walked | `amend`, `finish` returned the error; `status` discarded it | `find … 2>/dev/null` cannot tell an unreadable directory from an empty one, so its caller names the file it did not find | nobody — the reader returns the error, and each command keeps the answer it already gave |
+| 11 | Which prefix an id parser strips | `amend`, `finish` stripped `task-`, `spec-`, `task/` and `spec/` alike; `status` stripped `task-` or `spec-` and never the slash | `ql_task_num` strips the kind's own two and nothing else | `amend`, `finish`, `status` |
+| 12 | Where an id's digits are | `amend`, `finish` took digits from anywhere; `status` took leading digits | `s/[^0-9].*$//` keeps the leading run | `amend`, `finish` |
+| 13 | What the number is | `amend`, `finish` kept the digits as text; `status` made an `int`, which reads `task-0000` as task 0 | text: `s/^0+//` leaves `task-0000` naming no number | `status` |
+| 14 | The file's title | `author` took the sentence after the id's em dash; `status` took the whole line | neither — the kit has no title reader | nobody |
+| 15 | What a resolution returns | `amend`, `finish` returned a repository-relative path; `status` returned a joined one | neither | nobody |
+
+**The triage counted thirteen; enumerated one point per behaviour, there
+are fifteen.** Points 8, 14 and 15 are the three it did not name. Point
+14 is resolved by keeping both: `queue.Heading` gives the whole line and
+`authorcmd`'s own `subject` drops the id, because the wording of a
+column is that command's. Point 15 is resolved to the relative path, so
+every caller joins its own root.
+
+**The cross-kind refusal is the parser's.** `Num` takes the kind it is
+resolving, so `Num(Spec, "task-0012")` is empty and there is no second
+guard beside it; `Declares` only chooses which sentence explains the
+empty answer. `amend`'s refusal sentence, `finish`'s "resolves to no
+file" and `status`'s "no status" are unchanged, word for word.
+
+### What the matrix says
+
+Twelve file states — the eleven this spec names, plus `spec_ref:
+[null]`, which its Edge cases name and its eleven states do not reach —
+by nine id forms by five commands: 348 cells, each compared on the exit
+code, the bytes of every file under `work/`, whether anything reached
+the fake forge or the bare origin, the Derived-work table `author`
+composed out of what it read, and what the run said.
+
+`author` and `writrun` with no command take no id, so they are one cell
+per state; what varies for `author` is the state of the queue files the
+change adds. `check_front_matter.sh` refuses ten of the twelve states
+at `author`'s door, so `author` reaches its own reading in two — where
+it composes the table, pushes and opens the pull request. The table is
+in the cell because nothing else in it would show a reading that
+changed: the run writes nothing under `work/`, and the exit code is the
+same on any table at all.
+
+**242 cells matched and 106 moved, and every moved cell is one of the
+fifteen points above.** No cell gained a write, a forge call or a pushed
+ref. Two lost all three.
+
+| What moved | Cells | The point |
+|---|---|---|
+| `amend report-0020` and `finish report-0020` refuse the id instead of resolving `spec-20` / `task-20` | 24 | 11 |
+| `amend task-abc-0012` refuses the id instead of naming a near miss | 12 | 12 |
+| `finish task-abc-0012` refuses the id | 12 | 12 |
+| `status` counts the open reports the way the kit reads their status | 48 | 1, 2, 3, 4, 5, 6 |
+| `status` reads the branch's task and its spec the way the kit reads them | 6 | 1, 2, 3, 4, 5, 6 |
+| `finish` on a task whose `spec_ref` is `[null]` hands `null` to `check_deltas.sh`, which refuses it (exit 3) | 4 | 7 |
+
+**The two cells that lost a write are the reason this was not a
+behaviour-preserving refactor.** On a canonical queue, `finish
+task-abc-0012` wrote `status: implemented` onto spec-0012, stamped
+task-0012's `completed` date and marked the pull request ready — on an
+id that names no task. It now refuses before anything is read.
+
+**`writrun` with no command moved in no cell.** It reads the lister's
+output and no front matter, and it still does.
+
+### Named, and not resolved
+
+- `ql_set_field` rewrites **every** line in the front matter carrying
+  the field, where `queue.Set` rewrites the first. Both Go copies wrote
+  the first, so this is not a disagreement between them, and this spec
+  does not name it. A file with two `status:` lines is a file
+  `check_front_matter.sh` refuses either way.
+- `ql_set_field` also writes into a block `fm_block` refuses for never
+  closing. Both Go copies refuse it, and this spec's acceptance criteria
+  say an unclosed block holds no fields.
+- `ql_spec_file` resolves a spec by its literal id — `find work/specs
+  -iname "$1.md" -o -iname "$1-*.md"` — so the kit does not resolve
+  `amend 11` to `spec-0011` and this binary does. Both copies already
+  did, so it is not a disagreement between them; the reading kept is the
+  one both comments state, that `ql_task_num`'s rule applies to either
+  vocabulary.

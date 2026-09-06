@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 )
 
 func TestNewDeclaresTheCommand(t *testing.T) {
@@ -60,10 +61,10 @@ func TestTheGreenPathRunsTheSequenceInOrder(t *testing.T) {
 		t.Errorf("preflight args = %q", got)
 	}
 
-	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+	if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
 		t.Errorf("spec status = %q, want implemented", got)
 	}
-	if got := field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
+	if got := queue.Field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
 		t.Errorf("completed = %q, want %q", got, stamped)
 	}
 	if !h.gh.reached("pr ready 45") {
@@ -134,7 +135,7 @@ func TestADeltaFailureStopsBeforeAnyWrite(t *testing.T) {
 		if h.read(t, taskPath) != before {
 			t.Error("the task was written after a failed delta check")
 		}
-		if got := field([]byte(h.read(t, specPath)), "status"); got != "approved" {
+		if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "approved" {
 			t.Errorf("spec status = %q; the spec was written after a failed delta check", got)
 		}
 		if len(h.gh.calls) != 0 {
@@ -173,10 +174,10 @@ func TestAnEmptyOutcomeRefusesTheImplementation(t *testing.T) {
 		if !strings.Contains(err.Error(), "Outcome") || !strings.Contains(err.Error(), "spec-0010") {
 			t.Errorf("the refusal does not name the spec's Outcome: %v", err)
 		}
-		if got := field([]byte(h.read(t, specPath)), "status"); got != "approved" {
+		if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "approved" {
 			t.Errorf("spec status = %q; an unfilled Outcome was marked implemented", got)
 		}
-		if got := field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
+		if got := queue.Field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
 			t.Errorf("completed = %q; it was written past a refusal", got)
 		}
 		if _, ran := h.scripts.ran(preflightScript); ran {
@@ -202,7 +203,7 @@ func TestSeveralSpecsAreOneDeltaCall(t *testing.T) {
 		t.Errorf("check_deltas args = %q; want one call carrying both specs", got)
 	}
 	for _, p := range []string{specPath, "work/specs/spec-0011-another.md"} {
-		if got := field([]byte(h.read(t, p)), "status"); got != "implemented" {
+		if got := queue.Field([]byte(h.read(t, p)), "status"); got != "implemented" {
 			t.Errorf("%s status = %q, want implemented", p, got)
 		}
 	}
@@ -218,7 +219,7 @@ func TestOneUnfilledOutcomeRefusesBeforeEitherSpecIsWritten(t *testing.T) {
 	if err := h.finish(); err == nil {
 		t.Fatal("the branch was finished with one Outcome unwritten")
 	}
-	if got := field([]byte(h.read(t, specPath)), "status"); got != "approved" {
+	if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "approved" {
 		t.Errorf("spec-0010 status = %q; it was written before its sibling was judged", got)
 	}
 }
@@ -238,7 +239,7 @@ func TestATaskWithNoSpecSkipsTheDeltasAndStillCompletes(t *testing.T) {
 	if _, ran := h.scripts.ran(preflightScript); !ran {
 		t.Error("preflight did not run for a task carrying no spec")
 	}
-	if got := field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
+	if got := queue.Field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
 		t.Errorf("completed = %q, want %q", got, stamped)
 	}
 	if !strings.Contains(h.out.String(), "carries no spec") {
@@ -408,7 +409,7 @@ func TestARerunAfterADeclineBehavesLikeTheFirstRun(t *testing.T) {
 	if !strings.Contains(out, "wrote completed: "+stamped+" on "+taskPath) {
 		t.Errorf("the rerun did not write the completion:\n%s", out)
 	}
-	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+	if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
 		t.Errorf("spec status = %q, want implemented", got)
 	}
 	if !h.gh.reached("pr ready 45") {
@@ -440,10 +441,10 @@ func TestYesLeavesTheWritesStanding(t *testing.T) {
 	if err := h.finish(); err != nil {
 		t.Fatalf("finish = %v", err)
 	}
-	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+	if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
 		t.Errorf("spec status = %q; --yes undid a write it never questioned", got)
 	}
-	if got := field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
+	if got := queue.Field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
 		t.Errorf("completed = %q, want %q", got, stamped)
 	}
 	if strings.Contains(h.out.String(), "restored") {
@@ -471,7 +472,7 @@ func TestARestoreThatFailsSaysSo(t *testing.T) {
 	if !strings.Contains(err.Error(), specPath) || !strings.Contains(err.Error(), "by hand") {
 		t.Errorf("the failure does not name the file left changed: %v", err)
 	}
-	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+	if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
 		t.Errorf("spec status = %q; the fake did not leave the write standing", got)
 	}
 }
@@ -581,7 +582,7 @@ func TestAFileChangedUnderTheRunIsLeftAlone(t *testing.T) {
 		t.Errorf("the run did not say it left the file alone:\n%s", h.out.String())
 	}
 	// The task is this run's own and goes back regardless.
-	if got := field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
+	if got := queue.Field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
 		t.Errorf("completed = %q, want null", got)
 	}
 }
@@ -833,7 +834,7 @@ func TestASpecTheQueueDoesNotCarryIsRefused(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "work/specs") {
 		t.Fatalf("finish = %v; want a refusal naming where it looked", err)
 	}
-	if got := field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
+	if got := queue.Field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
 		t.Errorf("completed = %q; it was written past a refusal", got)
 	}
 }
