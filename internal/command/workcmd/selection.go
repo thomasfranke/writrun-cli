@@ -152,7 +152,7 @@ func (l listing) locate(num int) (string, entry, bool) {
 // both — this command runs it once and reads its sections.
 func selectTask(ctx *command.Ctx, d Deps, want string) (string, error) {
 	var out bytes.Buffer
-	err := d.Scripts(ctx.Root, &out, ctx.Stderr, listScript)
+	err := d.Scripts(ctx.Root, &out, ctx.Stderr, nil, listScript)
 	// Exit 1 is the lister's "nothing is available", which is an answer;
 	// anything else is a lister that could not answer at all, and its
 	// output is shown rather than summarised.

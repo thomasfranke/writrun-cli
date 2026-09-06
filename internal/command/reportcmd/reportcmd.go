@@ -100,7 +100,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// The generator's reporting is the user's, as it produced it; the
 	// copy is read only for the path it named.
 	var said bytes.Buffer
-	if err := d.Scripts(ctx.Root, io.MultiWriter(ctx.Stdout, &said), ctx.Stderr, generator, mint...); err != nil {
+	if err := d.Scripts(ctx.Root, io.MultiWriter(ctx.Stdout, &said), ctx.Stderr, nil, generator, mint...); err != nil {
 		return passthrough(err)
 	}
 	file, ok := created(said.String())

@@ -1,17 +1,17 @@
 # The pull-request shape
 
 [`author`](author.md), [`take`](take.md), [`finish`](finish.md) and
-[`amend`](amend.md) end a flow in a pull request and share one shape:
-run the repository's checks in the order the methodology fixed, write
-the status the flow calls for, assemble the branch, the commit title,
-and the pull-request body, show all of it, and open the pull request on
-confirmation.
+[`amend`](amend.md) end a flow in a pull request. The rules below hold
+for all four. What each command checks, writes and opens is on its own
+page.
 
 ## The shape, rule by rule
 
-- **Checks first, in their load-bearing order.** A non-zero check stops
-  the command there; no branch is created, no status is written, no
-  pull request is opened.
+- **A non-zero check stops the command there.** No branch is created,
+  no status is written, no pull request is opened.
+- **A check runs where its input exists.** One that reads the diff runs
+  before the composition; one that reads the composed title and body
+  runs after it and before the command's first write.
 - **The task's status line has one writer, and it is never a command.**
   The methodology's machinery writes it from the forge's events
   ([WritRun](https://github.com/thomasfranke/writrun)).

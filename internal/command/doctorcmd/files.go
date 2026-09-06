@@ -205,7 +205,7 @@ func kitVersion(disk vfs.FS, root string) []finding {
 // (product/rules.md).
 func script(root string, d Deps, name, expectation string) []finding {
 	var said bytes.Buffer
-	if err := d.Scripts(root, &said, &said, name); err != nil {
+	if err := d.Scripts(root, &said, &said, nil, name); err != nil {
 		return []finding{{stage: 1, level: breaks,
 			text: name + " — it refuses: " + expectation, detail: said.String()}}
 	}
