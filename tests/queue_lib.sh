@@ -344,9 +344,15 @@ changed() {
 # say <file> — the opening of what a run said, with everything that is
 # the run's own place or moment taken out of it. Three lines because
 # `status` answers in labelled ones and the task is the second.
+# The cap is bytes, under LC_ALL=C, because `cut -c` is not one thing:
+# BSD counts bytes and GNU counts characters in a UTF-8 locale, so the
+# same sentence — these carry em dashes and typographic quotes — is cut
+# at two different places on the two platforms and the golden holds only
+# one of them.
 say() {
-  sed -e "s|$WORK|<work>|g" -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9:]*Z/<stamp>/g' "$1" \
-    | grep -v '^[[:space:]]*$' | head -n3 | paste -sd/ - | tr -s ' ' | cut -c1-300
+  LC_ALL=C sed -e "s|$WORK|<work>|g" -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9:]*Z/<stamp>/g' "$1" \
+    | LC_ALL=C grep -v '^[[:space:]]*$' | head -n3 | paste -sd/ - | LC_ALL=C tr -s ' ' \
+    | LC_ALL=C cut -c1-300
 }
 
 # run_cell <state> <id> <command> — one cell of the matrix, answered in

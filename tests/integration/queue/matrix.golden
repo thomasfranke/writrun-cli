@@ -277,7 +277,7 @@ missing-id|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "t
 missing-id|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
 missing-id|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
 missing-id|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
-missing-id|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'id' must appear exactly once (found 0)/MALFORMED: work/tasks/task-0012-queue-reader.md: id '' is not the filename's id — a queue file is named <id>.md or <id>-<subject>.md/MALFORMED: work/tasks/task-0013-derived.md: field 'id' must appear exact
+missing-id|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'id' must appear exactly once (found 0)/MALFORMED: work/tasks/task-0012-queue-reader.md: id '' is not the filename's id — a queue file is named <id>.md or <id>-<subject>.md/MALFORMED: work/tasks/task-0013-derived.md: field 'id' must appear exa
 missing-id|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 missing-id|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 missing-id|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
