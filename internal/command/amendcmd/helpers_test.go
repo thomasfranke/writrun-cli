@@ -22,22 +22,49 @@ const (
 	amendTitle = "Reopen the amendment gate"
 )
 
-// fakeScripts is the fake beside the kit.Runner port. amend runs one
-// script — the settings reader — so the reply is keyed by script and a
-// test can make it fail without failing the command.
+// scriptExit is a script's own verdict, shaped like the *exec.ExitError
+// the production runner returns: an error carrying an exit code.
+type scriptExit int
+
+func (e scriptExit) Error() string { return fmt.Sprintf("exit status %d", int(e)) }
+func (e scriptExit) ExitCode() int { return int(e) }
+
+// fakeScripts is the fake beside the kit.Runner port. amend runs two
+// scripts — the settings reader and the door — so both the reply and
+// the verdict are keyed by script and a test can spoil one without
+// spoiling the other.
 type fakeScripts struct {
 	replies map[string]string
-	err     error
-	calls   []string
+	// fail is what a named script returns instead of running.
+	fail  map[string]error
+	calls []string
+	// env records what each script was handed through the environment,
+	// keyed by script: the seam this fake exists to witness.
+	env map[string][]string
 }
 
-func (f *fakeScripts) run(_ string, stdout, _ io.Writer, script string, args ...string) error {
+func (f *fakeScripts) run(_ string, stdout, _ io.Writer, env []string, script string, args ...string) error {
 	f.calls = append(f.calls, strings.Join(append([]string{script}, args...), " "))
-	if f.err != nil {
-		return f.err
+	if f.env == nil {
+		f.env = map[string][]string{}
+	}
+	f.env[script] = env
+	if err := f.fail[script]; err != nil {
+		return err
 	}
 	fmt.Fprint(stdout, f.replies[strings.Join(args, " ")])
 	return nil
+}
+
+// handed is one variable as the named script received it, and whether
+// it was there at all.
+func (f *fakeScripts) handed(script, key string) (string, bool) {
+	for _, e := range f.env[script] {
+		if strings.HasPrefix(e, key+"=") {
+			return strings.TrimPrefix(e, key+"="), true
+		}
+	}
+	return "", false
 }
 
 // fakeGit records every invocation and answers the four questions amend
@@ -198,12 +225,15 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	h := &harness{
-		scripts: &fakeScripts{replies: map[string]string{"stage_2.pr_title_style": "bracketed\n"}},
-		files:   vfs.NewFake(),
-		git:     &fakeGit{refs: map[string]bool{"refs/remotes/origin/main": true}, fail: map[string]error{}},
-		gh:      &fakeGh{},
-		term:    &command.FakeTerminal{In: true, ConfirmAnswer: true},
-		env:     map[string]string{},
+		scripts: &fakeScripts{
+			replies: map[string]string{"stage_2.pr_title_style": "bracketed\n"},
+			fail:    map[string]error{},
+		},
+		files: vfs.NewFake(),
+		git:   &fakeGit{refs: map[string]bool{"refs/remotes/origin/main": true}, fail: map[string]error{}},
+		gh:    &fakeGh{},
+		term:  &command.FakeTerminal{In: true, ConfirmAnswer: true},
+		env:   map[string]string{},
 	}
 	h.seed(specPath, specFixture("approved"))
 	h.seed(taskPath, taskFixture("task-0012", "in-progress", "spec-0011"))

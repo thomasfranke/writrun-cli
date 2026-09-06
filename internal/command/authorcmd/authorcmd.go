@@ -21,13 +21,20 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// The three authorities this command runs, in the order it runs them,
-// and the two files it reads through the script port. Not one of their
+// The four authorities this command runs, in the order it runs them,
+// and the file it reads through the script port. Not one of their
 // judgements is repeated here.
+//
+// The first three read the diff and run before anything is composed.
+// observanceScript reads the composed title and body, so its place in
+// the order is fixed by what it judges: it runs last, once there is a
+// composition to hand it, and still before the push — which is this
+// command's first write.
 const (
 	frontMatterScript = ".writrun/skills/writrun-check-front-matter/check_front_matter.sh"
 	docShapesScript   = ".writrun/scripts/stage-2-pull-requests/check_doc_shapes.sh"
 	stateScript       = ".writrun/skills/writrun-check-task-state/check_state.sh"
+	observanceScript  = ".writrun/scripts/stage-2-pull-requests/check_observance.sh"
 	settingScript     = ".writrun/scripts/stage-2-pull-requests/read_setting.sh"
 )
 
@@ -82,9 +89,10 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return err
 	}
 
-	// 2 — the checks, in the order the methodology fixed. The first
-	// non-zero verdict is the whole answer: no branch, no push, no
-	// pull request (spec-0009, acceptance criteria).
+	// 2 — the checks that read the diff, in the order the methodology
+	// fixed. The first non-zero verdict is the whole answer: no branch,
+	// no push, no pull request (spec-0009, acceptance criteria). The
+	// fourth check reads the composition and runs at step 3.
 	for _, c := range []struct {
 		script string
 		args   []string
@@ -93,7 +101,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		{docShapesScript, nil},
 		{stateScript, []string{ch.rng}},
 	} {
-		if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, c.script, c.args...); err != nil {
+		if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, c.script, c.args...); err != nil {
 			return passthrough(c.script, err)
 		}
 	}
@@ -126,6 +134,12 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		files:  ch.files,
 		rng:    *rangeFlag,
 		yes:    ctx.Yes,
+	}
+	// The last check, and the only one whose input the composition
+	// itself is. The range is the one already resolved, so the credit
+	// half judges this branch's real commits at the same moment.
+	if err := observe(ctx, d, c.title, c.body, ch.rng); err != nil {
+		return err
 	}
 	show(ctx.Stdout, c)
 
@@ -277,12 +291,29 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+// observe hands the composed title and body to the door and carries its
+// verdict back unchanged — the same script the forge runs, asked before
+// the push instead of after it. Whether the title's type and scope are
+// in the project's vocabulary is that script's judgement and stays
+// there; this command holds no copy of the list.
+//
+// **The text goes through the environment, never argv.** The script's
+// own header names inline interpolation as the way its title and body
+// must not arrive, and `kit.Runner` carries an environment for exactly
+// this call.
+func observe(ctx *command.Ctx, d Deps, title, body, rng string) error {
+	env := []string{"PR_TITLE=" + title, "PR_BODY=" + body}
+	return passthrough(observanceScript,
+		d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, env, observanceScript, rng))
+}
+
 // titleQuestion names the style the project declared, so the summary is
 // written in it rather than looked up. The style is read through the
 // repository's own `read_setting.sh` — this command has no opinion about
 // what the file says, and none about whether the answer obeys it: the
-// title is judged at the door, by check_observance.sh, and a second
-// judge here would be a second authority.
+// answer is judged by check_observance.sh, once the composition exists
+// and before anything is pushed, and a second judge here would be a
+// second authority.
 func titleQuestion(d Deps, root, preset string) string {
 	if preset != "" {
 		return "The pull request's title:"
@@ -308,7 +339,7 @@ func styleExample(style string) string {
 // unreadable setting is an empty answer, never a guess.
 func setting(d Deps, root, address string) string {
 	var out bytes.Buffer
-	if err := d.Scripts(root, &out, io.Discard, settingScript, address); err != nil {
+	if err := d.Scripts(root, &out, io.Discard, nil, settingScript, address); err != nil {
 		return ""
 	}
 	return strings.TrimSpace(out.String())

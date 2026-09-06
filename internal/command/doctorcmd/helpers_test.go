@@ -195,7 +195,7 @@ type scripts struct {
 	ran     []string
 }
 
-func (s *scripts) run(_ string, stdout, _ io.Writer, name string, args ...string) error {
+func (s *scripts) run(_ string, stdout, _ io.Writer, _ []string, name string, args ...string) error {
 	s.ran = append(s.ran, strings.TrimSpace(name+" "+strings.Join(args, " ")))
 	fmt.Fprint(stdout, s.said[name])
 	return s.verdict[name]

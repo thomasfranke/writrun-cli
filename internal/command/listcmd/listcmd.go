@@ -21,7 +21,7 @@ const lister = ".writrun/skills/writrun-select-next-task/list_tasks.sh"
 // Script is the exec port as list uses it: one of the adopted
 // repository's own scripts, run from root, its reporting streamed to
 // the writers, returning the script's own verdict.
-type Script func(root string, stdout, stderr io.Writer, script string, args ...string) error
+type Script func(root string, stdout, stderr io.Writer, env []string, script string, args ...string) error
 
 // Deps is the wiring list needs beyond the frame's Ctx.
 type Deps struct {
@@ -64,7 +64,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if want.filtering() {
 		out = &buf
 	}
-	err := d.Script(ctx.Root, out, ctx.Stderr, lister)
+	err := d.Script(ctx.Root, out, ctx.Stderr, nil, lister)
 	if want.filtering() {
 		want.render(ctx.Stdout, buf.String())
 	}
