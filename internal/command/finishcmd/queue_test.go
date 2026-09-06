@@ -140,3 +140,31 @@ func TestOutcomeFilled(t *testing.T) {
 		t.Error("a spec carrying no Outcome heading reported one")
 	}
 }
+
+// `finish spec-0012` resolved task-0012 and carried it to the write
+// stage: numOf keeps only the digits, and the two counters run
+// independently and are routinely one apart. amend refuses the mirror
+// of this; finish did not (report-0020).
+func TestAnIdDeclaringTheOtherKindIsRefused(t *testing.T) {
+	files := vfs.NewFake()
+	files.Seed("/repo/work/tasks/task-0012-amend-command.md", []byte("---\nid: task-0012\n---\n"), 0o644)
+	files.Seed("/repo/work/specs/spec-0012-release.md", []byte("---\nid: spec-0012\n---\n"), 0o644)
+	if _, err := queueFile(files, "/repo", tasksDir, "task", "spec-0012"); err == nil {
+		t.Error("a spec id resolved a task")
+	} else if !strings.Contains(err.Error(), "names a spec, and this resolves a task") {
+		t.Errorf("err = %v; the refusal did not name the mismatch", err)
+	}
+	if _, err := queueFile(files, "/repo", specsDir, "spec", "task-0012"); err == nil {
+		t.Error("a task id resolved a spec")
+	}
+	// A bare number declares no kind, so it still resolves.
+	if got, err := queueFile(files, "/repo", tasksDir, "task", "0012"); err != nil {
+		t.Errorf("a bare number was refused: %v", err)
+	} else if !strings.HasSuffix(got, "task-0012-amend-command.md") {
+		t.Errorf("got %q", got)
+	}
+	// The matching kind still resolves.
+	if _, err := queueFile(files, "/repo", tasksDir, "task", "task-0012"); err != nil {
+		t.Errorf("the declared kind was refused: %v", err)
+	}
+}
