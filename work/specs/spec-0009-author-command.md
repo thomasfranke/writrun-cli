@@ -1,7 +1,7 @@
 ---
 id: spec-0009
 task_ref: task-0010
-status: approved
+status: implemented
 created: 2026-09-03T22:30:41Z
 ---
 
@@ -41,8 +41,8 @@ Integration over a fixture adoption with stubbed `gh`.
 
 ## Definition of Done
 
-- [ ] The opened PR passes the kit's own `check_derived_work.sh`.
-- [ ] Suite green.
+- [x] The opened PR passes the kit's own `check_derived_work.sh`.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -54,4 +54,42 @@ Integration over a fixture adoption with stubbed `gh`.
 
 ## Outcome
 
-_(fill after execution)_
+`writrun author` is `internal/command/authorcmd/`, registered in
+`commands()` (`cmd/writrun/main.go`). No package outside it changed.
+
+- The diff is read against `origin/main...HEAD`, then `main...HEAD`;
+  `--range` overrides. An empty diff, a diff touching no `docs/` path, a
+  diff touching a path outside `docs/` and `work/`, a dirty tree, a
+  detached HEAD and a branch already on the forge are refused before any
+  check runs.
+- The checks run as `check_front_matter.sh`, `check_doc_shapes.sh`,
+  `check_state.sh <range>`. The first non-zero exit is returned unedited
+  and nothing after it runs.
+- The branch is `docs/<short-name>`: `--slug`, else the current branch
+  when it already is a `docs/` one, else the doc the rule was written
+  into. The title is the human's, asked in the style
+  `stage_2.pr_title_style` names; a title carrying `[TASK-NNNN]` is
+  refused and none is ever added.
+- The body is `.writrun/templates/pull_request_template.md` with the
+  `## Spec` half dropped and `## Derived work` filled from the tasks and
+  specs the diff adds, or `none — this rule derives no work.` when it
+  adds none. `gh pr create` runs without `--draft`.
+
+Two things diverge from the steps above.
+
+- The command carries `--resume`, which lifts the pushed-branch refusal.
+  `product/rules.md` requires a failure after the first write to name the
+  command that resumes the flow, and a branch pushed without its pull
+  request is that state.
+- Filling `## Derived work` drops the template's instruction comment from
+  that section. The comment contains the word `none`, which
+  `check_derived_work.sh` greps the section for, so a body keeping it
+  would pass the check while declaring nothing
+  (`work/reports/report-0016-derived-work-comment.md`).
+
+Verification: `make tests` — every Go package `ok`, 111 bash case files
+passed, 0 failed. `make cover` — 97.9% over `internal/` (floor 90%),
+`internal/command/authorcmd` 98.3% (floor 80%). Six case files under
+`tests/integration/author/` run the real kit scripts over a fixture
+adoption with a bare local origin and a stubbed `gh`; two of them run
+`check_derived_work.sh` over the body that was opened.
