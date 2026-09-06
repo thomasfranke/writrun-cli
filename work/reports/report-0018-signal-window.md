@@ -1,13 +1,15 @@
 ---
 id: report-0018
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0022]
 doc_ref: null
 created: 2026-09-06T01:30:20Z
-triaged: null
+triaged: 2026-09-06T02:52:54Z
 ---
 
 # A signal between the completion writes and the confirmation leaves finish's edits in the tree
+
+**References:** [task-0022](../tasks/task-0022-signal-window.md)
 
 `writrun finish` writes the spec's `implemented` and the task's
 `completed` at step 2 and undoes them on every end after that which is
