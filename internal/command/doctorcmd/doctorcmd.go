@@ -90,7 +90,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 // reported as a stage-1 finding rather than swallowed.
 func declaredStage(root string, d Deps) (stage int, unreadable []finding) {
 	var said bytes.Buffer
-	if err := d.Scripts(root, &said, &said, settingsReader, "stage"); err != nil {
+	if err := d.Scripts(root, &said, &said, nil, settingsReader, "stage"); err != nil {
 		return 1, []finding{{
 			stage:  1,
 			level:  breaks,

@@ -57,6 +57,19 @@ import (
 // never parsed here.
 const settingScript = ".writrun/scripts/stage-2-pull-requests/read_setting.sh"
 
+// observanceScript is the door: the same check the forge runs over an
+// open pull request, asked here about the composition instead. The
+// vocabulary it judges against lives in that file and nowhere in this
+// binary.
+const observanceScript = ".writrun/scripts/stage-2-pull-requests/check_observance.sh"
+
+// composedRange is what the door is handed while the amendment's own
+// commit does not exist. `HEAD...HEAD` resolves to a merge base of HEAD
+// and a tip of HEAD, so it names no commits and the credit half judges
+// the composed body alone — which is the only thing there is to judge
+// before the first write.
+const composedRange = "HEAD...HEAD"
+
 // Deps is the wiring amend needs beyond the frame's Ctx.
 type Deps struct {
 	// Scripts runs the adopted repository's own scripts.
@@ -187,6 +200,9 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		subject: subject(kind, specID),
 		title:   title(style, kind, summary),
 		body:    body(readTemplate(d, ctx.Root), specID, summary, susp, forgeRead),
+	}
+	if err := observe(ctx, d, plan.title, plan.body); err != nil {
+		return err
 	}
 	show(ctx, plan, tasks, susp, forgeRead)
 	if err := ctx.AskConfirm(fmt.Sprintf(
@@ -463,10 +479,50 @@ func readSetting(ctx *command.Ctx, d Deps, address string) string {
 		return ""
 	}
 	var out bytes.Buffer
-	if err := d.Scripts(ctx.Root, &out, io.Discard, settingScript, address); err != nil {
+	if err := d.Scripts(ctx.Root, &out, io.Discard, nil, settingScript, address); err != nil {
 		return ""
 	}
 	return strings.TrimSpace(out.String())
+}
+
+// observe hands the composed title and body to the door and carries
+// its verdict back unchanged — the same script the forge runs, asked
+// where a refusal still costs nothing. Whether the type is in the
+// project's vocabulary is that script's judgement and stays there; this
+// command holds no copy of the list.
+//
+// **The text goes through the environment, never argv.** The script's
+// own header names inline interpolation as the way its title and body
+// must not arrive, and `kit.Runner` carries an environment for exactly
+// this call.
+//
+// The command's own streams are handed over, so a green run says "OK —
+// the title observes …" and a refusal says which word is outside the
+// list, both in the script's words rather than this command's.
+func observe(ctx *command.Ctx, d Deps, title, body string) error {
+	if d.Scripts == nil {
+		return errors.New("no script runner is wired, so the composed title cannot be judged — " +
+			"amend does not compose past a check it cannot run")
+	}
+	env := []string{"PR_TITLE=" + title, "PR_BODY=" + body}
+	return passthrough(observanceScript,
+		d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, env, observanceScript, composedRange))
+}
+
+// passthrough hands the script's verdict up unedited: the frame turns
+// an error carrying an exit code into that exit code, having reported
+// nothing over what the script already said on its own stream. An error
+// with no exit code is the runner failing before the script spoke —
+// a missing or unreadable check among them — and that is named.
+func passthrough(script string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var verdict interface{ ExitCode() int }
+	if errors.As(err, &verdict) && verdict.ExitCode() > 0 {
+		return err
+	}
+	return fmt.Errorf("running %s: %w", script, err)
 }
 
 // readTemplate reads the adopter's pull-request body template. Absent,
@@ -516,10 +572,12 @@ func split(args []string) (string, []string, error) {
 // `-/slug`, which is a name no convention describes.
 //
 // Whether the word is in the project's vocabulary is
-// check_observance.sh's judgement, at the door, and a second copy of
-// that list here would be a second authority — `product/rules.md` says
-// no command reimplements a check, and `conventions/commits.md` is
-// prose an agent reads rather than a format this can parse.
+// check_observance.sh's judgement, and a second copy of that list here
+// would be a second authority — `product/rules.md` says no command
+// reimplements a check, and `conventions/commits.md` is prose an agent
+// reads rather than a format this can parse. That script is asked
+// directly, over the composed title, before the branch is cut
+// (observe).
 func plainWord(s string) bool {
 	if s == "" || strings.HasPrefix(s, "-") || strings.HasSuffix(s, "-") {
 		return false

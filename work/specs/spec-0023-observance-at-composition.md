@@ -1,7 +1,7 @@
 ---
 id: spec-0023
 task_ref: task-0024
-status: approved
+status: implemented
 created: 2026-09-06T04:28:28Z
 ---
 
@@ -82,7 +82,15 @@ nothing.
 
 ## Proposed product changes
 
-- `product/pull-requests/shape.md`, `amend.md`, `author.md` — only if step 4 decides a sentence is needed; the Outcome records the decision either way.
+- `product/pull-requests/shape.md` — the order bullet, for a check whose input is the composition.
+- `product/pull-requests/amend.md` — the check named as amend's, before the branch is cut.
+- `product/pull-requests/author.md` — the check named as author's, before the push.
+
+Step 4 decided all three are needed; the Outcome records why. One path
+per bullet, each written from `docs/`: `check_deltas.sh` reads the first
+backticked span of a bullet line and prefixes `docs/`, so three paths on
+one line declare only the first, and a bare `amend.md` declares
+`docs/amend.md`.
 
 ## Proposed technical changes
 
@@ -90,4 +98,46 @@ nothing.
 
 ## Outcome
 
-_(fill after execution)_
+`amend` and `author` hand the composed title and body to
+`check_observance.sh` and carry its verdict up unchanged. `amend` asks
+after the composition and before the confirmation, over `HEAD...HEAD`;
+`author` asks after its three diff checks and before the push, over the
+range it already resolved. Neither holds a copy of the vocabulary.
+
+**The seam is `kit.Runner`'s own signature, not a sibling type.** It
+now takes `env []string` between the streams and the script, and `Run`
+layers those entries on `os.Environ()` rather than replacing it. A
+sibling `EnvRunner` would have been the smaller diff — thirteen call
+sites and nine fakes pass `nil` — and it was rejected because the
+narrow type is the shape that invites the mistake: a consumer holding a
+runner without an environment has argv as its only way to hand a script
+a string, and argv is what `check_observance.sh` forbids by name. One
+signature also keeps one recorder per package in the suite, which is
+what `author`'s check-order assertions read.
+
+**Step 4 decided that a sentence is needed, in all three files.**
+`shape.md`'s "Checks first, in their load-bearing order" became false
+the moment a check read the composition, so it is now two bullets: a
+non-zero check stops the command there, and a check runs where its
+input exists. The same page's opening recital was replaced under
+report-0026, triaged `fixed` on this branch — only one of its five
+clauses held for all four commands. `amend.md` and `author.md` each
+name the observance check as theirs, and both dropped the
+"checks first" recital that `shape.md` no longer carries.
+
+Tests: `internal/kit` proves the environment reaches the child, that it
+is layered rather than substituted, and that a caller's entry beats an
+inherited one; a walk over the shipped Go tree proves no file carries
+the kit's `TYPES` or `SCOPES` list. `amendcmd` and `authorcmd` each
+gained an `observance_test.go` — the refusal before the first write,
+the text arriving through the environment and not argv, and a runner
+failure named rather than passed off as a verdict. Two integration
+cases run the compiled binary: `amend --type wibble` and `author` with
+a title outside the style, each refused with a clean tree, no branch
+and nothing on the stub forge.
+
+Left standing, out of scope: the branch name is judged by nothing
+anywhere, `shape.md`'s "Nothing reaches the forge without confirmation"
+is loose (`amend` lists pull requests and `finish` views one before
+their questions), and `take.md` and `finish.md` still recite a phrase
+`shape.md` dropped.

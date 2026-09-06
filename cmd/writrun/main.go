@@ -172,7 +172,7 @@ func terminal() term.Terminal {
 // fails is reported and no screen opens.
 func openScreen(ctx *command.Ctx) (string, string, error) {
 	var out, errb bytes.Buffer
-	if err := kit.Run(ctx.Root, &out, &errb, listerScript); err != nil {
+	if err := kit.Run(ctx.Root, &out, &errb, nil, listerScript); err != nil {
 		if msg := strings.TrimSpace(errb.String()); msg != "" {
 			return "", "", fmt.Errorf("%s", msg)
 		}

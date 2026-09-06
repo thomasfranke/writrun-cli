@@ -79,7 +79,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		take = append(take, "--slug", *slug)
 	}
 
-	err = d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, takeScript, take...)
+	err = d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, takeScript, take...)
 	if exitCode(err) != 2 {
 		// 0 the act is done, 1 a refusal, 3 a git or forge failure with
 		// the resume it named — every one of them already reported in
@@ -92,7 +92,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err := ctx.AskConfirm("Push the branch and open the draft pull request?"); err != nil {
 		return err
 	}
-	err = d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, takeScript, append(take, "--confirm")...)
+	err = d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, takeScript, append(take, "--confirm")...)
 	if exitCode(err) == 2 {
 		return fmt.Errorf("%s composed again under --confirm — nothing reached the forge", takeScript)
 	}
@@ -130,7 +130,7 @@ func split(args []string) (string, []string, error) {
 // taken is steps 2–4 of the selection algorithm, and they run there.
 func selectTask(ctx *command.Ctx, d Deps) (string, error) {
 	var listing bytes.Buffer
-	err := d.Scripts(ctx.Root, &listing, ctx.Stderr, listScript)
+	err := d.Scripts(ctx.Root, &listing, ctx.Stderr, nil, listScript)
 	// The lister's own listing says what is available and what is held
 	// back, so a stop shows it rather than summarising it. Exit 1 is
 	// its "nothing is available"; anything else is a lister that could

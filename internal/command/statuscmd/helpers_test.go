@@ -86,7 +86,7 @@ func (e exitErr) ExitCode() int { return int(e) }
 // scripts is the exec port faked: canned output, a canned verdict, and
 // a record of what it was asked to run.
 func scripts(out string, err error, rec *call) kit.Runner {
-	return func(dir string, stdout, stderr io.Writer, name string, args ...string) error {
+	return func(dir string, stdout, stderr io.Writer, _ []string, name string, args ...string) error {
 		if rec != nil {
 			*rec = call{root: dir, script: name, args: args, runs: rec.runs + 1}
 		}

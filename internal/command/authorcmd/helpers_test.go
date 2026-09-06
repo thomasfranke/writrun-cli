@@ -41,19 +41,37 @@ type reply struct {
 }
 
 // fakeScripts is the fake beside the kit.Runner port. The replies are
-// keyed by script because author runs four different authorities and a
+// keyed by script because author runs five different authorities and a
 // test cares which one spoke.
 type fakeScripts struct {
 	replies map[string]reply
 	calls   []string
+	// env records what each script was handed through the environment,
+	// keyed by script: the seam this fake exists to witness.
+	env map[string][]string
 }
 
-func (f *fakeScripts) run(_ string, stdout, stderr io.Writer, script string, args ...string) error {
+func (f *fakeScripts) run(_ string, stdout, stderr io.Writer, env []string, script string, args ...string) error {
 	f.calls = append(f.calls, strings.TrimSpace(script+" "+strings.Join(args, " ")))
+	if f.env == nil {
+		f.env = map[string][]string{}
+	}
+	f.env[script] = env
 	r := f.replies[script]
 	fmt.Fprint(stdout, r.out)
 	fmt.Fprint(stderr, r.errOut)
 	return r.err
+}
+
+// handed is one variable as the named script received it, and whether
+// it was there at all.
+func (f *fakeScripts) handed(script, key string) (string, bool) {
+	for _, e := range f.env[script] {
+		if strings.HasPrefix(e, key+"=") {
+			return strings.TrimPrefix(e, key+"="), true
+		}
+	}
+	return "", false
 }
 
 func (f *fakeScripts) ran(script string) bool {

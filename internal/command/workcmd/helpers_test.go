@@ -82,7 +82,7 @@ type fakeScripts struct {
 	runs     []scriptRun
 }
 
-func (f *fakeScripts) run(dir string, stdout, stderr io.Writer, name string, args ...string) error {
+func (f *fakeScripts) run(dir string, stdout, stderr io.Writer, _ []string, name string, args ...string) error {
 	f.runs = append(f.runs, scriptRun{dir: dir, script: name, args: args})
 	switch name {
 	case listScript:

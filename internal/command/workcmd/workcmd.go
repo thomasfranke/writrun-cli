@@ -97,7 +97,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 // cases).
 func assemble(ctx *command.Ctx, d Deps, id string) (string, error) {
 	var out, errb bytes.Buffer
-	err := d.Scripts(ctx.Root, &out, &errb, briefScript, id)
+	err := d.Scripts(ctx.Root, &out, &errb, nil, briefScript, id)
 	code := exitCode(err)
 	if code == 0 {
 		return out.String(), nil

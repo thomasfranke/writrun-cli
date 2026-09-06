@@ -35,7 +35,7 @@ type checkRun struct {
 // prints pages.
 func preflight(scripts kit.Runner, root string) checkRun {
 	var out bytes.Buffer
-	err := scripts(root, &out, &out, preflightScript)
+	err := scripts(root, &out, &out, nil, preflightScript)
 	return checkRun{out: out.String(), err: err, code: exitCode(err)}
 }
 
