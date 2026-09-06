@@ -67,8 +67,16 @@ check "an empty bypass list with nothing to bypass holds" 0 \
   "Stage 2 — the forge: all clear." -- "$WRITRUN" doctor
 
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" "update"
-check "a rule that refuses the push with no bypass actor names it" 1 \
-  "ruleset 42 governs main, enables update (restrict updates) and names no bypass actor" \
+check "a rule the bot has no way past names the ruleset that enables it" 1 \
+  "ruleset 42 governs main and enables update (restrict updates)" \
   -- "$WRITRUN" doctor
+
+# The forge offers GitHub Actions as a bypass actor on an organization
+# alone, so there the same ruleset with an actor on its list lets the
+# push land (.github/workflows/writrun-approve.yml; spec-0024).
+gh_reply "api repos/{owner}/{repo} --jq .owner.type" "Organization"
+gh_reply "api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type" "Integration"
+check "a bypassed rule on an organization holds" 0 \
+  "Stage 2 — the forge: all clear." -- "$WRITRUN" doctor
 
 finish

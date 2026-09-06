@@ -1,7 +1,7 @@
 ---
 id: spec-0024
 task_ref: task-0025
-status: approved
+status: implemented
 created: 2026-09-06T07:35:01Z
 ---
 
@@ -85,10 +85,10 @@ each and why it changed.
 
 ## Definition of Done
 
-- [ ] A bypassable ruleset reports no finding on an organization-owned repository.
-- [ ] A `pull_request` rule with no bypass actor reports one on an organization-owned repository.
-- [ ] One fault produces one finding.
-- [ ] `writrun doctor` still reports no stage-2 finding against this repository.
+- [x] A bypassable ruleset reports no finding on an organization-owned repository.
+- [x] A `pull_request` rule with no bypass actor reports one on an organization-owned repository.
+- [x] One fault produces one finding.
+- [x] `writrun doctor` still reports no stage-2 finding against this repository.
 
 ## Proposed product changes
 
@@ -100,4 +100,46 @@ each and why it changed.
 
 ## Outcome
 
-_(fill after execution)_
+Stage 2 judges a rule against the bypass list of the ruleset that
+enables it. `mainReachable` decides inside the per-ruleset loop: the
+rules one ruleset contributes to `main` say whether it refuses the
+recording push, and that same ruleset's bypass list says whether the bot
+is past them. `blocking` and `named` are gone, and with them the second
+finding; `firstOf` reads `blockers` directly against one ruleset's
+rules. `blocker.userOnly` is replaced by `ownership`, which reads
+`.owner.type` at most once per run and only where a ruleset refuses the
+push — an owner type the forge will not answer is read as a person's, so
+the finding stands rather than passing in silence.
+
+One ruleset that stops the push is one finding, and the owner decides
+its remedy: an organization is told to put the bot on the ruleset's
+bypass list, a person is told to take the rule off `main`. The
+`doctor.md` stage-2 sentence names the four rules by the words the
+findings use and states when each is named.
+
+The premise held. `.github/workflows/writrun-approve.yml` is the one
+place this repository states it, and it states it as the spec quotes it.
+
+Six cases were inverted:
+
+| Case | Why it changed |
+|---|---|
+| `TestARuleThatRefusesThePushWithNoBypassActorNamesTheRule` | It asserted the contradicting pair. It now asserts one breaking finding for one fault. |
+| `TestTheBypassFindingNamesOnlyTheRulesetThatEnablesTheRule` | It asserted the removed `named()` sentence alongside the attribution. The attribution is unchanged; the sentence it checks is the per-ruleset one. |
+| `TestTheFourBlockingRulesAreNamedWhenOn` | Its name claimed a rule is named whenever it is on, which is no longer true. Renamed `TestTheFourBlockingRulesAreNamedOnAUserOwnedRepository` and given a ruleset with a bypass actor, which clears nothing there. |
+| `TestThePullRequestRuleIsNamedOnlyOnAUserOwnedRepository` | It asserted the false negative — `pull_request` dropped on an organization. Replaced by `TestTheFourBlockingRulesAreNamedOnAnOrganizationWithNoBypassActor`, a table over all four. |
+| `the_recording_push_can_reach_main_test.sh`, "a rule that refuses the push with no bypass actor names it" | It expected the organization-shaped sentence on a user-owned fixture. It expects the user-owned one, and a second check proves the same ruleset holds on an organization. |
+| `the_forge_settings_are_named_test.sh`, "a rule that blocks the recording push is named" | It expected the removed `named()` sentence. It expects the per-ruleset one, and the pull-request check below it now asserts the finding rather than the silence. |
+
+Four cases were added in `internal/command/doctorcmd/forge_test.go`:
+`TestABypassActorClearsARuleOnlyOnAnOrganization` covers ownership ×
+bypass on one rule, `TestTheFindingNamesTheRulesetThatStopsThePush`
+covers two rulesets of which one is bypassed,
+`TestAnUnreadableOwnerTypeStillNamesTheRule` covers the owner type the
+forge refuses, and `TestOwnershipIsReadOnceForSeveralRulesets` holds the
+read to one. `TestThisRepositoryHasNoStageTwoFinding` is unchanged and
+still passes.
+
+`writrun doctor` reports no stage-2 finding against this repository,
+before and after: it is user-owned, its one ruleset enables none of the
+four rules, and its bypass list is empty.
