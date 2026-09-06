@@ -17,6 +17,13 @@ handed over.
   restate or document them here.
 - This repository's own working flow lives in `AGENTS.md`, never in
   `docs/`.
+- A report in `work/reports/` records a finding about this binary. A
+  finding whose subject is a kit script or a methodology rule is not
+  filed here at all — it goes to Thomas, who decides whether a report
+  opens upstream (`AGENTS.md`, human gates).
+- The subject is what a finding judges, not the file it names: `finish`
+  reversing a ledger entry is this binary's, and `record_provenance.sh`
+  contradicting itself is not.
 
 ## 1. No prose
 
