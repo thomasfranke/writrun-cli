@@ -254,6 +254,21 @@ EOF
     cd "$t" || exit 1
     git_q init -q
     git_q symbolic-ref HEAD refs/heads/main
+
+    # The identity and the line endings are written into the repository,
+    # not passed per invocation: `amend` commits through the binary's own
+    # git, which reads this config and never sees git_q's `-c` flags. A
+    # machine whose ~/.gitconfig names a committer hides that; a runner
+    # with none fails the commit and the cell reads as a forge that was
+    # never called. autocrlf is pinned for this fixture in particular —
+    # its states are line endings, and a checkout that rewrote them would
+    # be testing the wrong bytes.
+    git_q config user.name suite
+    git_q config user.email suite@test
+    git_q config commit.gpgsign false
+    git_q config core.autocrlf false
+    git_q config core.safecrlf false
+
     git_q add -A
     git_q commit -q -m "the kit and the queue"
 
