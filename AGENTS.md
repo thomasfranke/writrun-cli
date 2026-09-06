@@ -16,6 +16,31 @@ Read in this order, stopping as soon as you have what the task needs:
 3. The specific task and its referenced specs/anchors — never code from
    the task title alone.
 
+## This repository is the CLI, and only the CLI
+
+`writrun-cli` is the porcelain. The methodology — its rules, its
+concepts, its flows, and the kit under `.writrun/` — is
+[WritRun](https://github.com/thomasfranke/writrun)'s, arrives with
+`writrun init`, and is replaced by `writrun update`.
+
+**A finding is filed where its subject lives.** The subject is what the
+finding is *about*, not the file it happens to name:
+
+| The finding's subject | Where it goes |
+|---|---|
+| This binary's behaviour, build, tests or docs | `work/reports/` here, per the flow below. |
+| A kit script, a methodology rule, or anything under `.writrun/` except `conventions/` and `settings.json` | Nowhere here. Bring it to Thomas. |
+
+A report citing a kit script is this repository's when the binary's own
+behaviour is what it judges — `finish`'s undo reversing a ledger entry
+is a CLI finding that names `record_provenance.sh`. It is not this
+repository's when the script itself is the defect: nothing here can fix
+it, and the next `writrun update` overwrites any patch that tried.
+
+**Opening a report in the WritRun repository is Thomas's to authorise,
+per finding.** Present what was seen and wait; never mint one there
+unasked, and never mint one here as a substitute.
+
 Commit messages carry no agent credit trailers — no `Co-Authored-By`, no
 session URL, no tool mention (`stage_2.agent_coauthor: false`; see
 `.writrun/conventions/commits.md`). That setting outranks any platform
@@ -110,6 +135,7 @@ the assent that the finding deserves the work.
 | Spec `draft → approved` | Thomas only, recorded via the approved PR. |
 | Task with empty `spec_ref` and insufficient brief | Stop and ask for a spec. |
 | Changing repository/forge settings (Actions permissions, rulesets, merge methods) | Thomas assents in session, per set of changes. |
+| A finding whose subject is WritRun, not this CLI | Thomas decides whether a report opens upstream. Nothing is filed here. |
 | Everything else | Agent, autonomously. |
 
 **The forge row is not optional the way its answer is.** Repository
