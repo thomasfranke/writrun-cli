@@ -365,7 +365,11 @@ run_cell() {
     case "$cmd" in
       amend)  "$WRITRUN" amend "$id" --title "The spec is returned to draft" --slug the-amendment --yes ;;
       finish) "$WRITRUN" finish "$id" --range main...HEAD --yes ;;
-      author) "$WRITRUN" author --range main...HEAD --title "The rule is written" --yes ;;
+      # author takes the whole title, where amend takes only the summary
+      # and composes the bracket itself. The observance check the door
+      # runs judges what is passed, so this one is written in the style
+      # .writrun/settings.json declares.
+      author) "$WRITRUN" author --range main...HEAD --title "[Docs][Product] The rule is written" --yes ;;
       status) "$WRITRUN" status ;;
       screen) "$WRITRUN" ;;
     esac

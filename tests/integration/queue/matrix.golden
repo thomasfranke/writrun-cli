@@ -1,7 +1,7 @@
 canonical|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
-canonical|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-canonical|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-canonical|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
+canonical|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+canonical|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+canonical|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 canonical|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 canonical|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
 canonical|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
@@ -144,9 +144,9 @@ no-front-matter|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch repo
 no-front-matter|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
 no-front-matter|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
 duplicate-status|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
-duplicate-status|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-duplicate-status|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-duplicate-status|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
+duplicate-status|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+duplicate-status|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+duplicate-status|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 duplicate-status|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 duplicate-status|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
 duplicate-status|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
@@ -202,9 +202,9 @@ space-colon|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0
 space-colon|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
 space-colon|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
 mixed-endings|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
-mixed-endings|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-mixed-endings|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-mixed-endings|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
+mixed-endings|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+mixed-endings|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+mixed-endings|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 mixed-endings|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 mixed-endings|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
 mixed-endings|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
@@ -231,9 +231,9 @@ mixed-endings|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report
 mixed-endings|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 mixed-endings|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
 long-line|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
-long-line|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-long-line|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
-long-line|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends task-0012 — no open pull request works it
+long-line|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+long-line|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+long-line|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 long-line|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 long-line|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
 long-line|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
@@ -318,9 +318,9 @@ missing-status|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch repor
 missing-status|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
 missing-status|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
 null-list|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
-null-list|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends nothing — no task referencing spec-0012 is in flight
-null-list|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends nothing — no task referencing spec-0012 is in flight
-null-list|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)/ suspends nothing — no task referencing spec-0012 is in flight
+null-list|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+null-list|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+null-list|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 null-list|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 null-list|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
 null-list|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
