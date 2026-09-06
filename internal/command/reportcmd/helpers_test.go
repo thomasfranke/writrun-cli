@@ -74,7 +74,7 @@ type fakeScripts struct {
 	root    string
 }
 
-func (f *fakeScripts) run(root string, stdout, stderr io.Writer, script string, args ...string) error {
+func (f *fakeScripts) run(root string, stdout, stderr io.Writer, _ []string, script string, args ...string) error {
 	f.calls = append(f.calls, call{root: root, script: script, args: args})
 	if len(f.replies) == 0 {
 		return nil

@@ -130,7 +130,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	specIDs := queue.List(task, "spec_ref")
 	if len(specIDs) == 0 {
 		fmt.Fprintf(ctx.Stdout, "%s carries no spec — no deltas to check.\n", taskID)
-	} else if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, deltasScript,
+	} else if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, deltasScript,
 		strings.Join(specIDs, ","), diffRange); err != nil {
 		// One call carrying every spec: MISSING is judged per spec and
 		// UNDECLARED against the union, which is the script's own rule
@@ -193,7 +193,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 			prov = append(prov, f.key+"="+*ledger[i])
 		}
 	}
-	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, provenanceScript, prov...); err != nil {
+	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, provenanceScript, prov...); err != nil {
 		return undo.restore(ctx, d, passthrough(provenanceScript, err))
 	}
 	// The ledger appends to the task file, and that append is this
@@ -213,7 +213,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// disk and its completion warning reads the `completed` date off
 	// the same tree — a run before the writes is the run that stage
 	// tells you not to trust.
-	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, preflightScript, taskID, diffRange); err != nil {
+	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, preflightScript, taskID, diffRange); err != nil {
 		return undo.restore(ctx, d, passthrough(preflightScript, err))
 	}
 

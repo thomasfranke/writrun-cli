@@ -1,8 +1,8 @@
 ---
 id: task-0025
-status: ready
+status: in-review
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0024]
 doc_ref: null
 origin: report
