@@ -106,6 +106,11 @@ func (f *Fake) ReadFile(name string) ([]byte, error) {
 	return append([]byte(nil), n.data...), nil
 }
 
+// WriteFile replaces the file's content and, on a file that is already
+// there, keeps the mode it already had — `os.WriteFile` passes perm to
+// `O_CREATE`, where an existing file ignores it, so a fake that applied
+// perm on every write would let a caller chmod by writing when the real
+// one never does.
 func (f *Fake) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	p := clean(name)
 	if err := f.failure("write", p); err != nil {
@@ -115,7 +120,11 @@ func (f *Fake) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	if !there || !parent.dir {
 		return &fs.PathError{Op: "write", Path: p, Err: fs.ErrNotExist}
 	}
-	f.entries[p] = &node{data: append([]byte(nil), data...), mode: perm}
+	mode := perm
+	if n, already := f.entries[p]; already && !n.dir {
+		mode = n.mode
+	}
+	f.entries[p] = &node{data: append([]byte(nil), data...), mode: mode}
 	return nil
 }
 

@@ -2,12 +2,22 @@
 . "$(dirname "$0")/../../finish_lib.sh"
 
 # The forge has no pull request for this branch: its own words reach the
-# user, and nothing is marked ready. The checks before it ran, so the
-# reporting says exactly how far the sequence got.
+# user, nothing is marked ready, and the completion edits are put back —
+# a forge that will not answer is one more end that is not a success
+# (spec-0017). The checks before it ran, so the reporting says exactly
+# how far the sequence got.
 make_repo
 on_branch task/0001-a-thing
 export GH_PR_VIEW_FAILS=1
 cd "$TARGET" || exit 1
+
+tree_is_clean() {
+  local out
+  out=$(git_q -C "$TARGET" status --porcelain)
+  [ -z "$out" ] && return 0
+  printf 'the stopped finish left:\n%s\n' "$out"
+  return 1
+}
 
 check "the forge's own words reach the user" 1 "no pull requests found for branch" \
   -- finish_cmd --yes
@@ -16,5 +26,11 @@ check "preflight had already passed" 0 "" \
   -- grep -q "PREFLIGHT OK" "$FINISH_OUT"
 check "nothing was marked ready" 1 "" \
   -- grep -q "pr ready" "$GH_LOG"
+check "the completion edits are put back" 0 "approved" \
+  -- field status work/specs/spec-0001-a-thing.md
+check "the completion date is put back" 0 "null" \
+  -- field completed work/tasks/task-0001-a-thing.md
+check "git status --porcelain is empty after the stop" 0 "" \
+  -- tree_is_clean
 
 finish

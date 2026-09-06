@@ -182,6 +182,32 @@ EOF
   git_q -C "$TARGET" push -q -u origin main
 }
 
+# ledger_on — the adopter keeps a provenance ledger, so
+# `record_provenance.sh` appends an entry to the task file at step 3.
+# The fixture ships it off, because a project that keeps no ledger is
+# asked for no `by=` and no `login=`, and most cases have nothing to say
+# about it. A case that does turns it on here, on `main`, so the branch
+# still starts from a clean tree.
+ledger_on() {
+  sed 's/"provenance_ledger": false/"provenance_ledger": true/' \
+    "$TARGET/.writrun/settings.json" > "$TARGET/settings.tmp"
+  mv "$TARGET/settings.tmp" "$TARGET/.writrun/settings.json"
+  git_q -C "$TARGET" commit -q -am "the project keeps a ledger"
+  git_q -C "$TARGET" push -q origin main
+}
+
+# hand_dated <task-file> <date> — the completion date written by the
+# worker, by hand, before `finish` ever runs. AGENTS.md says that is who
+# writes it, so it is a first-class starting state and not an oddity:
+# on it, step 2 writes nothing to the task and only step 3 does.
+# Committed on `main` so the branch's range carries no transition.
+hand_dated() {
+  sed "s/^completed: null\$/completed: $2/" "$1" > "$1.tmp"
+  mv "$1.tmp" "$1"
+  git_q -C "$TARGET" commit -q -am "the completion date, written by hand"
+  git_q -C "$TARGET" push -q origin main
+}
+
 # on_branch <branch> — the task branch the work happened on: one commit
 # that touches no permanent doc, so the delta contract of a spec
 # promising nothing is honoured.

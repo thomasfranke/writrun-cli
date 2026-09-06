@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"strings"
 	"testing"
@@ -30,11 +31,16 @@ type scriptExit int
 func (e scriptExit) Error() string { return fmt.Sprintf("exit status %d", int(e)) }
 func (e scriptExit) ExitCode() int { return int(e) }
 
-// reply is one canned run: what the script wrote, and how it ended.
+// reply is one canned run: what the script wrote, how it ended, and
+// what it did to the tree while it ran. `does` is what makes the
+// ledger's append and an editor's save modellable here at all — a
+// script writes to the filesystem from outside the vfs port, exactly as
+// `record_provenance.sh` does, and the undo has to answer for it.
 type reply struct {
 	out    string
 	errOut string
 	err    error
+	does   func()
 }
 
 // call is one invocation the fake recorded.
@@ -57,6 +63,9 @@ func (f *fakeScripts) run(root string, stdout, stderr io.Writer, script string, 
 	r := f.replies[script]
 	fmt.Fprint(stdout, r.out)
 	fmt.Fprint(stderr, r.errOut)
+	if r.does != nil {
+		r.does()
+	}
 	return r.err
 }
 
@@ -169,16 +178,108 @@ func specFixture(status, outcome string) string {
 // draft.
 const draftPR = `{"number":45,"title":"[TASK-0011] Finish a task","state":"OPEN","isDraft":true}`
 
+// denyAfterFirstWrite lets one write to a path land and refuses every
+// later one. The fail table can say "this path is not writable", which
+// is a different state: what a failed undo needs is a write that
+// succeeded and a put-back that cannot, and only a decorator can say
+// that (spec-0017, edge cases).
+type denyAfterFirstWrite struct {
+	vfs.FS
+	path string
+	err  error
+	seen bool
+}
+
+func (f *denyAfterFirstWrite) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	if name == f.path {
+		if f.seen {
+			return f.err
+		}
+		f.seen = true
+	}
+	return f.FS.WriteFile(name, data, perm)
+}
+
+// truncateThenFail is `os.WriteFile` losing the disk after O_TRUNC: the
+// file is left holding part of what was meant for it and the call
+// reports the failure. The fail table cannot say this — it refuses
+// before touching anything — and it is the state a journal that
+// recorded only completed writes had nothing to put back over
+// (spec-0017, edge cases).
+type truncateThenFail struct {
+	vfs.FS
+	path string
+	err  error
+	seen bool
+}
+
+func (f *truncateThenFail) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	// Once. The disk that lost the completion write is not the state
+	// the undo is being asked about — what is, is whether the journal
+	// has anything to put back over what the failed write left.
+	if name != f.path || f.seen {
+		return f.FS.WriteFile(name, data, perm)
+	}
+	f.seen = true
+	if err := f.FS.WriteFile(name, data[:len(data)/2], perm); err != nil {
+		return err
+	}
+	return f.err
+}
+
 // harness is one finish: every port faked, the streams captured.
 type harness struct {
 	scripts *fakeScripts
 	files   *vfs.Fake
-	git     *fakeGit
-	gh      *fakeGh
-	term    *command.FakeTerminal
-	ctx     *command.Ctx
-	out     bytes.Buffer
-	errb    bytes.Buffer
+	// fs is what the command is wired to — the fake tree, unless a
+	// case wrapped it. Seeds and reads go to files either way, so a
+	// decorator never has to answer for the fixture.
+	fs   vfs.FS
+	git  *fakeGit
+	gh   *fakeGh
+	term *command.FakeTerminal
+	ctx  *command.Ctx
+	out  bytes.Buffer
+	errb bytes.Buffer
+}
+
+// deniedAfterWrite makes the second write to rel fail — the undo, when
+// the first write was the completion edit.
+func (h *harness) deniedAfterWrite(rel string, err error) {
+	h.fs = &denyAfterFirstWrite{FS: h.files, path: path.Join(root, rel), err: err}
+}
+
+// mangledOnWrite makes the write to rel land half of its bytes and then
+// fail.
+func (h *harness) mangledOnWrite(rel string, err error) {
+	h.fs = &truncateThenFail{FS: h.files, path: path.Join(root, rel), err: err}
+}
+
+// ledgerAppends makes `record_provenance.sh` do what it really does:
+// append one entry to the task file, from outside the vfs port, after
+// the completion writes and before the gates.
+func (h *harness) ledgerAppends(entry string) {
+	h.scripts.replies[provenanceScript] = reply{
+		out: "appended to " + taskPath + ": " + entry + "\n",
+		does: func() {
+			p := path.Join(root, taskPath)
+			b, err := h.files.ReadFile(p)
+			if err != nil {
+				return
+			}
+			next := strings.Replace(string(b), "provenance: []\n", "provenance:\n  - {"+entry+"}\n", 1)
+			_ = h.files.WriteFile(p, []byte(next), 0o644)
+		},
+	}
+}
+
+// editedDuring makes a script's run stand for the seconds a human had
+// while it ran: the file is saved over, by somebody who is not this
+// command.
+func (h *harness) editedDuring(script, rel, content string) {
+	r := h.scripts.replies[script]
+	r.does = func() { _ = h.files.WriteFile(path.Join(root, rel), []byte(content), 0o644) }
+	h.scripts.replies[script] = r
 }
 
 // newHarness is the green path, ready to be spoiled one port at a time:
@@ -196,6 +297,7 @@ func newHarness(t *testing.T) *harness {
 		gh:   &fakeGh{view: draftPR},
 		term: &command.FakeTerminal{In: true, ConfirmAnswer: true},
 	}
+	h.fs = h.files
 	h.seed(taskPath, taskFixture("in-progress", "spec-0010", "null"))
 	h.seed(specPath, specFixture("approved", "What was built, and what diverged."))
 	h.ctx = &command.Ctx{Stdout: &h.out, Stderr: &h.errb, Terminal: h.term, Root: root, Adopted: true}
@@ -221,7 +323,7 @@ func (h *harness) deps() Deps {
 	at, _ := time.Parse(time.RFC3339, stamped)
 	return Deps{
 		Scripts: h.scripts.run,
-		Files:   h.files,
+		Files:   h.fs,
 		Git:     h.git.run,
 		Gh:      h.gh.run,
 		Now:     func() time.Time { return at },

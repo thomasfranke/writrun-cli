@@ -2,6 +2,7 @@ package finishcmd
 
 import (
 	"errors"
+	"path"
 	"strings"
 	"testing"
 
@@ -305,18 +306,303 @@ func TestPreflightNonZeroNeverReachesTheForge(t *testing.T) {
 	}
 }
 
-// A no leaves the forge untouched. The writes before it stand — they
-// are the spec's step 2, and rerunning finish is what carries them the
-// rest of the way.
-func TestADeclineNeverReachesTheForge(t *testing.T) {
+// A no leaves nothing behind: not the forge, and not the two writes
+// that ran before the question. The whole sentence, asserted over both
+// files (spec-0017, acceptance criteria; product/pull-requests/shape.md).
+func TestADeclineLeavesTheTreeAsItFoundIt(t *testing.T) {
 	h := newHarness(t)
 	h.term.ConfirmAnswer = false
+	beforeTask, beforeSpec := h.read(t, taskPath), h.read(t, specPath)
+
 	err := h.finish()
 	if !errors.Is(err, command.ErrDeclined) {
 		t.Fatalf("finish = %v, want ErrDeclined", err)
 	}
 	if h.gh.reached("pr ready") {
 		t.Errorf("the pull request was marked ready after a no: %v", h.gh.calls)
+	}
+	if got := h.read(t, taskPath); got != beforeTask {
+		t.Errorf("the task was left changed after a no:\n%s", got)
+	}
+	if got := h.read(t, specPath); got != beforeSpec {
+		t.Errorf("the spec was left changed after a no:\n%s", got)
+	}
+	if !strings.Contains(h.out.String(), "restored "+specPath) ||
+		!strings.Contains(h.out.String(), "restored "+taskPath) {
+		t.Errorf("stdout does not report both files put back:\n%s", h.out.String())
+	}
+}
+
+// The undo reaches every end that is not a success, not only the
+// question: a refused ledger, a non-zero preflight, and a forge that
+// will not answer all leave the queue as they found it (spec-0017,
+// step 1).
+func TestEveryFailureAfterTheWritesPutsThemBack(t *testing.T) {
+	cases := []struct {
+		name  string
+		spoil func(*harness)
+	}{
+		{"the ledger refuses", func(h *harness) {
+			h.scripts.replies[provenanceScript] = reply{errOut: "by= is required\n", err: scriptExit(1)}
+		}},
+		{"preflight is non-zero", func(h *harness) {
+			h.scripts.replies[preflightScript] = reply{errOut: "PREFLIGHT STOPPED\n", err: scriptExit(3)}
+		}},
+		{"the forge will not answer", func(h *harness) {
+			h.gh.viewErr = errors.New("gh pr view: no pull requests found for branch")
+		}},
+		{"the act itself fails", func(h *harness) {
+			h.gh.readyErr = errors.New("gh pr ready: HTTP 403")
+		}},
+		{"the pull request is merged", func(h *harness) {
+			h.gh.view = `{"number":45,"title":"x","state":"MERGED","isDraft":false}`
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			beforeTask, beforeSpec := h.read(t, taskPath), h.read(t, specPath)
+			tc.spoil(h)
+			if err := h.finish(); err == nil {
+				t.Fatal("finish = nil; the case was supposed to fail")
+			}
+			if got := h.read(t, taskPath); got != beforeTask {
+				t.Errorf("the task was left changed:\n%s", got)
+			}
+			if got := h.read(t, specPath); got != beforeSpec {
+				t.Errorf("the spec was left changed:\n%s", got)
+			}
+		})
+	}
+}
+
+// The script's own verdict survives the undo: a restored tree does not
+// turn preflight's 3 into a 1.
+func TestTheUndoCarriesTheScriptsVerdictUp(t *testing.T) {
+	h := newHarness(t)
+	h.scripts.replies[preflightScript] = reply{errOut: "PREFLIGHT STOPPED\n", err: scriptExit(3)}
+	if got := exitOf(h.finish()); got != 3 {
+		t.Errorf("exit = %d, want preflight's own 3", got)
+	}
+}
+
+// A rerun after a no behaves as the first run did — the decline left
+// nothing for a second run to report as already done (spec-0017,
+// acceptance criteria).
+func TestARerunAfterADeclineBehavesLikeTheFirstRun(t *testing.T) {
+	h := newHarness(t)
+	h.term.ConfirmAnswer = false
+	if err := h.finish(); !errors.Is(err, command.ErrDeclined) {
+		t.Fatalf("the first finish = %v, want ErrDeclined", err)
+	}
+
+	h.out.Reset()
+	h.term.ConfirmAnswer = true
+	if err := h.finish(); err != nil {
+		t.Fatalf("the second finish = %v", err)
+	}
+	out := h.out.String()
+	if strings.Contains(out, "unchanged") {
+		t.Errorf("the rerun reported a file as already written:\n%s", out)
+	}
+	if !strings.Contains(out, "wrote completed: "+stamped+" on "+taskPath) {
+		t.Errorf("the rerun did not write the completion:\n%s", out)
+	}
+	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+		t.Errorf("spec status = %q, want implemented", got)
+	}
+	if !h.gh.reached("pr ready 45") {
+		t.Error("the rerun never marked the pull request ready")
+	}
+}
+
+// A task with no spec has one write, not two, and the same guarantee
+// holds over it (spec-0017, edge cases).
+func TestATaskWithNoSpecIsRestoredToo(t *testing.T) {
+	h := newHarness(t)
+	h.seed(taskPath, taskFixture("in-progress", "", "null"))
+	h.term.ConfirmAnswer = false
+	before := h.read(t, taskPath)
+	if err := h.finish(); !errors.Is(err, command.ErrDeclined) {
+		t.Fatalf("finish = %v, want ErrDeclined", err)
+	}
+	if got := h.read(t, taskPath); got != before {
+		t.Errorf("the task was left changed after a no:\n%s", got)
+	}
+}
+
+// Under --yes there is no question and so no decline: the writes stand
+// and the pull request is marked ready (spec-0017, edge cases).
+func TestYesLeavesTheWritesStanding(t *testing.T) {
+	h := newHarness(t)
+	h.term.In = false
+	h.ctx.Yes = true
+	if err := h.finish(); err != nil {
+		t.Fatalf("finish = %v", err)
+	}
+	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+		t.Errorf("spec status = %q; --yes undid a write it never questioned", got)
+	}
+	if got := field([]byte(h.read(t, taskPath)), "completed"); got != stamped {
+		t.Errorf("completed = %q, want %q", got, stamped)
+	}
+	if strings.Contains(h.out.String(), "restored") {
+		t.Errorf("a successful run put its own writes back:\n%s", h.out.String())
+	}
+}
+
+// An undo the filesystem refuses says so and exits non-zero — never a
+// quiet "declined — nothing changed" over a tree that did change
+// (spec-0017, edge cases).
+func TestARestoreThatFailsSaysSo(t *testing.T) {
+	h := newHarness(t)
+	h.term.ConfirmAnswer = false
+	// Writable once, then not: the completion edit lands and the undo
+	// cannot put it back.
+	h.deniedAfterWrite(specPath, errors.New("read-only file system"))
+
+	err := h.finish()
+	if err == nil {
+		t.Fatal("a failed restore exited 0")
+	}
+	if errors.Is(err, command.ErrDeclined) {
+		t.Errorf("the failure still reads as a plain decline: %v", err)
+	}
+	if !strings.Contains(err.Error(), specPath) || !strings.Contains(err.Error(), "by hand") {
+		t.Errorf("the failure does not name the file left changed: %v", err)
+	}
+	if got := field([]byte(h.read(t, specPath)), "status"); got != "implemented" {
+		t.Errorf("spec status = %q; the fake did not leave the write standing", got)
+	}
+}
+
+// The ledger's append is undone with everything else, on the path where
+// the completion date was already there. The worker dates the task by
+// hand — AGENTS.md says that is who writes it — so step 2 writes
+// nothing to the task, and a journal that remembered only its own
+// writes left the entry `record_provenance.sh` appended sitting in the
+// tree under the words "declined — nothing changed" (spec-0017;
+// product/pull-requests/shape.md).
+func TestADeclineUndoesTheLedgerAppendWhenTheDateWasAlreadyThere(t *testing.T) {
+	h := newHarness(t)
+	h.seed(taskPath, taskFixture("in-progress", "spec-0010", "2026-09-01T00:00:00Z"))
+	h.ledgerAppends("by: human, login: octocat")
+	h.term.ConfirmAnswer = false
+	beforeTask, beforeSpec := h.read(t, taskPath), h.read(t, specPath)
+
+	if err := h.finish(); !errors.Is(err, command.ErrDeclined) {
+		t.Fatalf("finish = %v, want ErrDeclined", err)
+	}
+	if got := h.read(t, taskPath); got != beforeTask {
+		t.Errorf("the ledger entry was left behind after a no:\n%s", got)
+	}
+	if got := h.read(t, specPath); got != beforeSpec {
+		t.Errorf("the spec was left changed after a no:\n%s", got)
+	}
+}
+
+// The same undo on the path where the date was written by this run: the
+// entry goes back with the date, because it records an act that did not
+// happen (spec-0017; report-0017 carries the tension with
+// record_provenance.sh's append-only contract to triage).
+func TestADeclineUndoesTheLedgerAppendBesideTheDateItWrote(t *testing.T) {
+	h := newHarness(t)
+	h.ledgerAppends("by: agent, model: claude-opus-5, login: octocat")
+	h.term.ConfirmAnswer = false
+	beforeTask := h.read(t, taskPath)
+
+	if err := h.finish(); !errors.Is(err, command.ErrDeclined) {
+		t.Fatalf("finish = %v, want ErrDeclined", err)
+	}
+	if got := h.read(t, taskPath); got != beforeTask {
+		t.Errorf("the task was left changed after a no:\n%s", got)
+	}
+	if strings.Contains(h.read(t, taskPath), "octocat") {
+		t.Error("the ledger entry survived the undo")
+	}
+}
+
+// A success keeps it. The undo fires on no path the pull request
+// reached, so the entry the ledger appended stands with the two writes.
+func TestASuccessKeepsTheLedgerAppend(t *testing.T) {
+	h := newHarness(t)
+	h.ledgerAppends("by: agent, model: claude-opus-5, login: octocat")
+
+	if err := h.finish(); err != nil {
+		t.Fatalf("finish = %v", err)
+	}
+	if !strings.Contains(h.read(t, taskPath), "octocat") {
+		t.Errorf("a successful run undid the ledger entry:\n%s", h.read(t, taskPath))
+	}
+	if strings.Contains(h.out.String(), "restored") {
+		t.Errorf("a successful run put its own writes back:\n%s", h.out.String())
+	}
+}
+
+// A write that fails after truncating the file has still left
+// something, and it is put back — the journal remembers the file before
+// the write is attempted, not the write after it succeeded.
+func TestAWriteThatMangledTheFileIsStillPutBack(t *testing.T) {
+	h := newHarness(t)
+	before := h.read(t, specPath)
+	h.mangledOnWrite(specPath, errors.New("input/output error"))
+
+	err := h.finish()
+	if err == nil {
+		t.Fatal("finish = nil; the write was supposed to fail")
+	}
+	if got := h.read(t, specPath); got != before {
+		t.Errorf("the half-written spec was left in the tree:\n%s", got)
+	}
+	if h.gh.reached("pr ") {
+		t.Error("the forge was reached after a failed write")
+	}
+}
+
+// A file somebody else changed while `preflight.sh` ran is not this
+// run's to revert: the undo leaves it, says so, and the failure names
+// it rather than reporting a tree it did not put back.
+func TestAFileChangedUnderTheRunIsLeftAlone(t *testing.T) {
+	h := newHarness(t)
+	h.scripts.replies[preflightScript] = reply{errOut: "PREFLIGHT STOPPED\n", err: scriptExit(3)}
+	h.editedDuring(preflightScript, specPath, specFixture("implemented", "Rewritten in an editor while the gates ran."))
+
+	err := h.finish()
+	if err == nil {
+		t.Fatal("finish = nil; preflight was supposed to fail")
+	}
+	if !strings.Contains(h.read(t, specPath), "Rewritten in an editor") {
+		t.Error("the undo reverted an edit that was not this run's")
+	}
+	if !strings.Contains(err.Error(), specPath) || !strings.Contains(err.Error(), "by hand") {
+		t.Errorf("the failure does not name the file left changed: %v", err)
+	}
+	if !strings.Contains(h.out.String(), "left "+specPath+" alone") {
+		t.Errorf("the run did not say it left the file alone:\n%s", h.out.String())
+	}
+	// The task is this run's own and goes back regardless.
+	if got := field([]byte(h.read(t, taskPath)), "completed"); got != "null" {
+		t.Errorf("completed = %q, want null", got)
+	}
+}
+
+// A file the undo cannot even read is a file it will not write over.
+func TestAFileTheUndoCannotReadIsNotWrittenOver(t *testing.T) {
+	h := newHarness(t)
+	h.term.ConfirmAnswer = false
+	h.scripts.replies[preflightScript] = reply{does: func() {
+		h.files.Fail(path.Join(root, specPath), errors.New("read-only file system"))
+	}}
+
+	err := h.finish()
+	if err == nil {
+		t.Fatal("a restore that could not read its file exited 0")
+	}
+	if errors.Is(err, command.ErrDeclined) {
+		t.Errorf("the failure still reads as a plain decline: %v", err)
+	}
+	if !strings.Contains(err.Error(), specPath) {
+		t.Errorf("the failure does not name the file: %v", err)
 	}
 }
 
