@@ -4,9 +4,10 @@
 // and the pull request marked ready on the human's word. Every check is
 // the adopted repository's own script; what this command adds is the
 // order, the two writes those scripts do not make, the question before
-// the forge, and the undo that keeps a refusal from leaving those two
-// writes behind (docs/product/pull-requests/finish.md, spec-0010,
-// spec-0017).
+// the forge, and the undo that keeps a refusal — or a signal — from
+// leaving those two writes behind
+// (docs/product/pull-requests/finish.md, spec-0010, spec-0017,
+// spec-0021).
 package finishcmd
 
 import (
@@ -16,10 +17,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
@@ -49,6 +52,10 @@ type Deps struct {
 	Gh func(args ...string) (string, error)
 	// Now stamps the task's `completed` date.
 	Now func() time.Time
+	// Die ends the process after a caught signal's undo has run.
+	// Production is finishcmd.Die; a suite supplies its own, because a
+	// case that let the production one run would kill the test binary.
+	Die func(sig os.Signal)
 }
 
 // ledgerFlags is record_provenance.sh's own vocabulary, offered as
@@ -154,6 +161,12 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		undo.remember(s.path, s.content)
 	}
 	undo.remember(taskPath, task)
+	// The undo, on the one path returning does not reach. A signal
+	// between here and the end of the confirmation runs the same
+	// restore and then kills the process with the signal's own status;
+	// an end reached on its own disarms it (spec-0021).
+	sig := arm(ctx, d, undo)
+	defer sig.disarm()
 	for _, s := range specs {
 		if err := write(ctx, d, undo, s.path, s.content, "status", "implemented"); err != nil {
 			return undo.restore(ctx, d, err)
@@ -207,9 +220,14 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// here, or a forge that will not answer, ends with the two writes
 	// undone: the order stands and the refusal still leaves nothing
 	// behind (spec-0017, step 1).
-	if err := markReady(ctx, d, taskID, specs); err != nil {
+	if err := markReady(ctx, d, sig, taskID, specs); err != nil {
 		return undo.restore(ctx, d, err)
 	}
+	// The writes stand from here on: a signal arriving after the pull
+	// request was marked ready still kills the process, and the undo
+	// it would have run is sealed shut (spec-0021, acceptance
+	// criteria).
+	undo.seal()
 	return nil
 }
 
@@ -232,8 +250,20 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 // path where the worker had already dated the task by hand, which is
 // the flow AGENTS.md describes. What is remembered is the file as this
 // command found it; what is put back is that.
+//
+// **The undo runs at most once, whoever asks for it.** Two callers can
+// ask at the same instant: a signal caught mid-`preflight.sh` reaches
+// the child too, so the guard's undo and the one the script's non-zero
+// verdict triggers race each other. The mutex makes the second caller
+// wait for the first and then find the work done, so no restore is left
+// half made and nothing is put back twice (spec-0021, edge cases).
 type journal struct {
+	mu      sync.Mutex
 	entries []undone
+	// undone says a restore has already run; sealed says the command
+	// succeeded and there is nothing to put back any more.
+	undone bool
+	sealed bool
 }
 
 // undone is one file, the bytes it carried before this command touched
@@ -255,6 +285,8 @@ type undone struct {
 // it. It is called once per file and ignores a second call, so a task
 // naming the same spec twice is remembered once.
 func (j *journal) remember(rel string, before []byte) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	for _, e := range j.entries {
 		if e.rel == rel {
 			return
@@ -267,6 +299,8 @@ func (j *journal) remember(rel string, before []byte) {
 // left records what this command put in the file, so the undo can tell
 // its own edit from somebody else's.
 func (j *journal) left(rel string, after []byte) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	for i := range j.entries {
 		if j.entries[i].rel == rel {
 			j.entries[i].after = append([]byte(nil), after...)
@@ -278,6 +312,8 @@ func (j *journal) left(rel string, after []byte) {
 // unknown says the command's last act on the file did not complete, so
 // the undo may not ask what the file holds before putting it back.
 func (j *journal) unknown(rel string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
 	for i := range j.entries {
 		if j.entries[i].rel == rel {
 			j.entries[i].after = nil
@@ -305,6 +341,12 @@ func (j *journal) unknown(rel string) {
 // more than carrying a code up, because the frame passes an exit code
 // through without printing a word (spec-0017, edge cases).
 func (j *journal) restore(ctx *command.Ctx, d Deps, cause error) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.undone || j.sealed {
+		return cause
+	}
+	j.undone = true
 	var failed, foreign []string
 	for i := len(j.entries) - 1; i >= 0; i-- {
 		e := j.entries[i]
@@ -344,6 +386,15 @@ func (j *journal) restore(ctx *command.Ctx, d Deps, cause error) error {
 			cause, strings.Join(foreign, ", "))
 	}
 	return cause
+}
+
+// seal closes the undo: the command succeeded, so the writes are the
+// outcome rather than a refusal's leftovers and no later restore may
+// take them back.
+func (j *journal) seal() {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.sealed = true
 }
 
 // spec is one of the branch's specs: where it lives and what it says.
@@ -410,7 +461,11 @@ type pullRequest struct {
 // markReady shows the composition and, on the human's word, marks the
 // pull request ready for review — the one act of this command that
 // reaches the forge, and the only one behind a question.
-func markReady(ctx *command.Ctx, d Deps, taskID string, specs []spec) error {
+//
+// The question is asked with the signal guard stood down, because the
+// prompt answers SIGINT and SIGTERM itself and its error runs the same
+// undo on the way up (spec-0021, step 5).
+func markReady(ctx *command.Ctx, d Deps, sig *guard, taskID string, specs []spec) error {
 	out, err := d.Gh("pr", "view", "--json", "number,title,state,isDraft")
 	if err != nil {
 		return fmt.Errorf("reading this branch's pull request: %w", err)
@@ -438,7 +493,10 @@ func markReady(ctx *command.Ctx, d Deps, taskID string, specs []spec) error {
 	fmt.Fprintf(ctx.Stdout, "\nready for review:\n  task           %s\n  specs          %s\n  pull request   #%d %s\n",
 		taskID, shown, pr.Number, pr.Title)
 
-	if err := ctx.AskConfirm(fmt.Sprintf("Mark pull request #%d ready for review?", pr.Number)); err != nil {
+	err = sig.whileAsking(func() error {
+		return ctx.AskConfirm(fmt.Sprintf("Mark pull request #%d ready for review?", pr.Number))
+	})
+	if err != nil {
 		return err
 	}
 	if _, err := d.Gh("pr", "ready", strconv.Itoa(pr.Number)); err != nil {

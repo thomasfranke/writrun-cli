@@ -228,6 +228,66 @@ finish_cmd() {
   return $code
 }
 
+# MARKER is the file the slowed script makes when it starts, so a case
+# waits for the window instead of guessing at how long the steps before
+# it take.
+MARKER="$WORK/the-window"
+
+# slow_script <path-under-target> <seconds> — a step of the sequence
+# kept running long enough for a signal to arrive while it holds it.
+# The two lines go in under the shebang and the change is committed, so
+# the branch still starts from a tree with nothing to commit.
+slow_script() {
+  awk -v s="$2" -v m="$MARKER" '
+    NR == 1 { print; printf ": > \"%s\"\n", m; printf "sleep %s\n", s; next }
+    { print }
+  ' "$TARGET/$1" > "$TARGET/slowed.tmp"
+  mv "$TARGET/slowed.tmp" "$TARGET/$1"
+  chmod +x "$TARGET/$1"
+  git_q -C "$TARGET" commit -q -am "the step, slowed"
+}
+
+# finish_into_a_signal <signal> [args…] — one `writrun finish` with the
+# signal sent once the slowed step has the sequence, and the status the
+# shell reports for it: 128+n when the signal killed the process.
+#
+# `set -m` is what makes the run answerable at all: a shell with job
+# control off starts a background job with SIGINT ignored, and a run
+# that ignores the signal is not the run under test. It also gives the
+# job its own process group, so the scripts under it are not left
+# running against the fixture once the case has moved on.
+finish_into_a_signal() {
+  local sig="$1"; shift
+  set -m
+  rm -f "$MARKER"
+  "$WRITRUN" finish "$@" > "$FINISH_OUT" 2>&1 &
+  local pid=$! waited=0
+  while [ ! -e "$MARKER" ]; do
+    sleep 0.1
+    waited=$((waited + 1))
+    if [ "$waited" -gt 300 ]; then
+      printf 'the slowed step never started\n'
+      kill "$pid" 2>/dev/null
+      wait "$pid" 2>/dev/null
+      return 1
+    fi
+  done
+  kill -"$sig" "$pid"
+  wait "$pid"; local code=$?
+  cat "$FINISH_OUT"
+  return $code
+}
+
+# tree_is_clean — the whole guarantee in one predicate, printing what it
+# found so a failure names the file it was left in.
+tree_is_clean() {
+  local out
+  out=$(git_q -C "$TARGET" status --porcelain)
+  [ -z "$out" ] && return 0
+  printf 'the signalled finish left:\n%s\n' "$out"
+  return 1
+}
+
 # field <field> <file> — one front-matter value, the front matter alone.
 field() {
   awk -v f="$1" '
