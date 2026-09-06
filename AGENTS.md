@@ -54,6 +54,7 @@ They are not auto-discovered — load per this table:
 | Trigger | Skill |
 |---|---|
 | Writing or editing any markdown this project owns — `docs/`, `README.md`, this file, `work/` bodies, skills | [`.ai/skills/docs/SKILL.md`](.ai/skills/docs/SKILL.md) |
+| Touching `init`, `update`, `uninstall`, `doctor`, or any path inside `.writrun/` | [`.ai/skills/kit/SKILL.md`](.ai/skills/kit/SKILL.md) |
 
 ## WritRun — working the queue
 
