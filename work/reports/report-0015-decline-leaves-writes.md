@@ -1,15 +1,15 @@
 ---
 id: report-0015
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0018]
 doc_ref: product/pull-requests/shape.md
 created: 2026-09-05T18:22:16Z
-triaged: null
+triaged: 2026-09-05T19:11:04Z
 ---
 
 # A declined finish leaves the spec implemented and the completion date behind
 
-**References:** [product/pull-requests/shape.md](../../docs/product/pull-requests/shape.md)
+**References:** [product/pull-requests/shape.md](../../docs/product/pull-requests/shape.md) · [task-0018](../tasks/task-0018-finish-write-order.md)
 
 `shape.md` says a refused pull-request command leaves nothing behind —
 "no half-written status, no orphan branch" — while spec-0010 fixes an

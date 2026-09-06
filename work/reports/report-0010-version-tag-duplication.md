@@ -1,13 +1,15 @@
 ---
 id: report-0010
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0019]
 doc_ref: null
 created: 2026-09-05T18:20:11Z
-triaged: null
+triaged: 2026-09-05T19:11:12Z
 ---
 
 # Three packages will read .writrun/VERSION and compare tags
+
+**References:** [task-0019](../tasks/task-0019-consolidate-duplication.md)
 
 `updatecmd` reads `.writrun/VERSION` in `recordedTag` and orders two
 tags in `compareTags`/`parseTag`; `statuscmd`, added by task-0014, now
