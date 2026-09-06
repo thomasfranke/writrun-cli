@@ -1,10 +1,10 @@
 ---
 id: report-0025
-status: open
+status: declined
 task_ref: []
 doc_ref: null
 created: 2026-09-06T03:06:41Z
-triaged: null
+triaged: 2026-09-06T03:37:02Z
 ---
 
 # take_task.sh names a resume it refuses, and never writes the commit the pull request needs
@@ -33,3 +33,23 @@ anchoring commit; the machinery then wrote `in-progress` and `taken_by`
 from the draft event as usual. `writrun author` and `writrun amend`
 carry their own version of the same seam — the resume after a landed
 push — recorded in this round's review as findings on both.
+
+**Triage — declined.** Not this repository's to act on. `take_task.sh`
+lives in `.writrun/scripts/`, which `internal/kitpaths` lists as
+installed kit: it arrives with `writrun init`, is replaced by `writrun
+update`, and has been touched here exactly once, by the adoption commit.
+This project is the porcelain — "it packages; it never decides"
+(`about.md`) — so a defect wholly inside a methodology script has no
+half here to fix, and a patch made here would be overwritten by the next
+refresh.
+
+Nor does it need carrying upstream: the finding is already fixed in
+WritRun. What is left is the record of why a session tripped on it — the
+draft for task-0021 was opened by hand because of it — and that is worth
+keeping where the next reader of this queue will find it.
+
+The distinction against its siblings is the subject, not the file it
+names: report-0017 and report-0022 also cite kit scripts, but their
+subjects are this binary's own behaviour — `finish`'s undo reversing a
+ledger entry, and `amend` not judging a vocabulary. This one's subject
+is the script itself.
