@@ -1,10 +1,10 @@
 ---
 id: report-0023
-status: open
+status: authored
 task_ref: []
 doc_ref: product/pull-requests/amend.md
 created: 2026-09-06T01:30:21Z
-triaged: null
+triaged: 2026-09-06T04:24:32Z
 ---
 
 # amend.md says neither what the command writes nor that its pull request opens ready
@@ -24,3 +24,16 @@ ready is the one thing amend does differently from all three, and
 appears anywhere under `docs/`. spec-0011 promised no product change and
 `check_deltas.sh` enforces that promise, so this was seen while
 implementing it and not acted on.
+
+**Triage — authored.** No rule said what `amend` writes or how its pull
+request opens, and `amend.md` now says both, plus that the body names
+the pull request the amendment suspends.
+
+**A correction to this report.** It says opening ready is the one thing
+`amend` does differently from all three siblings. `author` opens ready
+too — its package doc says "opened **ready**, never draft" and its
+suite asserts `--draft` is absent — and `author.md` was equally silent.
+The chapter was short one sentence on two pages, not one, so
+`author.md` gained the same line in the same change.
+
+Derivation is none: the code already does what the new sentences say.
