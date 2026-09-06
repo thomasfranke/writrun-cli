@@ -26,21 +26,122 @@ func TestStageTwoMakesNoIssuesRead(t *testing.T) {
 	}
 }
 
-func TestTheForgeSettingsAreNamedWhenTheyDiffer(t *testing.T) {
-	cases := []struct{ name, key, reply, expect string }{
-		{"squash merging off",
-			"api repos/{owner}/{repo} --jq .allow_squash_merge", "false\n",
-			"squash merging is off"},
-		{"workflow permissions read-only",
-			"api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions", "read\n",
-			"the Actions workflow permissions are read-only"},
+func TestSquashMergingOffIsNamed(t *testing.T) {
+	f := newFixture(t, "3")
+	f.forge.replies["api repos/{owner}/{repo} --jq .allow_squash_merge"] = "false\n"
+	only(t, f.findings(), 2, breaks, "squash merging is off")
+}
+
+// A repository default of read is the tighter arrangement, not a
+// defect: the workflows that record raise `contents: write` for
+// themselves and the ones that never push stay on read (spec-0019).
+func TestAReadDefaultPassesWhereEveryPushingWorkflowRaisesTheRight(t *testing.T) {
+	cases := []struct{ name, workflow string }{
+		{"contents: write on the workflow", recordingWorkflow},
+		{"write-all on the workflow", writeAllWorkflow},
+		{"contents: write on the job", jobWriteWorkflow},
+		{"a push to another branch", branchWorkflow},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			f := newFixture(t, "3")
-			f.forge.replies[c.key] = c.reply
-			only(t, f.findings(), 2, breaks, c.expect)
+			readDefault(f)
+			write(t, f.root, workflowsDir+"/record.yml", c.workflow)
+			if found := f.findings(); len(found) != 0 {
+				t.Errorf("findings = %d, want none:\n%s", len(found), texts(found))
+			}
 		})
+	}
+}
+
+// A repository with no workflow file has no recording push, so a
+// default of read stops nothing.
+func TestAReadDefaultWithNoWorkflowIsNoFinding(t *testing.T) {
+	f := newFixture(t, "3")
+	readDefault(f)
+	if found := f.findings(); len(found) != 0 {
+		t.Errorf("findings = %d, want none:\n%s", len(found), texts(found))
+	}
+}
+
+func TestAPushingWorkflowThatRaisesNothingIsNamed(t *testing.T) {
+	f := newFixture(t, "3")
+	readDefault(f)
+	write(t, f.root, workflowsDir+"/record.yml", silentWorkflow)
+	found := f.findings()
+	only(t, found, 2, breaks, ".github/workflows/record.yml pushes to main and raises no `contents: write` of its own")
+	if breaking(found) != 1 {
+		t.Errorf("breaking findings = %d, want 1:\n%s", breaking(found), texts(found))
+	}
+}
+
+// Only a `permissions:` block grants the right. `contents: write`
+// written under another key says nothing about what the workflow may
+// do, and the block ends where the indentation returns to the key's
+// own.
+func TestContentsWriteOutsideAPermissionsBlockGrantsNothing(t *testing.T) {
+	f := newFixture(t, "3")
+	readDefault(f)
+	write(t, f.root, workflowsDir+"/record.yml", strayWriteWorkflow)
+	only(t, f.findings(), 2, breaks, ".github/workflows/record.yml pushes to main")
+}
+
+// An empty bypass list denies nothing where the ruleset enables no rule
+// a fast-forward push meets — the finding report-0013 recorded against
+// a repository whose recording push lands.
+func TestAnEmptyBypassListWithNothingToBypassIsNoFinding(t *testing.T) {
+	f := newFixture(t, "3")
+	f.forge.replies["api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type"] = "\n"
+	if found := f.findings(); len(found) != 0 {
+		t.Errorf("findings = %d, want none:\n%s", len(found), texts(found))
+	}
+}
+
+func TestARuleThatRefusesThePushWithNoBypassActorNamesTheRule(t *testing.T) {
+	f := newFixture(t, "3")
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "deletion\nupdate\n"
+	f.forge.replies["api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type"] = "\n"
+	found := f.findings()
+	only(t, found, 2, breaks, "ruleset 42 governs main, enables update (restrict updates) and names no bypass actor")
+	only(t, found, 2, breaks, "the rule update (restrict updates) is on for main")
+}
+
+// A rule one ruleset enables is not the other ruleset's: the forge
+// answers the rules on main as one array, and the entry's ruleset_id
+// says whose bypass list would let the bot past it.
+func TestTheBypassFindingNamesOnlyTheRulesetThatEnablesTheRule(t *testing.T) {
+	f := newFixture(t, "3")
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "deletion\nupdate\n"
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "42\n43\n"
+	f.forge.replies["api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type"] = "\n"
+	f.forge.replies["api repos/{owner}/{repo}/rulesets/43 --jq (.bypass_actors // [])[].actor_type"] = "Integration\n"
+	found := f.findings()
+	for _, got := range found {
+		if strings.Contains(got.text, "ruleset 42 governs main, enables") {
+			t.Errorf("ruleset 42 was named for a rule ruleset 43 enables:\n%s", texts(found))
+		}
+	}
+	only(t, found, 2, breaks, "the rule update (restrict updates) is on for main")
+}
+
+// The shape report-0013 recorded against this repository: workflow
+// permissions of read with every pushing workflow raising
+// `contents: write`, and a protect-main ruleset with no bypass actor
+// whose four rules a fast-forward push meets. It reported two findings
+// and must report none.
+func TestThisRepositoryHasNoStageTwoFinding(t *testing.T) {
+	f := newFixture(t, "3")
+	readDefault(f)
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "deletion\nnon_fast_forward\ncreation\nrequired_linear_history\n"
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "22247734\n22247734\n22247734\n22247734\n"
+	f.forge.replies["api repos/{owner}/{repo}/rulesets/22247734 --jq (.bypass_actors // [])[].actor_type"] = "\n"
+
+	found, reachable := stage2(repoRoot(t), f.deps())
+	if !reachable {
+		t.Fatal("the forge was reported unreachable")
+	}
+	if len(found) != 0 {
+		t.Errorf("findings = %d, want none against this repository:\n%s", len(found), texts(found))
 	}
 }
 
@@ -92,16 +193,6 @@ func TestAnUnprotectedMainIsARecommendation(t *testing.T) {
 	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "\n"
 	found := f.findings()
 	only(t, found, 2, advises, "main is governed by no ruleset")
-	if breaking(found) != 0 {
-		t.Errorf("a recommendation broke a flow:\n%s", texts(found))
-	}
-}
-
-func TestAnEmptyBypassListIsARecommendation(t *testing.T) {
-	f := newFixture(t, "3")
-	f.forge.replies["api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type"] = "\n"
-	found := f.findings()
-	only(t, found, 2, advises, "ruleset 42 governs main and names no bypass actor")
 	if breaking(found) != 0 {
 		t.Errorf("a recommendation broke a flow:\n%s", texts(found))
 	}

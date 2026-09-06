@@ -42,6 +42,103 @@ A project.
 <!-- writrun:end -->
 `
 
+// The workflow files a case writes into `.github/workflows`, read only
+// where the repository default is `read` — the arrangement in which
+// each workflow's own `permissions:` block decides whether its push has
+// the right to write.
+const (
+	// recordingWorkflow pushes to the branch a variable names, which
+	// main is one value of, and raises the right at workflow level.
+	recordingWorkflow = `name: record
+on: [pull_request]
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git push origin "HEAD:${BASE_REF}"
+`
+	// writeAllWorkflow says the same grant in one word.
+	writeAllWorkflow = `name: record
+on: [pull_request]
+permissions: write-all
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git push origin main
+`
+	// jobWriteWorkflow raises the right on the job rather than the
+	// workflow, which grants it just the same.
+	jobWriteWorkflow = `name: record
+on: [pull_request]
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - run: git push origin main
+`
+	// branchWorkflow pushes to a branch that is not main, so what it
+	// may write is not stage 2's business.
+	branchWorkflow = `name: pages
+on: [push]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git push origin HEAD:gh-pages
+`
+	// silentWorkflow pushes to main and raises nothing — the one
+	// arrangement a repository default of read leaves unable to record.
+	silentWorkflow = `name: record
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git push origin "HEAD:${BASE_REF}"
+`
+	// strayWriteWorkflow writes `contents: write` where no
+	// `permissions:` key governs it, which grants nothing.
+	strayWriteWorkflow = `name: record
+on: [pull_request]
+env:
+  contents: write
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - run: git push origin main
+`
+)
+
+// readDefault sets the repository's Actions default to read — the
+// tighter arrangement, in which the workflow files answer the question.
+func readDefault(f *fixture) {
+	f.forge.replies["api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions"] = "read\n"
+}
+
+// repoRoot is this repository, from the directory the package's tests
+// run in: the live `.github/workflows` the report-0013 regression is
+// about.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatalf("the repository root could not be resolved: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(workflowsDir))); err != nil {
+		t.Fatalf("%s holds no %s: %v", root, workflowsDir, err)
+	}
+	return root
+}
+
 // healthyForge is every forge read answered the way the methodology
 // assumes: squash on, workflow permissions read-and-write, main
 // governed by a ruleset that names a bypass actor and none of the four
