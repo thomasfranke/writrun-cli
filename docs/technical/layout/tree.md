@@ -14,6 +14,8 @@
 | `internal/hook/` | The commit-message hook: its text, where git keeps it, whether it is still ours. |
 | `internal/kitpaths/` | What `init` installs, listed once — what `update` refreshes and `uninstall` removes. |
 | `internal/kitfetch/` | The shallow clone of a pinned WritRun tag — the port, the clone, and the fake. |
+| `internal/kittag/` | The tag `.writrun/VERSION` records — read once, ordered or matched. |
+| `internal/requirements/` | What the wrapped scripts need on the PATH, listed once. |
 | `scripts/` | This project's own machinery (the release path), not the methodology's. |
 | `Makefile` | Thin aliases over `scripts/` and the suite — every target in [Makefile](makefile.md). |
 | `tests/` | The suite — see [Testing](../testing/README.md). |
