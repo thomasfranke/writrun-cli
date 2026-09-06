@@ -4,9 +4,11 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/thomasfranke/writrun-cli/internal/agentx"
@@ -27,6 +29,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/screen"
 	"github.com/thomasfranke/writrun-cli/internal/term"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 	"github.com/thomasfranke/writrun-cli/internal/wrepo"
@@ -65,6 +68,7 @@ func main() {
 		FindRepo:   func(dir string) (string, bool, error) { return wrepo.Find(disk, dir) },
 		Getenv:     os.Getenv,
 		Getwd:      os.Getwd,
+		Screen:     openScreen,
 	}, os.Args[1:]))
 }
 
@@ -156,3 +160,31 @@ func terminal() term.Terminal {
 	}
 	return t
 }
+
+// openScreen is the frame's screen port in production: the queue read
+// by the selection skill's own lister — the same authority `writrun
+// list` wraps, so the two cannot become two answers about one queue —
+// and then shown for a key.
+//
+// The lister's own reporting is captured rather than streamed: it is
+// the screen's content, not a message to print behind it. A lister that
+// fails is reported and no screen opens.
+func openScreen(ctx *command.Ctx) (string, string, error) {
+	var out, errb bytes.Buffer
+	if err := kit.Run(ctx.Root, &out, &errb, listerScript); err != nil {
+		if msg := strings.TrimSpace(errb.String()); msg != "" {
+			return "", "", fmt.Errorf("%s", msg)
+		}
+		return "", "", err
+	}
+	action, err := screen.Open(out.String(), os.Stdin, os.Stdout)
+	if err != nil {
+		return "", "", err
+	}
+	return action.Command, action.Arg, nil
+}
+
+// listerScript is the selection skill's lister, named here as listcmd
+// names it — one path, two callers, and neither reimplements what it
+// decides.
+const listerScript = ".writrun/skills/writrun-select-next-task/list_tasks.sh"

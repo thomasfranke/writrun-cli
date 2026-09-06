@@ -89,4 +89,39 @@ here re-tests them.
 
 ## Outcome
 
-_(fill after execution)_
+**The screen is `internal/screen`, and the routing is the frame's.**
+`Parse` turns the lister's output into rows and keeps every line
+verbatim; the model holds the five keys and the selection; `Open` runs
+the program and returns the action. `cmd/writrun` wires the port to
+`.writrun/skills/writrun-select-next-task/list_tasks.sh` — the path
+`listcmd` already names, so the two commands cannot become two answers
+about one queue.
+
+**Every task row is selectable, including one that cannot be taken.**
+This spec said two things and they disagreed: step 3 called a held-back
+entry unselectable, and Edge cases gave `take`'s own refusal as the
+answer for a task that is not `ready`. The Edge case won. "The screen
+offers no action a command does not already provide" cuts both ways —
+it must not withhold one either — and a screen that hid a row would be
+judging a task, which `screen.md` reserves to the command. The reason
+is at `screen.Row`, where the next reader meets it.
+
+**Adoption is read, not enforced.** `NeedAdopted` prints a refusal, and
+the rule asks for the help; so the no-command path calls `FindRepo`
+itself and falls back to `help`. That is the one caller that wants the
+fact without the verdict, and it is said at `openScreen`.
+
+**The screen closes before the command runs.** The action is a value
+returned rather than a call made from inside the model, because a huh
+form rendering underneath a live Bubble Tea program is two programs
+holding one terminal. The dispatched command's exit code is the
+process's; `TestTheDispatchedCommandsCodeIsTheProcesss` pins it.
+
+**`Frame.Screen` is nil-able**, and nil prints the help — a binary
+built without a screen behaves as this one did before there was one.
+
+Not done here: no Makefile target launches the screen. The target's row
+would have to change `technical/layout/makefile.md`, which this spec
+did not promise, and `check_promised_deltas.sh` treats a change moving
+no spec to `implemented` as having no delta to check — so it belongs to
+a trivial branch of its own, not to this one.
