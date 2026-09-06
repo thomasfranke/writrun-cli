@@ -14,17 +14,27 @@
 // # Where the one queue edit lands
 //
 // spec-0011's Steps put the write at step 2 and the confirmation at
-// step 4, and this command honours that order while landing every
-// effect on the confirmed path. It can, because nothing after step 2
-// reads what step 2 wrote: the tasks in flight, the open pull requests
-// and the whole composition are read out of the state as it stands
-// before the amendment. So the edit is computed at step 2, shown at
-// step 4, and written alongside the push — and a declined amend leaves
-// the working tree exactly as it found it, which is what
+// step 4. Here the edit is computed at step 2, shown at step 4, and
+// written alongside the push, so a declined amend leaves the working
+// tree exactly as it found it — which is what
 // `product/pull-requests/shape.md` asks of a refused command ("no
-// half-written status, no orphan branch"). The two texts are both kept;
-// what would break either is a later step reading the draft status,
-// and no later step does.
+// half-written status, no orphan branch").
+//
+// **The deferral is required, not a preference.** Two later steps read
+// the spec's status, and a step-2 write to the working tree would make
+// this command refuse itself:
+//
+//   - the dirty-tree refusal below reads `git status --porcelain`, which
+//     a written spec makes non-empty; and
+//   - act re-reads the spec after `git switch -c`, which carries an
+//     uncommitted modification onto the new branch, and stops on a
+//     status that is no longer `approved`.
+//
+// Both guards are this command's own additions rather than spec-0011's
+// Steps, so this is not the claim that the order does not matter. It is
+// the opposite: writing at step 2 is what the run cannot survive, and
+// holding the edit to the confirmed path is what lets the rest of it
+// happen at all.
 package amendcmd
 
 import (
@@ -108,20 +118,19 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return fmt.Errorf("%s carries no id", rel)
 	}
 	if status := field(content, "status"); status != "approved" {
-		return fmt.Errorf("%s is '%s' — amend returns an approved spec to draft; "+
+		return fmt.Errorf("%s is %s — amend returns an approved spec to draft; "+
 			"a draft is already open for change and an implemented one is history (%s)",
 			specID, statusOrNone(status), rel)
 	}
 
 	// 2 — the one queue edit, proved here and written on the confirmed
-	// path only. See the package comment: no later step reads it, so
-	// the edit can land with the push without disturbing the order.
-	// Proving it now is what keeps a spec whose front matter cannot be
-	// written from being discovered after the branch is cut.
-	if _, changed, err := setField(content, "status", "draft"); err != nil {
+	// path only. See the package comment for why the write cannot land
+	// here; proving it now is what keeps a spec whose front matter
+	// cannot be written from being discovered after the branch is cut.
+	// The status was just read as `approved`, so a proof that returns no
+	// error always changed the file: only the error is a verdict.
+	if _, _, err := setField(content, "status", "draft"); err != nil {
 		return fmt.Errorf("%s: %w", rel, err)
-	} else if !changed {
-		return fmt.Errorf("%s already reads 'draft' — nothing to amend", rel)
 	}
 
 	kind := strings.ToLower(strings.TrimSpace(*kindFlag))
@@ -153,7 +162,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	pulls, forgeRead := openPulls(d)
+	pulls, forgeRead := openPulls(d, ctx.Stderr)
 	susp := match(tasks, pulls)
 	if len(tasks) > 0 && !forgeRead {
 		fmt.Fprintf(ctx.Stderr,
@@ -177,7 +186,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		branch:  branch,
 		subject: subject(kind, specID),
 		title:   title(style, kind, summary),
-		body:    body(readTemplate(d, ctx.Root), specID, summary, susp),
+		body:    body(readTemplate(d, ctx.Root), specID, summary, susp, forgeRead),
 	}
 	show(ctx, plan, tasks, susp, forgeRead)
 	if err := ctx.AskConfirm(fmt.Sprintf(
@@ -230,7 +239,7 @@ func show(ctx *command.Ctx, p plan, tasks []string, susp []suspension, forgeRead
 // and the pull request opened ready. A failure after the branch exists
 // names the state it left and how to finish it (product/rules.md).
 func act(ctx *command.Ctx, d Deps, p plan) error {
-	base := authority(d, ctx.Root)
+	base := authority(ctx, d)
 	if _, err := d.Git(ctx.Root, "switch", "-c", p.branch, base); err != nil {
 		return fmt.Errorf("cutting %s from %s: %w", p.branch, base, err)
 	}
@@ -245,7 +254,7 @@ func act(ctx *command.Ctx, d Deps, p plan) error {
 		return fmt.Errorf("reading %s on %s: %w — the branch is cut; `git switch -` leaves it behind", p.relPath, p.branch, err)
 	}
 	if status := field(onBranch, "status"); status != "approved" {
-		return fmt.Errorf("%s reads '%s' on %s — it was amended elsewhere; nothing was written, and `git switch -` leaves the branch behind",
+		return fmt.Errorf("%s reads %s on %s — it was amended elsewhere; nothing was written, and `git switch -` leaves the branch behind",
 			p.specID, statusOrNone(status), base)
 	}
 	next, _, err := setField(onBranch, "status", "draft")
@@ -264,22 +273,49 @@ func act(ctx *command.Ctx, d Deps, p plan) error {
 		return fmt.Errorf("committing %s: %w", p.subject, err)
 	}
 	if _, err := d.Git(ctx.Root, "push", "-u", "origin", p.branch); err != nil {
-		return fmt.Errorf("pushing %s: %w\nThe amendment is committed locally; finish it with:\n  git push -u origin %s", p.branch, err, p.branch)
+		return fmt.Errorf("pushing %s: %w\nThe amendment is committed locally on %s; finish it with:\n  git push -u origin %s",
+			p.branch, err, p.branch, p.branch)
 	}
 	out, err := d.Gh("pr", "create", "--base", "main", "--head", p.branch,
 		"--title", p.title, "--body", p.body)
 	if err != nil {
 		return fmt.Errorf("opening the amendment pull request: %w\n"+
 			"%s is pushed and has no pull request, which is the one state this act must not leave behind.\n"+
-			"Finish it with:\n  gh pr create --base main --head %s --title %q --body-file <file>",
-			err, p.branch, p.branch, p.title)
+			"Finish it with:\n  gh pr create --base main --head %s --title %s --body-file %s",
+			err, p.branch, p.branch, shellQuote(p.title), bodyFileArg(d, p.body))
 	}
 	if said := strings.TrimSpace(out); said != "" {
 		fmt.Fprintln(ctx.Stdout, said)
 	}
 	fmt.Fprintf(ctx.Stdout, "Amended %s: %s pushed, pull request open and ready for review.\n", p.specID, p.branch)
+	fmt.Fprintf(ctx.Stdout, "You are on %s now; `git switch -` returns to where you were.\n", p.branch)
 	fmt.Fprintf(ctx.Stdout, "Re-approval is the merge's — no command walks back through that gate.\n")
 	return nil
+}
+
+// bodyFileArg is the `--body-file` argument of the resume command, and
+// it names a file that exists: the body is the one part of this act a
+// person cannot retype, and a placeholder `<file>` left them
+// reconstructing it out of the indented block `show` printed. It is
+// written only here, on the failure that needs it, so the ordinary run
+// leaves no litter. A temp directory that cannot be made is not worth a
+// second failure — the argument then says where the body actually is.
+func bodyFileArg(d Deps, body string) string {
+	dir, err := d.Files.MkdirTemp("", "writrun-amend-")
+	if err == nil {
+		name := path.Join(dir, "amendment-body.md")
+		if err = d.Files.WriteFile(name, []byte(body), 0o644); err == nil {
+			return shellQuote(name)
+		}
+	}
+	return "<the body printed above, saved to a file by hand: " + err.Error() + ">"
+}
+
+// shellQuote wraps s for a POSIX shell. The resume line is a command a
+// person pastes, and Go's %q is Go's quoting — a title carrying `$`, a
+// backtick or a backslash would run as something other than itself.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // authority is the branch the amendment is cut from, resolved the way
@@ -288,16 +324,23 @@ func act(ctx *command.Ctx, d Deps, p plan) error {
 // best-effort — a stale base is worth naming, not worth refusing over,
 // and it happens on the confirmed path so a declined amend reaches
 // nothing at all.
-func authority(d Deps, root string) string {
-	_, _ = d.Git(root, "fetch", "origin", "main")
+func authority(ctx *command.Ctx, d Deps) string {
+	_, _ = d.Git(ctx.Root, "fetch", "origin", "main")
 	for _, b := range []struct{ ref, name string }{
 		{"refs/remotes/origin/main", "origin/main"},
 		{"refs/heads/main", "main"},
 	} {
-		if _, err := d.Git(root, "rev-parse", "--verify", "--quiet", b.ref); err == nil {
+		if _, err := d.Git(ctx.Root, "rev-parse", "--verify", "--quiet", b.ref); err == nil {
 			return b.name
 		}
 	}
+	// Standing where the amendment is cut from is the fallback, not the
+	// intent: whatever this checkout carries rides into the pull request
+	// alongside the one queue edit, and against `--base main` that reads
+	// as the amendment's own work.
+	fmt.Fprintf(ctx.Stderr,
+		"Neither origin/main nor main resolves here, so the amendment is cut from HEAD.\n"+
+			"Whatever this checkout carries beyond main will ride into the pull request.\n")
 	return "HEAD"
 }
 
@@ -324,7 +367,7 @@ type pull struct {
 // question could be asked at all. WRITRUN_PR_LIST is the kit's own
 // seam, honoured first for the same reason take_task.sh honours it: a
 // suite must be able to answer the forge's question without a forge.
-func openPulls(d Deps) ([]pull, bool) {
+func openPulls(d Deps, w io.Writer) ([]pull, bool) {
 	if d.Getenv != nil {
 		if raw := d.Getenv("WRITRUN_PR_LIST"); raw != "" {
 			return parsePulls(raw), true
@@ -333,7 +376,7 @@ func openPulls(d Deps) ([]pull, bool) {
 	if d.Gh == nil {
 		return nil, false
 	}
-	out, err := d.Gh("pr", "list", "--state", "open", "--limit", "200",
+	out, err := d.Gh("pr", "list", "--state", "open", "--limit", prFetchLimitArg,
 		"--json", "number,headRefName,author,title",
 		"--jq", `.[] | "\(.number)\t\(.headRefName)\t\(.author.login)\t\(.title)"`)
 	if err != nil {
@@ -343,7 +386,16 @@ func openPulls(d Deps) ([]pull, bool) {
 		// refuse an amendment over a question it could not ask.
 		return nil, false
 	}
-	return parsePulls(out), true
+	pulls := parsePulls(out)
+	// The same warning check_amendment_reference.sh prints for the same
+	// reason: a silently truncated list reports a suspended task's pull
+	// request as nonexistent, which here would compose a body saying
+	// nothing works the task when something does.
+	if len(pulls) >= prFetchLimit && w != nil {
+		fmt.Fprintf(w, "The open-pull-request list hit its %d limit, so it may be incomplete —\n"+
+			"a suspension named below as unworked may simply have fallen off it.\n", prFetchLimit)
+	}
+	return pulls, true
 }
 
 // parsePulls reads the tab-separated listing both the seam and `gh`
@@ -459,28 +511,59 @@ func split(args []string) (string, []string, error) {
 }
 
 // plainWord reports whether s is one lowercase word — enough to be a
-// branch prefix. Whether it is in the project's vocabulary is
-// check_observance.sh's judgement, at the door, and a second opinion
-// here would be a second authority.
+// branch prefix. It must carry a letter and may not lean on a dash at
+// either end: `-` passed the older rule and composed the branch
+// `-/slug`, which is a name no convention describes.
+//
+// Whether the word is in the project's vocabulary is
+// check_observance.sh's judgement, at the door, and a second copy of
+// that list here would be a second authority — `product/rules.md` says
+// no command reimplements a check, and `conventions/commits.md` is
+// prose an agent reads rather than a format this can parse.
 func plainWord(s string) bool {
-	if s == "" {
+	if s == "" || strings.HasPrefix(s, "-") || strings.HasSuffix(s, "-") {
 		return false
 	}
+	letter := false
 	for _, r := range s {
-		if (r < 'a' || r > 'z') && r != '-' {
+		switch {
+		case r >= 'a' && r <= 'z':
+			letter = true
+		case r == '-':
+		default:
 			return false
 		}
 	}
-	return true
+	return letter
 }
 
-// statusOrNone names an absent status rather than printing nothing.
+// statusOrNone names what the spec's status line reads as, carrying its
+// own quotes so the sentence around it does not add a second pair.
+//
+// An absent status is said in words, and a value that quotes itself is
+// named as that: `status: "approved"` used to be echoed raw as
+// `spec-0011 is '"approved"'`, which reads as a fault in this reader
+// rather than in the file. The quotes really are the difference —
+// ql_fm_field reads them as part of the value, so the queue's own
+// reader does not see `approved` either.
 func statusOrNone(s string) string {
-	if strings.TrimSpace(s) == "" {
+	t := strings.TrimSpace(s)
+	if t == "" {
 		return "no status at all"
 	}
-	return s
+	if strings.Trim(t, `"'`) != t {
+		return fmt.Sprintf("%s — a quoted value, and queue front matter quotes nothing, "+
+			"so the queue's own reader does not see the bare word either", t)
+	}
+	return "'" + t + "'"
 }
+
+// prFetchLimit is `gh pr list --limit`, the number
+// check_amendment_reference.sh settled on for the same question.
+const (
+	prFetchLimit    = 200
+	prFetchLimitArg = "200"
+)
 
 // indent shifts a block right so it reads as quoted rather than said.
 func indent(s string, n int) string {

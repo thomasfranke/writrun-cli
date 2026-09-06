@@ -37,14 +37,41 @@ var numOf = func() func(string) string {
 	}
 }()
 
+// kindOf is the vocabulary an id declares for itself — `spec` in
+// `spec-0011`, `task` in `task/0012-amend-command`, and nothing at all
+// in a bare `0011`, which declares no kind and is read as whichever one
+// is being looked for.
+var kindOf = func() func(string) string {
+	declared := regexp.MustCompile(`^(task|spec)[-/]`)
+	return func(s string) string {
+		m := declared.FindStringSubmatch(strings.TrimSpace(s))
+		if m == nil {
+			return ""
+		}
+		return m[1]
+	}
+}()
+
 // queueFile finds the one file under dir whose id is that number,
 // whatever width the name was written at. A miss is an error naming
 // what was looked for — a queue file that cannot be found is never a
 // reason to carry on with nothing.
+//
+// An id that declares the other kind is refused rather than resolved.
+// numOf keeps only the digits, so `task-0012` would have resolved to
+// `spec-0012` — a real file, about something else, returned to draft
+// and pushed without a word. The two counters run independently and are
+// routinely one apart, which is exactly when the wrong answer looks
+// right.
 func queueFile(files vfs.FS, root, dir, kind, id string) (string, error) {
 	num := numOf(id)
 	if num == "" {
 		return "", fmt.Errorf("%q names no %s id", id, kind)
+	}
+	if declared := kindOf(id); declared != "" && declared != kind {
+		return "", fmt.Errorf("%q names a %s, and this resolves a %s — "+
+			"its number alone would land on %s-%s, which is a different file about different work",
+			id, declared, kind, kind, num)
 	}
 	found := ""
 	err := files.WalkDir(path.Join(root, dir), func(p string, e fs.DirEntry, err error) error {
@@ -117,6 +144,13 @@ func setField(content []byte, name, value string) ([]byte, bool, error) {
 			continue
 		}
 		want := name + ": " + value
+		// The split is on "\n" alone, so a CRLF file leaves the "\r" at
+		// the end of every line. Rewriting the line without it would
+		// make this one line the only LF one in the file — a change to
+		// something nobody asked to change, in a diff about a status.
+		if strings.HasSuffix(lines[i], "\r") {
+			want += "\r"
+		}
 		if lines[i] == want {
 			return content, false, nil
 		}

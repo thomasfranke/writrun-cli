@@ -9,6 +9,12 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
+// numOf answers a number and nothing else — ql_task_num's rule, which
+// strips `task-` and `spec-` alike because `carriedOf` feeds it head
+// branches and `suspended` feeds it spec refs. So `numOf("task-0012")`
+// really is "12", and that is not a licence to resolve a task id under
+// work/specs/: kindOf below is what refuses the mismatch, and
+// TestQueueFileRefusesAnIdOfTheOtherKind is where the refusal is held.
 func TestNumOf(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"spec-0011", "11"},
@@ -24,6 +30,56 @@ func TestNumOf(t *testing.T) {
 		if got := numOf(c.in); got != c.want {
 			t.Errorf("numOf(%q) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+// kindOf is what numOf throws away: the vocabulary the id declared for
+// itself. A bare number declares none and is read as whatever is being
+// looked for.
+func TestKindOf(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"spec-0011", "spec"},
+		{"task-0012", "task"},
+		{"task/0012-amend-command", "task"},
+		{"spec/0011", "spec"},
+		{"  task-0012  ", "task"},
+		{"0011", ""},
+		{"11", ""},
+		{"", ""},
+		{"taskish-0012", ""},
+	}
+	for _, c := range cases {
+		if got := kindOf(c.in); got != c.want {
+			t.Errorf("kindOf(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// The task and spec counters run independently and are routinely one
+// apart, so `amend task-0012` used to resolve to spec-0012 — a real
+// file, about different work, returned to draft and pushed without a
+// word. An id that declares the other kind is refused.
+func TestQueueFileRefusesAnIdOfTheOtherKind(t *testing.T) {
+	files := vfs.NewFake()
+	files.Seed(path.Join(root, specPath), []byte(specFixture("approved")), 0o644)
+	files.Seed(path.Join(root, "work/specs/spec-0012-release-distribution.md"),
+		[]byte(specFixture("approved")), 0o644)
+
+	got, err := queueFile(files, root, specsDir, "spec", "task-0012")
+	if err == nil {
+		t.Fatalf("queueFile resolved a task id to %q", got)
+	}
+	for _, want := range []string{"task-0012", "spec-12", "different"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %v; want it to name %q", err, want)
+		}
+	}
+	if _, err := queueFile(files, root, specsDir, "spec", "task/0012-amend-command"); err == nil {
+		t.Error("a task branch name resolved to a spec")
+	}
+	// The bare number still resolves: it declares no kind.
+	if _, err := queueFile(files, root, specsDir, "spec", "0011"); err != nil {
+		t.Errorf("a bare number was refused: %v", err)
 	}
 }
 
@@ -76,6 +132,9 @@ func TestSetField(t *testing.T) {
 	}
 	if _, changed, _ := setField(next, "status", "draft"); changed {
 		t.Error("a field already carrying the value reported a change")
+	}
+	if strings.Contains(string(next), "\r") {
+		t.Error("an LF file gained a carriage return")
 	}
 	if _, _, err := setField(content, "nowhere", "x"); err == nil {
 		t.Error("a field the schema does not carry was added")
@@ -208,5 +267,30 @@ func TestMatchKeepsATaskNoPullRequestWorks(t *testing.T) {
 	}
 	if got[1].number != 0 {
 		t.Errorf("task-0013 = %+v; want no number", got[1])
+	}
+}
+
+// A CRLF file keeps its line endings: rewriting the status line without
+// the carriage return made it the one LF line in the file, which is a
+// change to something nobody asked to change.
+func TestSetFieldKeepsTheLineEndingItFound(t *testing.T) {
+	crlf := []byte(strings.ReplaceAll(specFixture("approved"), "\n", "\r\n"))
+	next, changed, err := setField(crlf, "status", "draft")
+	if err != nil || !changed {
+		t.Fatalf("setField = %v, changed=%v", err, changed)
+	}
+	if !strings.Contains(string(next), "status: draft\r\n") {
+		t.Errorf("the rewritten line lost its carriage return:\n%q", string(next))
+	}
+	if strings.Contains(strings.ReplaceAll(string(next), "\r\n", ""), "\n") {
+		t.Errorf("the file gained a bare LF line:\n%q", string(next))
+	}
+	if field(next, "status") != "draft" {
+		t.Error("the field was not written")
+	}
+	// And a second pass over the written file reports no change, rather
+	// than fighting its own carriage return forever.
+	if _, changed, _ := setField(next, "status", "draft"); changed {
+		t.Error("a CRLF file already carrying the value reported a change")
 	}
 }

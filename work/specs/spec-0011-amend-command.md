@@ -61,36 +61,47 @@ methodology had not: a spec that is not `approved` is refused before
 anything else happens; the tasks in flight on it and the pull requests
 working them are read the way `check_amendment_reference.sh` reads them
 — `status` and `spec_ref` out of `work/tasks/*.md`, `ql_carried_of`'s
-rule over each open pull request's head branch and title; the branch is
+rule over each open pull request's head branch and title; the named id
+must declare the kind it is (a bare number declares none), because
+`ql_task_num`'s rule keeps only the digits and `amend task-0012` would
+otherwise resolve to `spec-0012`, a real file about different work; the branch is
 id-less (`docs/<slug>`, or `<type>/<slug>` under `--type`), the title is
 composed in the style `read_setting.sh` reports and carries no task tag,
 and the body is the adopter's own template with the authoring half and
 the guidance comments dropped and the suspension lines put where the
 gate reads them. `--yes` answers the one question; a yes writes
 `status: draft`, commits `docs(specs): return spec-0011 to draft`,
-pushes and opens the pull request **ready**. Coverage: 92.4% of the
-package, 97.1% over `internal/`; 57 Go tests in the package and 43
-assertions across eight integration cases under
+pushes and opens the pull request **ready**. Coverage: 94.5% of the
+package, 97.4% over `internal/`; 82 Go tests in the package and 66
+assertions across eleven integration cases under
 `tests/integration/amend/`, one of which hands the composed body to the
 kit's own `check_amendment_reference.sh` and asserts it passes — and
 that the same gate over the same change rejects a body naming nothing.
 
-**Where the one queue edit lands, and why that is still this order.**
+**Where the one queue edit lands, and why the deferral is required.**
 The Steps put the write at step 2 and the confirmation at step 4, and
-every effect here lands on the confirmed path instead. Nothing after
-step 2 reads what step 2 writes: the suspended tasks, the open pull
-requests, the branch, the title and the body are all read out of the
-state as it stands *before* the amendment, so holding the edit and
-writing it beside the push preserves the order of effects exactly while
-letting a declined `amend` leave the working tree untouched — which is
-what `product/pull-requests/shape.md` demands of a refused command ("no
+every effect here lands on the confirmed path instead: the edit is
+proved at step 2, shown at step 4, and written beside the push. That
+lets a declined `amend` leave the working tree untouched — which is what
+`product/pull-requests/shape.md` demands of a refused command ("no
 half-written status, no orphan branch") and what report-0015 records
-`finish` cannot do, because its step 4 reads its step 2. This is a
-reading of the Steps, not a change to them, and it is stated here so a
-reviewer can reject it consciously; `a_decline_leaves_nothing_behind`
-asserts `git status --porcelain` is empty afterwards and that neither
-the origin nor the forge saw anything. The judgement report-0015 asks
-for is task-0018's, and this settles nothing on `finish`'s behalf.
+`finish` cannot do, because its step 4 reads its step 2.
+`a_decline_leaves_nothing_behind` asserts `git status --porcelain` is
+empty afterwards and that neither the origin nor the forge saw anything.
+
+An earlier draft of this Outcome justified the deferral by saying that
+nothing after step 2 reads what step 2 writes. **That was wrong, and the
+correction is worth keeping:** two later steps read exactly the spec
+status a step-2 write would have changed, and both are this command's
+own additions rather than the Steps'. The dirty-tree refusal reads
+`git status --porcelain`, which a written spec makes non-empty, so the
+command would refuse itself; and `act` re-reads the spec after
+`git switch -c`, which carries an uncommitted modification onto the new
+branch, and stops on a status that is no longer `approved`. So the
+deferral is not an equivalent rearrangement a reviewer may take or
+leave — it is what the run cannot happen without, once those two guards
+exist. The judgement report-0015 asks for is task-0018's, and this
+settles nothing on `finish`'s behalf.
 
 Five things the Steps did not say, decided here and left visible: **the
 branch is cut from a freshly fetched `origin/main`** (falling back to the
@@ -110,10 +121,18 @@ from the queue naming the task instead of a number, and opens anyway.
 
 `WRITRUN_PR_LIST` is honoured as the kit's own seam, so the suite
 answers the forge's question without a forge; `gh` is stubbed and the
-origin is a bare local repository in every case. Every helper stayed
-inside the package — `internal/kit`, `internal/forge`, `internal/gitx`,
-the frame's `Ctx`/`Terminal`, `finishcmd` and `takecmd` are untouched —
-so the front-matter reader, the queue-file resolver and the id parser
-are duplicated with `finishcmd` on purpose, for task-0019 to
-consolidate. No task's `status` or `taken_by` is written anywhere in the
-package, and no `docs/` path changed: this spec promised none.
+origin is a bare local repository in every case — and because that seam
+short-circuits before `gh` is reached, one case unsets it so the
+argument list the command really sends the forge is exercised too.
+Every helper stayed inside the package — `internal/kit`,
+`internal/forge`, `internal/gitx`, the frame's `Ctx`/`Terminal`,
+`finishcmd` and `takecmd` are untouched — so the front-matter reader,
+the queue-file resolver and the id parser are duplicated with
+`finishcmd`. That duplication has no task behind it: spec-0018 covers
+the `.writrun/VERSION` readers and the stage-0 requirement list, not
+these, so report-0020 records it and report-0021 records the same for
+the body composer, which is written once here and once in
+`take_task.sh`. No task's `status` or `taken_by` is written anywhere in
+the package, and no `docs/` path changed: this spec promised none, and
+report-0023 records what `product/pull-requests/amend.md` still does not
+say.

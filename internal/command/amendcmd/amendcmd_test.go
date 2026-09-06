@@ -2,6 +2,7 @@ package amendcmd
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -456,7 +457,304 @@ func TestASpecAmendedElsewhereStopsBeforeTheWrite(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "amended elsewhere") {
 		t.Fatalf("amend = %v; want the collision named", err)
 	}
+	// statusOrNone carries its own quotes, so the sentence must not add
+	// a second pair around them.
+	if !strings.Contains(err.Error(), "reads 'draft' on") {
+		t.Errorf("error = %v; want the status quoted exactly once", err)
+	}
 	if h.git.ran("commit") {
 		t.Error("a commit was made over somebody else's amendment")
+	}
+}
+
+// The blocker this package shipped with: `amend task-0012` resolved to
+// spec-0012 — a real file, about different work — and under --yes,
+// which is the path the project's own rules make first-class, nothing
+// showed the composition in time for a person to catch it. The refusal
+// is before anything is composed, so neither git nor the forge is
+// touched.
+func TestATaskIdIsNotResolvedToASpec(t *testing.T) {
+	h := newHarness(t)
+	otherSpec := "work/specs/spec-0012-release-distribution.md"
+	h.seed(otherSpec, strings.ReplaceAll(specFixture("approved"), "spec-0011", "spec-0012"))
+	h.ctx.Yes = true
+
+	err := run(h.ctx, h.deps(), []string{"task-0012", "--title", amendTitle})
+	if err == nil {
+		t.Fatal("amend accepted a task id and amended a spec")
+	}
+	if !strings.Contains(err.Error(), "task-0012") || !strings.Contains(err.Error(), "different") {
+		t.Errorf("error = %v; want it to name the id and say it is another file", err)
+	}
+	if got := h.read(t, otherSpec); field([]byte(got), "status") != "approved" {
+		t.Error("spec-0012 was returned to draft by an id naming a task")
+	}
+	if got := h.read(t, specPath); field([]byte(got), "status") != "approved" {
+		t.Error("spec-0011 was written")
+	}
+	if len(h.git.calls) != 0 || len(h.gh.calls) != 0 {
+		t.Errorf("a refusal reached git (%v) or the forge (%v)", h.git.calls, h.gh.calls)
+	}
+}
+
+// The forge answered and named no pull request working the task. The
+// terminal already said so; the body used to say "the forge did not
+// answer" and claim a suspension that does not exist — a false sentence
+// the kit's own gate passes over, because it reads the same state as a
+// stale flight and asks for no reference.
+func TestAStaleFlightStateIsNotBlamedOnTheForge(t *testing.T) {
+	h := newHarness(t)
+	h.env["WRITRUN_PR_LIST"] = "77\tdocs/unrelated\tsomeone\t[Docs] Something else"
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	body := h.gh.created()["--body"]
+	if strings.Contains(body, "the forge did not answer") {
+		t.Errorf("the body blames a forge that answered:\n%s", body)
+	}
+	if strings.Contains(body, "Suspends") {
+		t.Errorf("the body claims a suspension no pull request carries:\n%s", body)
+	}
+	if !strings.Contains(body, "task-0012") || !strings.Contains(body, "stale") {
+		t.Errorf("the body never names the stale flight state:\n%s", body)
+	}
+	// The terminal was already right, and stays right.
+	if !strings.Contains(h.out.String(), "no open pull request works it") {
+		t.Errorf("the composition never said so:\n%s", h.out.String())
+	}
+	if strings.Contains(h.errb.String(), "check by hand") {
+		t.Errorf("a forge that answered was reported as unreachable:\n%s", h.errb.String())
+	}
+}
+
+// `--body-file <file>` named nothing: the composed body existed only as
+// the indented block `show` printed, and product/rules.md asks a failure
+// after the first write to name the exact command that resumes the flow.
+func TestTheFailedOpeningNamesABodyFileThatExists(t *testing.T) {
+	h := newHarness(t)
+	h.gh.createErr = errors.New("gh: validation failed")
+	err := run(h.ctx, h.deps(), []string{"spec-0011", "--title", "Reopen $HOME and `id`"})
+	if err == nil {
+		t.Fatal("the failed opening was not reported")
+	}
+	if strings.Contains(err.Error(), "<file>") {
+		t.Errorf("the resume command still names no file:\n%v", err)
+	}
+
+	// The named file exists and holds exactly the body that was handed
+	// to the forge.
+	file := ""
+	for _, f := range strings.Fields(err.Error()) {
+		if strings.Contains(f, "writrun-amend-") {
+			file = strings.Trim(f, "'")
+		}
+	}
+	if file == "" {
+		t.Fatalf("no body file was named:\n%v", err)
+	}
+	saved, readErr := h.files.ReadFile(file)
+	if readErr != nil {
+		t.Fatalf("the named body file is not there: %v", readErr)
+	}
+	if string(saved) != h.gh.created()["--body"] {
+		t.Errorf("the saved body is not the one that was sent:\n%s", saved)
+	}
+
+	// And the title is quoted for a shell, not for Go: `$HOME` and the
+	// backticks must survive the paste.
+	if !strings.Contains(err.Error(), "--title '[Docs][Specs] Reopen $HOME and `id`'") {
+		t.Errorf("the title is not shell-quoted:\n%v", err)
+	}
+}
+
+// The ordinary run leaves no body file behind — it is written on the one
+// failure that needs it.
+func TestTheOrdinaryRunWritesNoBodyFile(t *testing.T) {
+	h := newHarness(t)
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	for _, p := range h.files.Paths() {
+		if strings.Contains(p, "writrun-amend-") {
+			t.Errorf("the green path left a body file behind: %s", p)
+		}
+	}
+}
+
+// A temp directory that cannot be made is not worth a second failure:
+// the resume line then says where the body actually is.
+func TestABodyThatCannotBeSavedStillNamesWhereItIs(t *testing.T) {
+	h := newHarness(t)
+	h.gh.createErr = errors.New("gh: validation failed")
+	h.files.FailOp("mkdirtemp", "/tmp", errors.New("read-only file system"))
+	err := h.amend()
+	if err == nil {
+		t.Fatal("the failed opening was not reported")
+	}
+	if !strings.Contains(err.Error(), "the body printed above") {
+		t.Errorf("the fallback never says where the body is:\n%v", err)
+	}
+	if !strings.Contains(err.Error(), "read-only file system") {
+		t.Errorf("the reason the body could not be saved went missing:\n%v", err)
+	}
+}
+
+// A branch prefix has to be a word. `-` passed the older rule and
+// composed the branch `-/amend-command`, which no convention describes.
+func TestATypeThatIsNotAWordIsRefused(t *testing.T) {
+	for _, kind := range []string{"-", "---", "-fix", "fix-", "Docs/Specs", "d0cs", ""} {
+		t.Run(kind, func(t *testing.T) {
+			h := newHarness(t)
+			err := h.amend("--type", kind)
+			if err == nil || !strings.Contains(err.Error(), "--type") {
+				t.Fatalf("amend --type %q = %v; want a refusal naming the flag", kind, err)
+			}
+			if h.git.ran("switch") {
+				t.Error("a branch was cut for a prefix that is not a word")
+			}
+		})
+	}
+	// A word still passes, dashes inside it included.
+	h := newHarness(t)
+	if err := h.amend("--type", "fix-up"); err != nil {
+		t.Fatalf("amend --type fix-up = %v", err)
+	}
+	if !h.git.ran("switch -c fix-up/amend-command") {
+		t.Errorf("git saw %v", h.git.calls)
+	}
+}
+
+// A quoted status was echoed raw as `spec-0011 is '"approved"'`, which
+// reads as a fault in the reader rather than in the file. Which files
+// are accepted does not change — only what the refusal says.
+func TestAQuotedStatusIsRefusedLegibly(t *testing.T) {
+	h := newHarness(t)
+	h.seed(specPath, strings.Replace(specFixture("approved"), "status: approved", `status: "approved"`, 1))
+	err := h.amend()
+	if err == nil {
+		t.Fatal("a quoted status was accepted")
+	}
+	if strings.Contains(err.Error(), `'"approved"'`) {
+		t.Errorf("the raw echo is still there:\n%v", err)
+	}
+	for _, want := range []string{"quoted value", "front matter quotes nothing"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %v; want it to name %q", err, want)
+		}
+	}
+
+	// A spec carrying no status at all is still said in words.
+	h2 := newHarness(t)
+	h2.seed(specPath, strings.Replace(specFixture("approved"), "status: approved\n", "", 1))
+	if err := h2.amend(); err == nil || !strings.Contains(err.Error(), "no status at all") {
+		t.Fatalf("amend = %v; want the absent status named", err)
+	}
+}
+
+// A truncated list reports a suspended task's pull request as
+// nonexistent — which, since the forge did answer, now composes a body
+// saying the flight state is stale. The same warning
+// check_amendment_reference.sh prints, for the same reason.
+func TestATruncatedPullRequestListIsNamed(t *testing.T) {
+	h := newHarness(t)
+	delete(h.env, "WRITRUN_PR_LIST")
+	lines := make([]string, prFetchLimit)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("%d\tdocs/other-%d\tsomeone\t[Docs] Something", i+1, i)
+	}
+	h.gh.list = strings.Join(lines, "\n")
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	if !strings.Contains(h.errb.String(), "hit its 200 limit") {
+		t.Errorf("the truncated list was never named:\n%s", h.errb.String())
+	}
+}
+
+// A list that fits says nothing.
+func TestAListThatFitsIsNotCalledTruncated(t *testing.T) {
+	h := newHarness(t)
+	delete(h.env, "WRITRUN_PR_LIST")
+	h.gh.list = "42\ttask/0012-amend-command\tsomeone\t[TASK-0012] Amend the thing"
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	if strings.Contains(h.errb.String(), "limit") {
+		t.Errorf("a list that fits was called truncated:\n%s", h.errb.String())
+	}
+}
+
+// With no origin/main and no main, the amendment is cut from HEAD and
+// whatever this checkout carries rides into the pull request. That is a
+// fallback, not the intent, and it used to happen in silence.
+func TestTheHeadFallbackIsNamed(t *testing.T) {
+	h := newHarness(t)
+	h.git.refs = map[string]bool{}
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	if !h.git.ran("switch -c docs/amend-command HEAD") {
+		t.Errorf("git saw %v", h.git.calls)
+	}
+	if !strings.Contains(h.errb.String(), "cut from HEAD") {
+		t.Errorf("the fallback was silent:\n%s", h.errb.String())
+	}
+}
+
+// The local main is still a base, and taking it says nothing.
+func TestTheLocalMainIsTakenQuietly(t *testing.T) {
+	h := newHarness(t)
+	h.git.refs = map[string]bool{"refs/heads/main": true}
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	if !h.git.ran("switch -c docs/amend-command main") {
+		t.Errorf("git saw %v", h.git.calls)
+	}
+	if strings.Contains(h.errb.String(), "HEAD") {
+		t.Errorf("a base that resolved was reported as a fallback:\n%s", h.errb.String())
+	}
+}
+
+// A successful amend leaves the checkout on the amendment branch, which
+// both error paths already said and the success path did not.
+func TestTheSuccessSaysWhereItLeftYou(t *testing.T) {
+	h := newHarness(t)
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	if !strings.Contains(h.out.String(), "git switch -") {
+		t.Errorf("the success never said how to get back:\n%s", h.out.String())
+	}
+}
+
+// The forge is asked the question in the shape `gh` answers. No
+// integration case reaches this — WRITRUN_PR_LIST short-circuits before
+// d.Gh — so the argument list is held here.
+func TestTheForgeIsAskedInTheShapeGhAnswers(t *testing.T) {
+	h := newHarness(t)
+	delete(h.env, "WRITRUN_PR_LIST")
+	if err := h.amend(); err != nil {
+		t.Fatalf("amend = %v", err)
+	}
+	var listed []string
+	for _, c := range h.gh.calls {
+		if len(c) > 1 && c[0] == "pr" && c[1] == "list" {
+			listed = c
+		}
+	}
+	if listed == nil {
+		t.Fatalf("the forge was never listed: %v", h.gh.calls)
+	}
+	joined := strings.Join(listed, " ")
+	for _, want := range []string{
+		"--state open",
+		"--limit 200",
+		"--json number,headRefName,author,title",
+		`.[] | "\(.number)\t\(.headRefName)\t\(.author.login)\t\(.title)"`,
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("gh pr list carried no %q: %v", want, listed)
+		}
 	}
 }

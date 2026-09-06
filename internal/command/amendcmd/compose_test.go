@@ -75,19 +75,41 @@ func TestBranchNameCarriesNoId(t *testing.T) {
 // The line is the one check_amendment_reference.sh asks for, character
 // for character — the script prints it as the fix, and this composes it.
 func TestTheSuspensionLineIsTheOneTheCheckAsksFor(t *testing.T) {
-	got := suspension{task: "task-0012", number: 42}.line()
-	want := "Suspends #42 — task-0012 waits on this amendment."
-	if got != want {
-		t.Errorf("line = %q, want %q", got, want)
+	for _, forgeRead := range []bool{true, false} {
+		got := suspension{task: "task-0012", number: 42}.line(forgeRead)
+		want := "Suspends #42 — task-0012 waits on this amendment."
+		if got != want {
+			t.Errorf("line(%v) = %q, want %q", forgeRead, got, want)
+		}
 	}
 }
 
 // A pull request the forge could not number is still named, by its
 // task, with what a person must finish (spec-0011, acceptance criteria).
 func TestAnUnnumberedSuspensionNamesTheTask(t *testing.T) {
-	got := suspension{task: "task-0012"}.line()
+	got := suspension{task: "task-0012"}.line(false)
 	if !strings.Contains(got, "task-0012") || !strings.Contains(got, "by hand") {
 		t.Errorf("line = %q", got)
+	}
+}
+
+// A forge that answered and named no pull request working the task is
+// not a forge that did not answer, and the body must not say it was:
+// nothing is suspended, the gate calls that a stale flight state and
+// asks for no reference, and a sentence claiming a suspension there is
+// false with nothing downstream to catch it.
+func TestAnUnworkedTaskIsNotBlamedOnTheForge(t *testing.T) {
+	got := suspension{task: "task-0012"}.line(true)
+	if strings.Contains(got, "forge") {
+		t.Errorf("line = %q; the forge answered, so it is not the reason", got)
+	}
+	if strings.Contains(got, "Suspends") {
+		t.Errorf("line = %q; nothing is suspended when no pull request works the task", got)
+	}
+	for _, want := range []string{"task-0012", "stale"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("line = %q; want it to name %q", got, want)
+		}
 	}
 }
 
@@ -128,7 +150,7 @@ Implements spec-NNNN.
 ## Notes`
 
 	got := body(tmpl, "spec-0011", "The contract was wrong.",
-		[]suspension{{task: "task-0012", number: 42}})
+		[]suspension{{task: "task-0012", number: 42}}, true)
 
 	for _, want := range []string{
 		"## What",
@@ -166,7 +188,7 @@ Implements spec-NNNN.
 // A repository whose template is gone still gets a body the checks can
 // read.
 func TestBodyWithoutATemplate(t *testing.T) {
-	got := body("", "spec-0011", "Because.", []suspension{{task: "task-0012", number: 7}})
+	got := body("", "spec-0011", "Because.", []suspension{{task: "task-0012", number: 7}}, true)
 	for _, want := range []string{"## What", "## Why", "Suspends #7 — task-0012 waits on this amendment.", "## Notes"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("body carries no %q:\n%s", want, got)
@@ -177,7 +199,7 @@ func TestBodyWithoutATemplate(t *testing.T) {
 // No task in flight: the body says so rather than claiming a suspension
 // nothing is waiting on.
 func TestBodySaysWhenNothingIsSuspended(t *testing.T) {
-	got := body("", "spec-0011", "Because.", nil)
+	got := body("", "spec-0011", "Because.", nil, true)
 	if strings.Contains(got, "Suspends") {
 		t.Errorf("body claims a suspension:\n%s", got)
 	}
@@ -191,7 +213,7 @@ func TestBodySaysWhenNothingIsSuspended(t *testing.T) {
 // reads is never the part that goes missing.
 func TestBodyKeepsTheStatementWhenThePlaceholderIsGone(t *testing.T) {
 	got := body("## What\n\n## Spec\n\n## Notes\n", "spec-0011", "Because.",
-		[]suspension{{task: "task-0012", number: 42}})
+		[]suspension{{task: "task-0012", number: 42}}, true)
 	if !strings.Contains(got, "Suspends #42") {
 		t.Errorf("the statement went missing:\n%s", got)
 	}
@@ -201,7 +223,7 @@ func TestBodyKeepsTheStatementWhenThePlaceholderIsGone(t *testing.T) {
 // has and takes the statement at the end.
 func TestBodyAppendsTheStatementWhenThereIsNowhereToPutIt(t *testing.T) {
 	got := body("## Notes\n\nSomething the project wrote.\n", "spec-0011", "Because.",
-		[]suspension{{task: "task-0012", number: 42}})
+		[]suspension{{task: "task-0012", number: 42}}, true)
 	if !strings.Contains(got, "Something the project wrote.") {
 		t.Errorf("the project's own body was dropped:\n%s", got)
 	}
@@ -212,11 +234,28 @@ func TestBodyAppendsTheStatementWhenThereIsNowhereToPutIt(t *testing.T) {
 
 // A section somebody already wrote is left exactly as they wrote it.
 func TestFillLeavesAWrittenSectionAlone(t *testing.T) {
-	got := body("## What\n\nAlready said.\n\n## Notes\n", "spec-0011", "Because.", nil)
+	got := body("## What\n\nAlready said.\n\n## Notes\n", "spec-0011", "Because.", nil, true)
 	if !strings.Contains(got, "Already said.") {
 		t.Errorf("the written section was replaced:\n%s", got)
 	}
 	if strings.Contains(got, "so its approval can be reconsidered") {
 		t.Errorf("the written section was added to:\n%s", got)
+	}
+}
+
+// The resume line is pasted into a shell, so the title is quoted for
+// one — Go's %q quotes for Go, and a title carrying `$` or a backtick
+// would have run as something other than itself.
+func TestShellQuoteSurvivesAShell(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"plain", "'plain'"},
+		{"[Docs][Specs] $HOME and `id`", "'[Docs][Specs] $HOME and `id`'"},
+		{"it's here", `'it'\''s here'`},
+		{`a \ backslash`, `'a \ backslash'`},
+	}
+	for _, c := range cases {
+		if got := shellQuote(c.in); got != c.want {
+			t.Errorf("shellQuote(%q) = %s, want %s", c.in, got, c.want)
+		}
 	}
 }

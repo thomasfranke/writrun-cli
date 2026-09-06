@@ -93,13 +93,25 @@ type suspension struct {
 }
 
 // line is the sentence check_amendment_reference.sh accepts, spelled
-// the way that script itself spells it when it asks for one. A pull
-// request the forge could not number is named by its task instead: the
-// reference is still composed from the queue, and the body says what a
-// person must finish (spec-0011, acceptance criteria).
-func (s suspension) line() string {
-	if s.number > 0 {
+// the way that script itself spells it when it asks for one.
+//
+// A number of 0 has two causes and they are not the same sentence, so
+// forgeRead tells them apart — the distinction `show` was already
+// making on the terminal while the body said "the forge did not answer"
+// for both. When the forge answered and named no pull request working
+// the task, there is nothing to suspend: the gate reads that as a stale
+// flight state and asks for no reference, and a body claiming a
+// suspension that does not exist would be a false sentence nothing
+// downstream catches. When the forge did not answer, the reference is
+// still composed from the queue and the body says what a person must
+// finish (spec-0011, acceptance criteria).
+func (s suspension) line(forgeRead bool) string {
+	switch {
+	case s.number > 0:
 		return fmt.Sprintf("Suspends #%d — %s waits on this amendment.", s.number, s.task)
+	case forgeRead:
+		return fmt.Sprintf("%s reads as in flight, but no open pull request works it — "+
+			"its flight state is stale, so this amendment suspends nothing of it.", s.task)
 	}
 	return fmt.Sprintf("Suspends the open pull request working %s — the forge did not answer, "+
 		"so its number must be written in by hand.", s.task)
@@ -108,7 +120,7 @@ func (s suspension) line() string {
 // statement is what the pull request says it does, under `## Spec`. It
 // never says the spec is re-approved: that is the merge's, and the
 // merge is the maintainer's (product/rules.md).
-func statement(specID string, susp []suspension) string {
+func statement(specID string, susp []suspension, forgeRead bool) string {
 	lines := []string{
 		fmt.Sprintf("Returns %s to `draft`. Re-approval is the merge's, and the maintainer's.", specID),
 	}
@@ -119,7 +131,7 @@ func statement(specID string, susp []suspension) string {
 	}
 	lines = append(lines, "")
 	for _, s := range susp {
-		lines = append(lines, s.line())
+		lines = append(lines, s.line(forgeRead))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -152,13 +164,13 @@ Implements spec-NNNN.
 // the guidance comments dropped, the authoring half dropped, the
 // `Implements spec-NNNN.` line replaced by what this change actually
 // does, and the three sections a reviewer reads filled.
-func body(tmpl, specID, why string, susp []suspension) string {
+func body(tmpl, specID, why string, susp []suspension, forgeRead bool) string {
 	src := tmpl
 	if strings.TrimSpace(src) == "" {
 		src = fallbackBody
 	}
 	lines := strip(strings.Split(src, "\n"))
-	lines = replaceImplements(lines, statement(specID, susp))
+	lines = replaceImplements(lines, statement(specID, susp, forgeRead))
 	lines = fill(lines, "## What", fmt.Sprintf("Returns %s to `draft` so its approval can be reconsidered.", specID))
 	lines = fill(lines, "## Why", why)
 	lines = fill(lines, "## How to verify", verification)
