@@ -1,8 +1,8 @@
 ---
 id: task-0010
-status: ready
+status: done
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0009]
 doc_ref: product/pull-requests/author.md
 origin: rule
@@ -11,8 +11,8 @@ depends_on: [task-0009]
 milestone: null
 created: 2026-09-03T22:30:23Z
 queued: 2026-09-04T05:05:03Z
-completed: null
-merged: null
+completed: 2026-09-06T00:42:25Z
+merged: 2026-09-06T02:01:46Z
 provenance: []
 ---
 

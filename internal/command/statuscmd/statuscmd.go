@@ -15,6 +15,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -98,7 +99,7 @@ func kitLine(files vfs.FS, root, pinned string) string {
 	switch {
 	case err != nil:
 		return fmt.Sprintf("%s — this client pins WritRun %s", err, pinned)
-	case sameRelease(recorded, pinned):
+	case kittag.SameRelease(recorded, pinned):
 		return fmt.Sprintf("WritRun %s — the tag this client pins", recorded)
 	default:
 		return fmt.Sprintf("WritRun %s recorded, %s pinned by this client — they differ", recorded, pinned)
