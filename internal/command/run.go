@@ -23,6 +23,15 @@ type Frame struct {
 	FindRepo func(dir string) (root string, adopted bool, err error)
 	Getenv   func(string) string
 	Getwd    func() (string, error)
+	// Screen opens the no-command queue screen and returns the command
+	// it dispatched to, empty when the user left without choosing. It
+	// is a field rather than a call so the frame keeps no dependency on
+	// the screen's engine, and so a suite can drive the routing without
+	// one (screen.md, spec-0020).
+	//
+	// nil is a binary built without a screen: the no-command path then
+	// prints the help, which is what it printed before there was one.
+	Screen func(ctx *Ctx) (name string, arg string, err error)
 }
 
 const docsAddress = "https://github.com/thomasfranke/writrun-cli/tree/main/docs"
@@ -73,8 +82,14 @@ func Run(f Frame, args []string) int {
 	}
 
 	if name == "" {
-		help(f)
-		return 0
+		code, dispatched, cmdName, cmdArg := openScreen(f, noColor, yes)
+		if !dispatched {
+			return code
+		}
+		name, rest = cmdName, nil
+		if cmdArg != "" {
+			rest = []string{cmdArg}
+		}
 	}
 
 	cmd, ok := lookup(f.Commands, name)
@@ -182,4 +197,49 @@ func help(f Frame) {
 
 func usage(w io.Writer) {
 	fmt.Fprintln(w, "usage: writrun [--version] [--help] [--yes] [--no-color] <command> [--] [args]")
+}
+
+// openScreen answers `writrun` with no command. The screen needs a
+// terminal at both ends and an adopted repository; without either there
+// is no screen to open, and the help is what the rule prescribes rather
+// than a fallback this invented (screen.md).
+//
+// It returns the exit code to use when nothing was dispatched, and the
+// command to run when something was.
+func openScreen(f Frame, noColor, yes bool) (code int, dispatched bool, name, arg string) {
+	if f.Screen == nil || !f.Terminal.InteractiveIn() || !f.Terminal.InteractiveOut() {
+		help(f)
+		return 0, false, "", ""
+	}
+	// Adoption is read rather than enforced: outside one the rule asks
+	// for the help, not for the refusal NeedAdopted would print. This is
+	// the one caller that wants the fact without the verdict.
+	wd, err := f.Getwd()
+	if err != nil {
+		fmt.Fprintf(f.Stderr, "writrun: %v\n", err)
+		return 1, false, "", ""
+	}
+	root, adopted, err := f.FindRepo(wd)
+	if err != nil || !adopted {
+		help(f)
+		return 0, false, "", ""
+	}
+	ctx := &Ctx{
+		Stdout:   f.Stdout,
+		Stderr:   f.Stderr,
+		Terminal: f.Terminal,
+		Yes:      yes,
+		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
+		Root:     root,
+		Adopted:  adopted,
+	}
+	name, arg, err = f.Screen(ctx)
+	if err != nil {
+		fmt.Fprintf(f.Stderr, "writrun: %v\n", err)
+		return 1, false, "", ""
+	}
+	if name == "" {
+		return 0, false, "", ""
+	}
+	return 0, true, name, arg
 }
