@@ -1,7 +1,9 @@
 // Package kittag is the tag `.writrun/VERSION` records: where the file
 // is, what it says, and the two questions asked of two tags — whether
-// they name one release, and which release comes first. `update`,
-// `status` and `doctor` all read that file, so they read it from here.
+// they name one release, and which release comes first. Every command
+// that names that file names it through Path, and `update`, `status`
+// and `doctor` read its contents through Read. `init` reads the file at
+// Path too, for the stage-1 gap it words itself (initcmd.checkFiles).
 package kittag
 
 import (
@@ -12,7 +14,9 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// Path is where an adopted repository records the kit's tag.
+// Path is where an adopted repository records the kit's tag. Every
+// reader and every writer of that file asks here, so the location has
+// one definition.
 func Path(root string) string {
 	return filepath.Join(root, ".writrun", "VERSION")
 }
@@ -72,31 +76,13 @@ func Compare(a, b string) int {
 // and a mismatch is never announced over a spelling. Two tags neither
 // side can read are the same only when they are the same text.
 //
-// This is not `Compare(a, b) == 0`: ordering carries the rule that an
-// unreadable tag is a move forward, and a caller asking only whether
-// two tags match must not inherit it.
+// It is `Compare(a, b) == 0` and nothing else: Compare answers 0 only
+// on two tags it read as one release, and 1 — never 0 — on a tag it
+// could not read, so no ordering reaches a caller asking only whether
+// two tags match. The name exists so that caller never spells the
+// comparison as an ordering.
 func SameRelease(a, b string) bool {
-	if a == b {
-		return true
-	}
-	x, okA := Components(a)
-	y, okB := Components(b)
-	if !okA || !okB {
-		return false
-	}
-	for i := 0; i < len(x) || i < len(y); i++ {
-		var xi, yi int
-		if i < len(x) {
-			xi = x[i]
-		}
-		if i < len(y) {
-			yi = y[i]
-		}
-		if xi != yi {
-			return false
-		}
-	}
-	return true
+	return Compare(a, b) == 0
 }
 
 // Components reads a tag's numbers; ok is false for anything that is
@@ -125,6 +111,9 @@ func Components(tag string) ([]int, bool) {
 // `v0.0.03` is one, and so is a two-component tag a later release may
 // carry. This is what a health report asks of the file, where Compare
 // asks only what it can order.
+//
+// The tag is taken already trimmed — Read returns one — so surrounding
+// space is not trimmed here, where Components trims its own input.
 func Readable(tag string) bool {
 	if !strings.HasPrefix(tag, "v") {
 		return false

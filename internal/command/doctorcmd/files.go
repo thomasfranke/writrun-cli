@@ -3,10 +3,10 @@ package doctorcmd
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
 	"path/filepath"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/chapter"
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/requirements"
@@ -29,8 +29,9 @@ func stage0(d Deps) []finding {
 // stage1 is the files: the three documents the methodology requires of
 // the adopter, the docs/ and work/ split, the gates answered in
 // AGENTS.md, the fence intact, the kit's tag recorded, and the two
-// checks whose verdict is the repository's own. `init` checks the same
-// stage with its own copy; why the two are not shared is written at
+// checks whose verdict is the repository's own. `init` asks its own
+// stage-1 questions in its own words; why those are not shared — and
+// which mechanics underneath them are — is written at
 // initcmd.checkFiles (task-0019).
 func stage1(root string, d Deps) []finding {
 	var found []finding
@@ -40,7 +41,7 @@ func stage1(root string, d Deps) []finding {
 			text: "docs/about.md — an About file is required of the project, and none was found"})
 	}
 	for _, folder := range []string{"product", "technical"} {
-		if !hasChapter(d.Files, filepath.Join(root, "docs", folder)) {
+		if !chapter.In(d.Files, filepath.Join(root, "docs", folder)) {
 			found = append(found, finding{stage: 1, level: breaks,
 				text: fmt.Sprintf("docs/%s/ — at least one real %s doc is required beyond the README", folder, folder)})
 		}
@@ -181,9 +182,9 @@ func unanswered(who string) bool {
 	return strings.TrimSpace(who) == "" || strings.Contains(who, "TODO")
 }
 
-// kitVersion reads `.writrun/VERSION` through kittag, the one reader of
-// that file, and grades what it finds here: a tag no refresh could act
-// on breaks a flow, and saying so is doctor's alone.
+// kitVersion reads `.writrun/VERSION` through kittag, which owns that
+// file's path and its parsing, and grades what it finds here: a tag no
+// refresh could act on breaks a flow, and saying so is doctor's alone.
 func kitVersion(disk vfs.FS, root string) []finding {
 	tag, err := kittag.Read(disk, root)
 	if err != nil {
@@ -216,20 +217,4 @@ func script(root string, d Deps, name, expectation string) []finding {
 func exists(disk vfs.FS, path string) bool {
 	_, err := disk.Stat(path)
 	return err == nil
-}
-
-// hasChapter reports whether a docs folder holds any markdown beyond
-// its README — a real chapter, not a table of chapters to come.
-func hasChapter(disk vfs.FS, dir string) bool {
-	found := false
-	_ = disk.WalkDir(dir, func(_ string, entry fs.DirEntry, err error) error {
-		if err != nil || entry == nil || entry.IsDir() {
-			return nil
-		}
-		if strings.HasSuffix(entry.Name(), ".md") && !strings.EqualFold(entry.Name(), "README.md") {
-			found = true
-		}
-		return nil
-	})
-	return found
 }

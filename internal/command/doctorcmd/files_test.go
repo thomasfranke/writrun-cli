@@ -15,7 +15,7 @@ func TestEveryAssumptionHoldingFindsNothing(t *testing.T) {
 }
 
 func TestAMissingRequirementIsNamed(t *testing.T) {
-	for _, bin := range requirements.Binaries {
+	for _, bin := range requirements.All() {
 		t.Run(bin, func(t *testing.T) {
 			f := newFixture(t, "1")
 			f.path[bin] = false
@@ -26,12 +26,13 @@ func TestAMissingRequirementIsNamed(t *testing.T) {
 
 func TestEveryRequirementMissingNamesEveryOne(t *testing.T) {
 	f := newFixture(t, "1")
-	for _, bin := range requirements.Binaries {
+	want := requirements.All()
+	for _, bin := range want {
 		f.path[bin] = false
 	}
 	found := at(f.findings(), 0)
-	if len(found) != len(requirements.Binaries) {
-		t.Fatalf("stage 0 findings = %d, want %d:\n%s", len(found), len(requirements.Binaries), texts(found))
+	if len(found) != len(want) {
+		t.Fatalf("stage 0 findings = %d, want %d:\n%s", len(found), len(want), texts(found))
 	}
 }
 

@@ -4,18 +4,31 @@
 // (docs/technical/runtime/requirements.md).
 package requirements
 
-// Binaries are the wrapped scripts' own requirements, and this binary
+// binaries are the wrapped scripts' own requirements, and this binary
 // adds none. `gh` is not among them: it is asked for at stage 2, where
 // the flows already reach the forge.
-var Binaries = []string{"git", "bash", "awk", "sed"}
+//
+// It is unexported and handed out only as a copy: a package-level
+// variable another package could write is state this project does not
+// keep (technical/engineering/boundaries.md).
+var binaries = []string{"git", "bash", "awk", "sed"}
 
-// Missing returns the binaries lookPath cannot find, in Binaries'
-// order. Every one is named, so a reader installs all of them in one
-// pass rather than one per run. What a missing binary means is the
-// caller's: this reports the fact and grades nothing.
+// All returns the required binaries, in the order a reader should be
+// told about them. The slice is the caller's own — reordering it
+// reorders nothing here.
+func All() []string {
+	out := make([]string, len(binaries))
+	copy(out, binaries)
+	return out
+}
+
+// Missing returns the binaries lookPath cannot find, in All's order.
+// Every one is named, so a reader installs all of them in one pass
+// rather than one per run. What a missing binary means is the caller's:
+// this reports the fact and grades nothing.
 func Missing(lookPath func(name string) (string, error)) []string {
 	var missing []string
-	for _, bin := range Binaries {
+	for _, bin := range binaries {
 		if _, err := lookPath(bin); err != nil {
 			missing = append(missing, bin)
 		}

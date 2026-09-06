@@ -11,6 +11,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
@@ -231,7 +232,7 @@ func (a *adoption) apply() error {
 
 	// The tag is recorded from what was actually fetched, never
 	// trusted from the clone's own file (spec-0002).
-	if err := a.disk.WriteFile(filepath.Join(a.root, ".writrun", "VERSION"), []byte(a.tag+"\n"), 0o644); err != nil {
+	if err := a.disk.WriteFile(kittag.Path(a.root), []byte(a.tag+"\n"), 0o644); err != nil {
 		return fmt.Errorf("recording the tag: %w", err)
 	}
 

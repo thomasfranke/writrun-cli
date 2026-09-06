@@ -85,14 +85,22 @@ and after, with `.writrun/VERSION` recorded, empty, absent, unreadable,
 spelled with a leading zero, and ahead of the pinned tag, and every
 byte of stdout, stderr and every exit code matched.
 
-**`.writrun/VERSION` — extracted.** `internal/kittag` is the file's one
-reader: `Path`, `Read`, `Compare`, `SameRelease`, `Components`,
-`Readable`. It reads through the `vfs.FS` port its callers already own,
-so it leaves the process through nothing of its own and needs no fake.
+**`.writrun/VERSION` — extracted.** `internal/kittag` owns the file's
+path and its parsing: `Path`, `Read`, `Compare`, `SameRelease`,
+`Components`, `Readable`. It reads through the `vfs.FS` port its callers
+already own, so it leaves the process through nothing of its own and
+needs no fake. `update`, `status` and `doctor` read the file only from
+here; `init` asks its own stage-1 question of it, and both writers
+record the tag through `Path`, so the join is spelled once even where
+the reading is not shared.
 
-- Ordering and equality are separate entry points. `SameRelease` is not
-  `Compare(a, b) == 0`: ordering carries `update`'s rule that an
-  unreadable tag is a move forward, and `status` inherits none of it.
+- Ordering and equality are separate entry points, and `SameRelease` is
+  `Compare(a, b) == 0` exactly. `Compare` answers 0 only on two tags it
+  read as one release and 1 — never 0 — on a tag it could not read, so
+  `update`'s rule that an unreadable tag is a move forward reaches no
+  caller asking only whether two tags match. The second name exists so
+  that caller never spells the question as an ordering, not because the
+  answer differs.
 - `doctor`'s third parse is `Readable`, kept stricter than `Components`
   on purpose. A recorded tag needs a leading `v` and two all-digit
   components; a comparison takes what it can order, because refusing a
@@ -106,10 +114,18 @@ so it leaves the process through nothing of its own and needs no fake.
 probe is one list and one loop, identical in both copies and fixed by
 `docs/technical/runtime/requirements.md`; it is now
 `internal/requirements`, which returns the binaries that are missing
-and grades nothing. Stage 1 is not shared, and the reason is at
+and grades nothing — as an unexported list handed out by `All` as a
+copy, because a package-level variable another package could write is
+state `technical/engineering/boundaries.md` refuses.
+
+Stage 1's *questions* are not shared, and the reason is at
 `initcmd.checkFiles`: `init` reports on the adoption it has just run,
 `doctor` reports on a repository in use, and one function answering
-both would answer neither.
+both would answer neither. That reason covers the questions and the
+words, not the mechanics under them: what asks nothing is shared. The
+docs-chapter walk was the same code in both copies down to an
+unreachable nil guard and is now `internal/chapter`; what each command
+calls a folder without one stays with that command.
 
 Which behaviour won, on the three the copies disagree about:
 

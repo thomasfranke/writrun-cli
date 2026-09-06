@@ -3,11 +3,12 @@ package initcmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"path/filepath"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/chapter"
 	"github.com/thomasfranke/writrun-cli/internal/fence"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -58,15 +59,22 @@ func checkStages(root string, stage int, d Deps) []gap {
 // AGENTS.md. The kit's own files were just written, so what can gape
 // here is the project's half.
 //
-// doctor checks stage 1 too, and the two are deliberately not shared
-// (task-0019, spec-0018). init reports on the adoption it has just
-// run: the stage is the flag's, AGENTS.md is tested for the
+// doctor checks stage 1 too, and what the two ask is deliberately not
+// shared (task-0019, spec-0018). init reports on the adoption it has
+// just run: the stage is the flag's, AGENTS.md is tested for the
 // placeholders the kit wrote, and none of the repository's own scripts
 // is run against a repository still being set up. doctor reports on a
 // repository in use: the stage comes from `read_setting.sh`, each of
 // the four gates is named, and `check_front_matter.sh` and
 // `check_settings.sh` decide. Each is right for its command, so one
 // shared stage-1 would give one of them the other's question.
+//
+// That reason covers the questions and the words, not the mechanics
+// under them: what asks nothing is shared. The path of
+// `.writrun/VERSION` and its reading are kittag's, the docs-chapter
+// walk is internal/chapter, and the stage-0 list is
+// internal/requirements. What stays here is which paths are probed,
+// which of them is required, and how a gap is worded.
 func checkFiles(disk vfs.FS, root string) []gap {
 	var gaps []gap
 
@@ -74,7 +82,7 @@ func checkFiles(disk vfs.FS, root string) []gap {
 		gaps = append(gaps, gap{1, "docs/about.md — an About file is required of the project, and none was found"})
 	}
 	for _, folder := range []string{"product", "technical"} {
-		if !hasRealChapter(disk, filepath.Join(root, "docs", folder)) {
+		if !chapter.In(disk, filepath.Join(root, "docs", folder)) {
 			gaps = append(gaps, gap{1, fmt.Sprintf("docs/%s/ — at least one real %s doc is required beyond the README", folder, folder)})
 		}
 	}
@@ -94,7 +102,10 @@ func checkFiles(disk vfs.FS, root string) []gap {
 		gaps = append(gaps, gap{1, "AGENTS.md — TODOs remain; the four human gates must be answered, not left as placeholders"})
 	}
 
-	if v, err := disk.ReadFile(filepath.Join(root, ".writrun", "VERSION")); err != nil || strings.TrimSpace(string(v)) == "" {
+	// The file and its reading are kittag's; what an unrecorded tag
+	// means to an adoption just run is this command's, and it is a gap
+	// rather than a graded finding.
+	if tag, err := kittag.Read(disk, root); err != nil || tag == "" {
 		gaps = append(gaps, gap{1, ".writrun/VERSION — the kit's tag is not recorded"})
 	}
 
@@ -137,22 +148,6 @@ func checkForge(d Deps) ([]gap, bool) {
 		gaps = append(gaps, gap{2, "Actions workflow permissions are read-only — the recording bot needs read-and-write to push to main"})
 	}
 	return gaps, true
-}
-
-// hasRealChapter reports whether a docs folder holds any markdown
-// beyond its README — a real chapter, not a table of chapters to come.
-func hasRealChapter(disk vfs.FS, dir string) bool {
-	found := false
-	_ = disk.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return nil
-		}
-		if strings.HasSuffix(entry.Name(), ".md") && !strings.EqualFold(entry.Name(), "README.md") {
-			found = true
-		}
-		return nil
-	})
-	return found
 }
 
 func firstLine(s string) string {
