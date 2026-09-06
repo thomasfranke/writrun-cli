@@ -66,13 +66,20 @@ func queueFile(files vfs.FS, root, dir, kind, id string) (string, error) {
 // frontMatter returns the lines of the leading `---` block. A file that
 // does not open with one has no front matter at all, and every reader
 // here says so rather than guessing where it ends.
+//
+// The fence is matched exactly, never trimmed, because the kit's own
+// `ql_fm_field` matches it exactly: `NR == 1 { if ($0 != "---") exit }`
+// and `/^---$/`. A CRLF file opens with `---\r`, which the kit reads as
+// no front matter and `check_front_matter.sh` calls MALFORMED — and a
+// reader here that trimmed would have read a status off a file the
+// repository refuses, and rewritten it (report-0024).
 func frontMatter(content []byte) ([]string, bool) {
 	lines := strings.Split(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+	if len(lines) == 0 || lines[0] != "---" {
 		return nil, false
 	}
 	for i := 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "---" {
+		if lines[i] == "---" {
 			return lines[1:i], true
 		}
 	}

@@ -118,6 +118,23 @@ func TestFieldReadsTheFrontMatterAlone(t *testing.T) {
 	}
 }
 
+// A CRLF queue file opens with `---\r`, which the kit's own ql_fm_field
+// reads as no front matter and check_front_matter.sh calls MALFORMED.
+// A reader here that trimmed the fence would read a status off a file
+// the repository refuses, and amend would rewrite it (report-0024).
+func TestTheFenceIsTheKitsFenceAndNotATrimmedOne(t *testing.T) {
+	crlf := []byte("---\r\nid: spec-0011\r\nstatus: approved\r\n---\r\n")
+	if got := field(crlf, "status"); got != "" {
+		t.Errorf("status = %q; a CRLF file has no front matter to the kit, so it has none here", got)
+	}
+	if _, ok := frontMatter(crlf); ok {
+		t.Error("a CRLF file reported front matter the kit's reader does not find")
+	}
+	if _, ok := frontMatter([]byte(" ---\nid: spec-0011\n---\n")); ok {
+		t.Error("an indented fence opened a block; ql_fm_field requires column 0")
+	}
+}
+
 func TestSetField(t *testing.T) {
 	content := []byte(specFixture("approved"))
 	next, changed, err := setField(content, "status", "draft")
@@ -270,27 +287,34 @@ func TestMatchKeepsATaskNoPullRequestWorks(t *testing.T) {
 	}
 }
 
-// A CRLF file keeps its line endings: rewriting the status line without
-// the carriage return made it the one LF line in the file, which is a
-// change to something nobody asked to change.
-func TestSetFieldKeepsTheLineEndingItFound(t *testing.T) {
+// A wholly-CRLF queue file opens with `---\r`, which the kit's reader
+// does not see as front matter and check_front_matter.sh calls
+// MALFORMED. Reading a status off it and writing one back is what
+// report-0024 named; the refusal is the answer, not a careful rewrite.
+func TestAcrlfFileIsRefusedRatherThanRewritten(t *testing.T) {
 	crlf := []byte(strings.ReplaceAll(specFixture("approved"), "\n", "\r\n"))
-	next, changed, err := setField(crlf, "status", "draft")
+	if _, changed, err := setField(crlf, "status", "draft"); err == nil || changed {
+		t.Errorf("setField wrote into a file the repository calls malformed: changed=%v err=%v", changed, err)
+	}
+}
+
+// Where the fence is the kit's and a field line still carries a
+// carriage return, the line keeps it: rewriting it bare would make it
+// the one LF line in its neighbourhood, which is a change nobody asked
+// for.
+func TestSetFieldKeepsTheLineEndingItFound(t *testing.T) {
+	mixed := []byte("---\nid: spec-0011\nstatus: approved\r\n---\n\nA body paragraph.\n")
+	next, changed, err := setField(mixed, "status", "draft")
 	if err != nil || !changed {
 		t.Fatalf("setField = %v, changed=%v", err, changed)
 	}
 	if !strings.Contains(string(next), "status: draft\r\n") {
 		t.Errorf("the rewritten line lost its carriage return:\n%q", string(next))
 	}
-	if strings.Contains(strings.ReplaceAll(string(next), "\r\n", ""), "\n") {
-		t.Errorf("the file gained a bare LF line:\n%q", string(next))
-	}
 	if field(next, "status") != "draft" {
 		t.Error("the field was not written")
 	}
-	// And a second pass over the written file reports no change, rather
-	// than fighting its own carriage return forever.
 	if _, changed, _ := setField(next, "status", "draft"); changed {
-		t.Error("a CRLF file already carrying the value reported a change")
+		t.Error("a line already carrying the value reported a change")
 	}
 }
