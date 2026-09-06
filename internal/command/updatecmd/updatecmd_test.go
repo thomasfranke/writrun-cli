@@ -26,11 +26,8 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	src := makeSource(t)
 	root := makeAdopted(t)
 
-	// The project answers its gate and inverts the deriving default.
-	agents := read(t, root, "AGENTS.md")
-	agents = strings.Replace(agents, "<!-- TODO — default: human reviews -->", "Thomas reviews before merge.", 1)
-	agents = strings.Replace(agents, "Present the derived tasks in the session before opening the PR.", "Open the derived pull request directly.", 1)
-	write(t, root, "AGENTS.md", agents)
+	// The project answers its own gates, in the file that holds them.
+	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | Thomas reviews before merge. |\n")
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "our answers")
 
@@ -52,9 +49,24 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 		t.Error("the reworded workflow was not rewritten")
 	}
 
+	// The three files that reach no refresh list, and would have stayed
+	// at the tag that installed them under the closed inventory.
+	if got := read(t, root, ".writrun/AGENTS.md"); !strings.Contains(got, "reworded") {
+		t.Error("the kit's own AGENTS.md was not refreshed")
+	}
+	if got := read(t, root, ".github/workflows/writrun-intake.yml"); !strings.Contains(got, "intake") {
+		t.Error("a workflow the new tag adds was not written")
+	}
+	if got := read(t, root, ".github/ISSUE_TEMPLATE/writrun-report.yml"); !strings.Contains(got, "report") {
+		t.Error("the issue template the new tag adds was not written")
+	}
+
 	// What the project owns, byte for byte.
 	if got := read(t, root, ".writrun/conventions/commits.md"); got != "# Our commits\n" {
 		t.Errorf("the conventions were touched: %q", got)
+	}
+	if got := read(t, root, ".writrun/settings.json"); !strings.Contains(got, `"stage": 3`) {
+		t.Errorf("the settings were touched: %q", got)
 	}
 	if got := read(t, root, "docs/product/a-chapter.md"); got != "# Our own chapter\n" {
 		t.Errorf("the project's docs were touched: %q", got)
@@ -62,22 +74,49 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	if got := read(t, root, "work/tasks/task-0001-a-task.md"); got != "id: task-0001\n" {
 		t.Errorf("the queue was touched: %q", got)
 	}
+	if got := read(t, root, ".github/workflows/tests.yml"); got != "name: the project's own\n" {
+		t.Errorf("a workflow the project wrote was touched: %q", got)
+	}
+	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "Thomas reviews before merge.") {
+		t.Errorf("the project's gate answers did not survive: %q", got)
+	}
 
-	refreshed := read(t, root, "AGENTS.md")
-	if !strings.Contains(refreshed, "Thomas reviews before merge.") {
-		t.Error("the project's gates answer did not survive")
+	// AGENTS.md is the project's whole from v0.0.04 on.
+	if got := read(t, root, "AGENTS.md"); got != agentsDoc {
+		t.Errorf("AGENTS.md was rewritten:\n%q", got)
 	}
-	if !strings.Contains(refreshed, "Open the derived pull request directly.") {
-		t.Error("the project's deriving default did not survive")
+}
+
+// TestTheSeedArrivesOnceAndIsNeverRewritten covers the one file a
+// refresh writes only where the repository lacks it.
+func TestTheSeedArrivesOnceAndIsNeverRewritten(t *testing.T) {
+	root := makeAdopted(t)
+	// makeAdopted predates gates.md, the way a v0.0.03 adoption does.
+	out, err := runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
 	}
-	if strings.Contains(refreshed, "TODO — default: human reviews") {
-		t.Error("the kit's empty gates row came back")
+	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "Transition") {
+		t.Fatalf("the seed did not arrive: %q", got)
 	}
-	if !strings.Contains(refreshed, "The flow's text, reworded.") {
-		t.Error("the refreshed prose did not land")
+
+	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | Ours. |\n")
+	write(t, root, ".writrun/VERSION", oldTag+"\n")
+	// One kit file put back a tag, so the second plan has something to
+	// render: an empty plan stands down before it names anything.
+	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
+	gitT(t, root, "add", "-A")
+	gitT(t, root, "commit", "-q", "-m", "answered, and back a tag")
+
+	out, err = runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("the second update: %v\n%s", err, out)
 	}
-	if !strings.Contains(refreshed, "Prose the project wrote.") {
-		t.Error("bytes outside the fence were touched")
+	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "Ours.") {
+		t.Errorf("the second refresh overwrote the answers: %q", got)
+	}
+	if !strings.Contains(out, "yours; this tag ships one and it is left alone") {
+		t.Errorf("the plan does not say the seed is kept:\n%s", out)
 	}
 }
 
@@ -114,25 +153,45 @@ func TestADowngradeIsRefused(t *testing.T) {
 	}
 }
 
-func TestADamagedFenceStopsEverything(t *testing.T) {
+// TestALegacyFenceIsNamedAndNotTouched inverts
+// TestADamagedFenceStopsEverything. The fence was what a refresh
+// rewrote, so a damaged one stopped everything; from v0.0.04 the whole
+// of AGENTS.md is the project's, so a leftover section is named and
+// left exactly as it is.
+func TestALegacyFenceIsNamedAndNotTouched(t *testing.T) {
 	root := makeAdopted(t)
-	agents := read(t, root, "AGENTS.md")
-	write(t, root, "AGENTS.md", strings.Replace(agents, "<!-- writrun:end -->", "", 1))
+	write(t, root, "AGENTS.md", legacyAgents)
 	gitT(t, root, "add", "-A")
-	gitT(t, root, "commit", "-q", "-m", "a damaged fence")
+	gitT(t, root, "commit", "-q", "-m", "still on the fenced shape")
 
 	out, err := runUpdate(t, root, Deps{})
-	if err == nil {
-		t.Fatalf("a damaged fence was accepted:\n%s", out)
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
 	}
-	if !strings.Contains(err.Error(), "fenced section") {
-		t.Errorf("the refusal does not name the fence: %v", err)
+	if !strings.Contains(out, "still carries a writrun:begin/writrun:end section") {
+		t.Errorf("the plan does not name the stale section:\n%s", out)
 	}
-	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {
-		t.Errorf("the tag moved to %q despite the refusal", got)
+	if got := read(t, root, "AGENTS.md"); got != legacyAgents {
+		t.Errorf("AGENTS.md was rewritten:\n%q", got)
 	}
-	if diff := gitT(t, root, "status", "--porcelain"); strings.TrimSpace(diff) != "" {
-		t.Errorf("something was written:\n%s", diff)
+	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != newTag {
+		t.Errorf("the refresh did not proceed: VERSION = %q", got)
+	}
+}
+
+// TestAnAbsentAgentsFileDoesNotStopTheRefresh: it is the project's
+// file, and a refresh has no opinion about one that is not there.
+func TestAnAbsentAgentsFileDoesNotStopTheRefresh(t *testing.T) {
+	root := makeAdopted(t)
+	gitT(t, root, "rm", "-q", "AGENTS.md")
+	gitT(t, root, "commit", "-q", "-m", "no entry point")
+
+	out, err := runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != newTag {
+		t.Errorf("the refresh did not proceed: VERSION = %q", got)
 	}
 }
 

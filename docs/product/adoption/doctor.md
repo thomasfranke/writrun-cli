@@ -10,11 +10,12 @@ assumes. Reports; it never repairs.
   present on the `PATH`
   ([requirements](../../technical/runtime/requirements.md)).
 - **Stage 1 — files:** an About file, at least one real product
-  chapter, a technical doc, the `docs/` / `work/` split, the four
-  gates the methodology requires answered in `AGENTS.md` — who changes
-  `docs/`, who declares a rule finished, who approves a spec, who acts
-  on a task without one — the fenced markers intact, the kit's version
-  recorded, the queue readable, the settings canonical.
+  chapter, a technical doc, the `docs/` / `work/` split, `AGENTS.md`
+  present, every row of `.writrun/gates.md` answered, the kit's version
+  recorded, the queue readable, the settings canonical. The gates are
+  the rows that file states — a gate a newer tag adds is named without
+  this binary knowing it
+  ([coupling](../../technical/engineering/coupling.md)).
 - **Stage 2 — the forge:** `gh` authenticated; the recording push able
   to reach `main` — Actions workflow permissions read-and-write, or
   read where every workflow that pushes to `main` raises

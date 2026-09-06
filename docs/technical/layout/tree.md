@@ -11,7 +11,7 @@
 | `internal/term/` | Interaction: selection, confirmation, TTY detection — the terminal port. |
 | `internal/wrepo/` | Adopted-repository detection, settings, queue paths. |
 | `internal/queue/` | The queue's files as the kit's own scripts read them — front matter, one field, an inline list, the title, and the id-to-file resolution. |
-| `internal/fence/` | The fenced WritRun section of an `AGENTS.md`: grafted, replaced, removed. |
+| `internal/pointer/` | WritRun's section of an `AGENTS.md`: found, grafted, removed. |
 | `internal/hook/` | The commit-message hook: its text, where git keeps it, whether it is still ours. |
 | `internal/kitpaths/` | What `init` installs, listed once — what `update` refreshes and `uninstall` removes. |
 | `internal/kitfetch/` | The shallow clone of a pinned WritRun tag — the port, the clone, and the fake. |

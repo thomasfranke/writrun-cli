@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/chapter"
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
+	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -28,8 +28,8 @@ func stage0(d Deps) []finding {
 
 // stage1 is the files: the three documents the methodology requires of
 // the adopter, the docs/ and work/ split, the gates answered in
-// AGENTS.md, the fence intact, the kit's tag recorded, and the two
-// checks whose verdict is the repository's own. `init` asks its own
+// `.writrun/gates.md`, the kit's tag recorded, and the two checks whose
+// verdict is the repository's own. `init` asks its own
 // stage-1 questions in its own words; why those are not shared — and
 // which mechanics underneath them are — is written at
 // initcmd.checkFiles (task-0019).
@@ -54,6 +54,7 @@ func stage1(root string, d Deps) []finding {
 	}
 
 	found = append(found, agents(d.Files, root)...)
+	found = append(found, gates(d.Files, root)...)
 	found = append(found, kitVersion(d.Files, root)...)
 	found = append(found, script(root, d, frontMatterScript,
 		"the queue's front matter is not canonical; every fault it named is below")...)
@@ -62,92 +63,79 @@ func stage1(root string, d Deps) []finding {
 	return found
 }
 
-// agents reads AGENTS.md: the entry point present, the fence the kit
-// refreshes through intact, and the four gates answered.
+// agents reads AGENTS.md — the entry point present, and the stale
+// fenced section a kit before v0.0.04 grafted. From v0.0.04 the file is
+// the project's whole, so a leftover section is a duplicate of what
+// `.writrun/AGENTS.md` now says rather than a broken refresh: it
+// advises, it does not break.
 func agents(disk vfs.FS, root string) []finding {
 	raw, err := disk.ReadFile(filepath.Join(root, "AGENTS.md"))
 	if err != nil {
 		return []finding{{stage: 1, level: breaks,
 			text: "AGENTS.md — the agents' entry point is missing"}}
 	}
-	doc := string(raw)
-	var found []finding
-	begin := strings.Index(doc, fence.Begin)
-	end := strings.Index(doc, fence.End)
-	if begin < 0 || end < begin {
-		found = append(found, finding{stage: 1, level: breaks,
-			text: "AGENTS.md — the fenced writrun:begin/writrun:end markers are damaged; a refresh rewrites nothing without them"})
+	if pointer.Legacy(raw) {
+		return []finding{{stage: 1, level: advises,
+			text: "AGENTS.md — a writrun:begin/writrun:end section is still there; the flow now lives in " + pointer.Target + " and this copy of it is stale"}}
 	}
-	return append(found, gates(doc)...)
+	return nil
 }
 
-// gate is one of the four answers the methodology requires of a
-// project. The key is the phrase the transition cell carries in every
-// wording the kit has shipped, and the words are how the finding names
-// the gate that went unanswered.
-type gate struct {
-	key   string
-	names string
-}
+// gatesFile is where a project states who operates each gate. It is the
+// kit's own declaration of the question, so the answers are read from
+// its rows rather than from a list of gates held here
+// (docs/technical/engineering/coupling.md, rule 2).
+const gatesFile = ".writrun/gates.md"
 
-// theGates are the four, in the order the table states them
-// (spec-0004, step 3).
-var theGates = []gate{
-	{"under `docs/`", "who writes or reviews a change under docs/"},
-	{"authored rule", "who declares an authored rule finished"},
-	{"approved", "who moves a spec from draft to approved"},
-	{"spec_ref", "who acts on a task carrying no spec"},
-}
-
-// gates reports the gates the table leaves unanswered. The table is
-// read from the Human gates section where AGENTS.md still heads it that
-// way, and from the whole document otherwise — a project may retitle
-// the section, and a gate answered under another heading is answered.
-func gates(doc string) []finding {
-	rows := tableRows(section(doc, "Human gates"))
+// gates reports every row of that file the project has not answered.
+// The transition each row names is the finding's own words, so a gate
+// this binary has never seen is judged by the same rule and named by
+// the file that states it.
+func gates(disk vfs.FS, root string) []finding {
+	raw, err := disk.ReadFile(filepath.Join(root, filepath.FromSlash(gatesFile)))
+	if err != nil {
+		return []finding{{stage: 1, level: breaks,
+			text: gatesFile + " — the project's gate answers are missing; every gate the kit states is unanswered"}}
+	}
+	rows := tableRows(string(raw))
+	if len(rows) == 0 {
+		return []finding{{stage: 1, level: breaks,
+			text: gatesFile + " — no table of gates is readable in it"}}
+	}
 	var found []finding
-	for _, g := range theGates {
-		who, stated := answer(rows, g.key)
-		switch {
-		case !stated:
+	for _, row := range rows {
+		if isDivider(row[0]) || isHeader(row[0]) {
+			continue
+		}
+		if unanswered(row[1]) {
 			found = append(found, finding{stage: 1, level: breaks,
-				text: "AGENTS.md — the human gates table states no row for " + g.names})
-		case unanswered(who):
-			found = append(found, finding{stage: 1, level: breaks,
-				text: "AGENTS.md — the gate for " + g.names + " is still a placeholder; it must be answered, not left as a TODO"})
+				text: gatesFile + " — the gate for " + strip(row[0]) + " is unanswered"})
 		}
 	}
 	return found
 }
 
-// section cuts the markdown heading named by title and everything under
-// it, up to the next heading of any level. An absent heading yields the
-// whole document, because a project that retitled the section still
-// wrote its answers somewhere in this file.
-func section(doc, title string) string {
-	lines := strings.Split(doc, "\n")
-	start := -1
-	for i, line := range lines {
-		if strings.HasPrefix(line, "#") && strings.Contains(line, title) {
-			start = i + 1
-			break
-		}
-	}
-	if start < 0 {
-		return doc
-	}
-	for i := start; i < len(lines); i++ {
-		if strings.HasPrefix(lines[i], "#") {
-			return strings.Join(lines[start:i], "\n")
-		}
-	}
-	return strings.Join(lines[start:], "\n")
+// isDivider reports a markdown table's alignment row, which is the
+// table's shape and nobody's gate.
+func isDivider(cell string) bool {
+	trimmed := strings.Trim(cell, " -:")
+	return trimmed == ""
+}
+
+// isHeader reports the column titles, which the kit words the same in
+// every table it ships.
+func isHeader(cell string) bool {
+	return strings.EqualFold(strings.TrimSpace(cell), "Transition")
+}
+
+// strip is a transition cell as a finding should read it: without the
+// backticks the file uses for its own emphasis.
+func strip(cell string) string {
+	return strings.TrimSpace(strings.ReplaceAll(cell, "`", ""))
 }
 
 // tableRows reads the two-column rows of every markdown table in a
-// stretch of document: the transition and who answers it, trimmed. The
-// alignment row is one of them and matches no gate, so it needs no
-// special case.
+// document: the transition and who answers it, trimmed.
 func tableRows(doc string) [][2]string {
 	var rows [][2]string
 	for _, line := range strings.Split(doc, "\n") {
@@ -162,18 +150,6 @@ func tableRows(doc string) [][2]string {
 		rows = append(rows, [2]string{strings.TrimSpace(cells[0]), strings.TrimSpace(cells[1])})
 	}
 	return rows
-}
-
-// answer finds the row whose transition carries key and returns what it
-// says about who. The match is case-insensitive: the wording is the
-// project's, and a capital is not a missing gate.
-func answer(rows [][2]string, key string) (string, bool) {
-	for _, row := range rows {
-		if strings.Contains(strings.ToLower(row[0]), strings.ToLower(key)) {
-			return row[1], true
-		}
-	}
-	return "", false
 }
 
 // unanswered reports whether a Who cell is still the kit's placeholder

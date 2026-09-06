@@ -58,16 +58,20 @@ const templateAgents = `# AGENTS.md — entry point for AI agents
 
 <!-- TODO: one paragraph. -->
 
-## WritRun — working the queue
+## WritRun
 
-<!-- writrun:begin
-     This section is WritRun's flow. -->
+This project tracks its work with WritRun. Before touching ` + "`work/`" + `,
+read and follow [` + "`.writrun/AGENTS.md`" + `](.writrun/AGENTS.md).
+`
 
-### Picking work
+// templateGates is the gates file the kit ships: every answer a TODO,
+// which is what the adoption copies and the project answers next.
+const templateGates = `# Human gates
 
-The flow's text.
-
-<!-- writrun:end -->
+| Transition | Who |
+|---|---|
+| Writing or changing anything under ` + "`docs/`" + ` | <!-- TODO — default: human reviews --> |
+| Everything else | Agent, autonomously. |
 `
 
 const templateCommits = "# Commits\n\n" +

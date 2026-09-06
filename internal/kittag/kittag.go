@@ -14,11 +14,16 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
+// Rel is where an adopted repository records the kit's tag, relative to
+// the repository root and slash-separated — the form a refresh compares
+// its plan in.
+const Rel = ".writrun/VERSION"
+
 // Path is where an adopted repository records the kit's tag. Every
 // reader and every writer of that file asks here, so the location has
 // one definition.
 func Path(root string) string {
-	return filepath.Join(root, ".writrun", "VERSION")
+	return filepath.Join(root, filepath.FromSlash(Rel))
 }
 
 // Read returns the recorded tag, trimmed. The error is the

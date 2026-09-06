@@ -51,10 +51,25 @@ func read(t *testing.T, root, rel string) string {
 	return string(content)
 }
 
-// agentsAt is the kit's fenced section as a tag ships it: two `yours`
-// markers, one governing the block after it and one the block before.
-func agentsAt(flow string) string {
-	return `# AGENTS.md — entry point for AI agents
+// agentsSection is WritRun's part of an AGENTS.md as v0.0.04 ships it:
+// a heading, and under it the link that is the whole of how the
+// section is recognised.
+const agentsSection = `## WritRun
+
+This project tracks its work with WritRun. Before touching ` + "`work/`" + `,
+read and follow [` + "`.writrun/AGENTS.md`" + `](.writrun/AGENTS.md).`
+
+// agentsDoc is a project's own AGENTS.md, WritRun's section grafted on.
+const agentsDoc = `# AGENTS.md — entry point for AI agents
+
+Prose the project wrote.
+
+` + agentsSection + `
+`
+
+// legacyAgents is what a v0.0.03 adoption left behind: the fenced
+// section, and no pointer anywhere.
+const legacyAgents = `# AGENTS.md — entry point for AI agents
 
 Prose the project wrote.
 
@@ -65,30 +80,22 @@ Prose the project wrote.
 
 ### Picking work
 
-` + flow + `
-
-### Human gates
-
-<!-- yours: this table is the project's own answers; it survives updates. -->
-
-| Transition | Who |
-|---|---|
-| Writing docs | <!-- TODO — default: human reviews --> |
-
-### Deriving work
-
-Present the derived tasks in the session before opening the PR.
-<!-- yours: keep, invert, or drop this default — it is the project's. -->
+The flow's text.
 
 <!-- writrun:end -->
 `
-}
 
 // writeTemplateOld writes the template tree oldTag ships, under dir.
 func writeTemplateOld(t *testing.T, dir string) {
 	t.Helper()
-	write(t, dir, "AGENTS.md", agentsAt("The flow's text."))
+	write(t, dir, "AGENTS.md", agentsDoc)
+	write(t, dir, "WRITRUN.md", "# WritRun\n")
+	write(t, dir, "docs/writrun-instructions.md", "# Instructions\n")
+	write(t, dir, "docs/product/README.md", "# Product\n")
+	write(t, dir, "work/tasks/README.md", "# Tasks\n")
 	write(t, dir, ".writrun/VERSION", oldTag+"\n")
+	write(t, dir, ".writrun/AGENTS.md", "# WritRun — the agent flow\n")
+	write(t, dir, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | <!-- TODO --> |\n")
 	write(t, dir, ".writrun/settings.json", "{\n  \"stage\": 1\n}\n")
 	write(t, dir, ".writrun/conventions/commits.md", "# Commits\n")
 	write(t, dir, ".writrun/skills/select/SKILL.md", "# Select\n")
@@ -101,15 +108,18 @@ func writeTemplateOld(t *testing.T, dir string) {
 
 // writeTemplateNew writes the template tree newTag ships: oldTag's,
 // with a reworded skill, an added template and a reworded workflow —
-// one of each verb the plan reports.
+// one of each verb the plan reports — plus two files no list in Go
+// names, which is the whole point of walking the template.
 func writeTemplateNew(t *testing.T, dir string) {
 	t.Helper()
 	writeTemplateOld(t, dir)
-	write(t, dir, "AGENTS.md", agentsAt("The flow's text, reworded."))
 	write(t, dir, ".writrun/VERSION", newTag+"\n")
+	write(t, dir, ".writrun/AGENTS.md", "# WritRun — the agent flow, reworded\n")
 	write(t, dir, ".writrun/skills/select/SKILL.md", "# Select, reworded\n")
 	write(t, dir, ".writrun/templates/spec.md", "# Spec\n")
 	write(t, dir, ".github/workflows/writrun-check.yml", "name: writrun check\n# reworded\n")
+	write(t, dir, ".github/workflows/writrun-intake.yml", "name: writrun intake\n")
+	write(t, dir, ".github/ISSUE_TEMPLATE/writrun-report.yml", "name: report\n")
 }
 
 // makeTemplate is the template newTag ships, as a fake fetch hands it
@@ -146,9 +156,12 @@ func makeAdopted(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	gitT(t, root, "init", "-q")
-	write(t, root, "AGENTS.md", agentsAt("The flow's text."))
+	write(t, root, "AGENTS.md", agentsDoc)
+	write(t, root, "WRITRUN.md", "# WritRun\n")
+	write(t, root, "docs/writrun-instructions.md", "# Instructions\n")
 	write(t, root, ".writrun/VERSION", oldTag+"\n")
-	write(t, root, ".writrun/settings.json", "{\n  \"stage\": 1\n}\n")
+	write(t, root, ".writrun/AGENTS.md", "# WritRun — the agent flow\n")
+	write(t, root, ".writrun/settings.json", "{\n  \"stage\": 3\n}\n")
 	write(t, root, ".writrun/conventions/commits.md", "# Our commits\n")
 	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
 	write(t, root, ".writrun/scripts/take.sh", "echo take\n")
@@ -156,6 +169,7 @@ func makeAdopted(t *testing.T) string {
 	for _, wf := range []string{"approve", "check", "issues", "progress"} {
 		write(t, root, ".github/workflows/writrun-"+wf+".yml", "name: writrun "+wf+"\n")
 	}
+	write(t, root, ".github/workflows/tests.yml", "name: the project's own\n")
 	write(t, root, "docs/product/a-chapter.md", "# Our own chapter\n")
 	write(t, root, "work/tasks/task-0001-a-task.md", "id: task-0001\n")
 	gitT(t, root, "add", ".")

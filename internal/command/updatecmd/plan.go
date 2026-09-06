@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
+	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -23,14 +23,13 @@ const (
 	added   verb = "add"
 	changed verb = "change"
 	removed verb = "remove"
+	seeded  verb = "seed"
 )
 
 // change is one file the refresh touches, named before it is touched.
 type change struct {
-	rel  string
+	rel  string // slash-separated, relative to the repository root
 	verb verb
-	src  string // where it comes from in the fetched template; empty on a removal
-	mode fs.FileMode
 }
 
 // refresh is the whole plan, computed before anything is written and
@@ -42,140 +41,102 @@ type refresh struct {
 	from, to string
 
 	changes []change
-	// dirs are the kit-owned directories replaced whole; a directory
-	// the new tag no longer ships is removed rather than emptied.
-	dirs []string
-
-	agentsPath string
-	agents     []byte // the merged document; nil when the section is already current
+	// kept are the adopter-owned files the tag ships and the repository
+	// already has. They are named because a reader is being promised
+	// they survive, not because anything happens to them.
+	kept []string
+	// legacy says AGENTS.md still carries the fenced section a kit
+	// before v0.0.04 grafted. A refresh names it and rewrites nothing:
+	// from v0.0.04 that file is the project's, whole.
+	legacy bool
 }
 
-func plan(disk vfs.FS, root, template, from, to string, agents []byte) (*refresh, error) {
-	r := &refresh{
-		disk:       disk,
-		root:       root,
-		template:   template,
-		from:       from,
-		to:         to,
-		agentsPath: filepath.Join(root, "AGENTS.md"),
-	}
+// plan walks the fetched template and decides every write without
+// performing one. What the template ships is what a refresh writes,
+// minus the adopter's own paths — so a tag that adds a file needs no
+// change here (docs/technical/engineering/coupling.md).
+func plan(disk vfs.FS, root, template, from, to string) (*refresh, error) {
+	r := &refresh{disk: disk, root: root, template: template, from: from, to: to}
 
-	for _, dir := range kitpaths.RefreshDirs {
-		cs, err := diffTree(disk, root, template, dir)
-		if err != nil {
-			return nil, err
-		}
-		r.changes = append(r.changes, cs...)
-		r.dirs = append(r.dirs, dir)
-	}
-
-	for _, rel := range kitpaths.Workflows {
-		c, err := diffFile(disk, root, template, rel)
-		if err != nil {
-			return nil, err
-		}
-		if c != nil {
-			r.changes = append(r.changes, *c)
-		}
-	}
-
-	// The tag is recorded from what was fetched, never copied from the
-	// template's own file — the same rule the adoption follows.
-	r.changes = append(r.changes, change{rel: ".writrun/VERSION", verb: changed})
-
-	merged, err := mergeAgents(disk, template, agents)
+	want, err := readTree(disk, template)
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(merged, agents) {
-		r.agents = merged
+	for _, rel := range sortedKeys(want) {
+		switch {
+		case kitpaths.Seeds(rel):
+			if _, err := disk.Stat(localOf(root, rel)); err == nil {
+				r.kept = append(r.kept, rel)
+				continue
+			}
+			r.changes = append(r.changes, change{rel: rel, verb: seeded})
+		case kitpaths.Untouched(rel):
+			continue
+		default:
+			have, readErr := disk.ReadFile(localOf(root, rel))
+			switch {
+			case readErr != nil:
+				r.changes = append(r.changes, change{rel: rel, verb: added})
+			case !bytes.Equal(have, want[rel]):
+				r.changes = append(r.changes, change{rel: rel, verb: changed})
+			}
+		}
+	}
+
+	gone, err := r.dropped(want)
+	if err != nil {
+		return nil, err
+	}
+	r.changes = append(r.changes, gone...)
+
+	// The tag is recorded from what was fetched, never copied from the
+	// template's own file — the same rule the adoption follows. It is
+	// listed whether or not the file differs, because the refresh's
+	// whole point is that the recorded tag moves.
+	if !named(r.changes, kittag.Rel) {
+		r.changes = append(r.changes, change{rel: kittag.Rel, verb: changed})
+	}
+
+	agents, err := disk.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err == nil {
+		r.legacy = pointer.Legacy(agents)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("reading AGENTS.md: %w", err)
 	}
 	return r, nil
 }
 
-// mergeAgents refreshes the fenced section of the project's AGENTS.md,
-// carrying its `yours` blocks across.
-func mergeAgents(disk vfs.FS, template string, agents []byte) ([]byte, error) {
-	raw, err := disk.ReadFile(filepath.Join(template, "AGENTS.md"))
-	if err != nil {
-		return nil, fmt.Errorf("reading the template's AGENTS.md: %w", err)
-	}
-	section, err := fence.Section(raw)
-	if err != nil {
-		return nil, err
-	}
-	return fence.Replace(agents, section)
-}
-
-// diffTree names every file that differs between the fetched tree and
-// the repository's copy of one kit-owned directory.
-func diffTree(disk vfs.FS, root, template, dir string) ([]change, error) {
-	want, err := readTree(disk, filepath.Join(template, dir))
-	if err != nil {
-		return nil, err
-	}
-	have, err := readTree(disk, filepath.Join(root, dir))
-	if err != nil {
-		return nil, err
-	}
-
+// dropped names the kit's files the repository still holds and the tag
+// no longer ships. It reaches only where the kit's own files live:
+// everything under `.writrun/` that is not the adopter's, and the two
+// `.github` folders where the kit namespaces what is its.
+func (r *refresh) dropped(want map[string][]byte) ([]change, error) {
 	var out []change
-	for _, rel := range sortedKeys(want) {
-		src := filepath.Join(template, dir, rel)
-		info, statErr := disk.Stat(src)
-		if statErr != nil {
-			return nil, statErr
+	seen := map[string]bool{}
+	roots := append([]string{".writrun"}, kitpaths.NamespacedDirs()...)
+	for _, dir := range roots {
+		have, err := readTree(r.disk, filepath.Join(r.root, dir))
+		if err != nil {
+			return nil, err
 		}
-		c := change{rel: filepath.ToSlash(filepath.Join(dir, rel)), src: src, mode: info.Mode()}
-		old, there := have[rel]
-		switch {
-		case !there:
-			c.verb = added
-		case !bytes.Equal(old, want[rel]):
-			c.verb = changed
-		default:
-			continue
-		}
-		out = append(out, c)
-	}
-	for _, rel := range sortedKeys(have) {
-		if _, there := want[rel]; !there {
-			out = append(out, change{rel: filepath.ToSlash(filepath.Join(dir, rel)), verb: removed})
+		for _, rel := range sortedKeys(have) {
+			full := dir + "/" + rel
+			if _, there := want[full]; there || seen[full] {
+				continue
+			}
+			if !kitpaths.Removable(full) {
+				continue
+			}
+			seen[full] = true
+			out = append(out, change{rel: full, verb: removed})
 		}
 	}
 	return out, nil
 }
 
-// diffFile is diffTree for a single path; nil means the two agree.
-func diffFile(disk vfs.FS, root, template, rel string) (*change, error) {
-	src := filepath.Join(template, rel)
-	want, wantErr := disk.ReadFile(src)
-	have, haveErr := disk.ReadFile(filepath.Join(root, rel))
-	switch {
-	case wantErr != nil && haveErr != nil:
-		return nil, nil
-	case wantErr != nil:
-		return &change{rel: rel, verb: removed}, nil
-	case haveErr != nil:
-		info, err := disk.Stat(src)
-		if err != nil {
-			return nil, err
-		}
-		return &change{rel: rel, verb: added, src: src, mode: info.Mode()}, nil
-	case bytes.Equal(want, have):
-		return nil, nil
-	default:
-		info, err := disk.Stat(src)
-		if err != nil {
-			return nil, err
-		}
-		return &change{rel: rel, verb: changed, src: src, mode: info.Mode()}, nil
-	}
-}
-
-// readTree reads every file under dir, keyed by its path relative to
-// dir. A directory that is not there is an empty tree, not a failure:
-// a tag may add a folder the adopted kit never had.
+// readTree reads every file under dir, keyed by its slash-separated
+// path relative to dir. A directory that is not there is an empty tree,
+// not a failure: a tag may add a folder the adopted kit never had.
 func readTree(disk vfs.FS, dir string) (map[string][]byte, error) {
 	out := map[string][]byte{}
 	err := disk.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
@@ -196,13 +157,26 @@ func readTree(disk vfs.FS, dir string) (map[string][]byte, error) {
 		if readErr != nil {
 			return readErr
 		}
-		out[rel] = content
+		out[filepath.ToSlash(rel)] = content
 		return nil
 	})
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func localOf(root, rel string) string {
+	return filepath.Join(root, filepath.FromSlash(rel))
+}
+
+func named(changes []change, rel string) bool {
+	for _, c := range changes {
+		if c.rel == rel {
+			return true
+		}
+	}
+	return false
 }
 
 func sortedKeys(m map[string][]byte) []string {
@@ -217,7 +191,7 @@ func sortedKeys(m map[string][]byte) []string {
 // empty reports a refresh with nothing to do — the tag moved but the
 // files it owns did not.
 func (r *refresh) empty() bool {
-	return len(r.changes) == 1 && r.changes[0].rel == ".writrun/VERSION" && r.agents == nil
+	return len(r.changes) == 1 && r.changes[0].rel == kittag.Rel
 }
 
 // render prints what will change before anything changes.
@@ -227,17 +201,10 @@ func (r *refresh) render(w io.Writer) {
 		fmt.Fprintf(w, "  Only the recorded tag differs; every kit-owned file already matches %s.\n\n", r.to)
 		return
 	}
-	counts := map[verb]int{}
 	tops := map[string]map[verb]int{}
 	var order []string
 	for _, c := range r.changes {
-		counts[c.verb]++
-		top := c.rel
-		if i := strings.IndexByte(top, '/'); i >= 0 {
-			if j := strings.IndexByte(top[i+1:], '/'); j >= 0 {
-				top = top[:i+1+j] + "/"
-			}
-		}
+		top := group(c.rel)
 		if _, there := tops[top]; !there {
 			tops[top] = map[verb]int{}
 			order = append(order, top)
@@ -246,96 +213,65 @@ func (r *refresh) render(w io.Writer) {
 	}
 	sort.Strings(order)
 	for _, top := range order {
-		parts := make([]string, 0, 3)
-		for _, v := range []verb{added, changed, removed} {
+		parts := make([]string, 0, 4)
+		for _, v := range []verb{added, changed, removed, seeded} {
 			if n := tops[top][v]; n > 0 {
 				parts = append(parts, fmt.Sprintf("%d to %s", n, v))
 			}
 		}
 		fmt.Fprintf(w, "  %-34s %s\n", top, strings.Join(parts, ", "))
 	}
-	if r.agents != nil {
-		fmt.Fprintln(w, "  AGENTS.md                          the fenced section; the lines marked `yours` are carried across")
-	} else {
-		fmt.Fprintln(w, "  AGENTS.md                          the fenced section already matches — left alone")
+	for _, rel := range r.kept {
+		fmt.Fprintf(w, "  %-34s yours; this tag ships one and it is left alone\n", rel)
+	}
+	if r.legacy {
+		fmt.Fprintln(w, "\n  AGENTS.md still carries a writrun:begin/writrun:end section. From")
+		fmt.Fprintf(w, "  WritRun %s the flow lives in %s and that file is yours,\n", r.to, pointer.Target)
+		fmt.Fprintln(w, "  whole — so this refresh does not touch it. Cutting the stale section")
+		fmt.Fprintln(w, "  is yours to do.")
 	}
 	fmt.Fprintf(w, "\n  untouched    %s\n\n", strings.Join(kitpaths.Untouchable, ", "))
 }
 
-// apply performs exactly the rendered plan: the kit-owned directories
-// replaced whole, the named files rewritten, the tag recorded, and the
-// fenced section swapped last.
-func (r *refresh) apply() error {
-	for _, dir := range r.dirs {
-		src := filepath.Join(r.template, dir)
-		dst := filepath.Join(r.root, dir)
-		if _, err := r.disk.Stat(src); err != nil {
-			// The tag no longer ships it; the kit's copy goes with it.
-			if err := r.disk.RemoveAll(dst); err != nil {
-				return fmt.Errorf("removing %s: %w", dir, err)
-			}
-			continue
-		}
-		if err := r.disk.RemoveAll(dst); err != nil {
-			return fmt.Errorf("replacing %s: %w", dir, err)
-		}
-		if err := copyTree(r.disk, src, dst); err != nil {
-			return fmt.Errorf("replacing %s: %w", dir, err)
+// group is the heading a change is counted under: the first two path
+// segments for a nested file, the path itself for a shallow one.
+func group(rel string) string {
+	if i := strings.IndexByte(rel, '/'); i >= 0 {
+		if j := strings.IndexByte(rel[i+1:], '/'); j >= 0 {
+			return rel[:i+1+j] + "/"
 		}
 	}
+	return rel
+}
 
+// apply performs exactly the rendered plan.
+func (r *refresh) apply() error {
 	for _, c := range r.changes {
-		if c.rel == ".writrun/VERSION" {
-			continue
-		}
-		if !strings.HasPrefix(c.rel, ".github/") {
-			continue // the directories above already carried it
-		}
-		dst := filepath.Join(r.root, c.rel)
+		dst := localOf(r.root, c.rel)
 		if c.verb == removed {
 			if err := r.disk.Remove(dst); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("removing %s: %w", c.rel, err)
 			}
 			continue
 		}
-		if err := copyFile(r.disk, c.src, dst, c.mode); err != nil {
+		if c.rel == kittag.Rel {
+			continue // recorded below, from what was fetched
+		}
+		if err := copyFile(r.disk, localOf(r.template, c.rel), dst); err != nil {
 			return fmt.Errorf("writing %s: %w", c.rel, err)
 		}
 	}
-
 	if err := r.disk.WriteFile(kittag.Path(r.root), []byte(r.to+"\n"), 0o644); err != nil {
 		return fmt.Errorf("recording the tag: %w", err)
-	}
-	if r.agents != nil {
-		if err := r.disk.WriteFile(r.agentsPath, r.agents, 0o644); err != nil {
-			return fmt.Errorf("refreshing AGENTS.md: %w", err)
-		}
 	}
 	return nil
 }
 
-func copyTree(disk vfs.FS, src, dst string) error {
-	return disk.WalkDir(src, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, relErr := filepath.Rel(src, path)
-		if relErr != nil {
-			return relErr
-		}
-		target := filepath.Join(dst, rel)
-		if entry.IsDir() {
-			return disk.MkdirAll(target, 0o755)
-		}
-		info, infoErr := entry.Info()
-		if infoErr != nil {
-			return infoErr
-		}
-		return copyFile(disk, path, target, info.Mode())
-	})
-}
-
-func copyFile(disk vfs.FS, src, dst string, mode fs.FileMode) error {
+func copyFile(disk vfs.FS, src, dst string) error {
+	info, err := disk.Stat(src)
+	if err != nil {
+		return err
+	}
 	if err := disk.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -343,5 +279,5 @@ func copyFile(disk vfs.FS, src, dst string, mode fs.FileMode) error {
 	if err != nil {
 		return err
 	}
-	return disk.WriteFile(dst, content, mode.Perm())
+	return disk.WriteFile(dst, content, info.Mode().Perm())
 }

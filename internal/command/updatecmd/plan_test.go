@@ -8,6 +8,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -43,44 +44,73 @@ func TestNewDefaultsTheSource(t *testing.T) {
 	}
 }
 
-func TestDiffFileAnswersEveryVerb(t *testing.T) {
+// TestThePlanAnswersEveryVerb replaces TestDiffFileAnswersEveryVerb:
+// diffFile is gone with the closed list it served, and the same four
+// answers are now the plan's over one walk of the template.
+func TestThePlanAnswersEveryVerb(t *testing.T) {
 	root, template := t.TempDir(), t.TempDir()
-	rel := ".github/workflows/writrun-check.yml"
-
-	// Neither side has it: nothing to say.
-	c, err := diffFile(vfs.OS{}, root, template, rel)
-	if err != nil || c != nil {
-		t.Errorf("absent on both sides: change = %v, err = %v", c, err)
-	}
+	write(t, root, ".writrun/VERSION", oldTag+"\n")
+	write(t, template, ".writrun/VERSION", newTag+"\n")
 
 	// Only the template has it: added.
-	write(t, template, rel, "name: check\n")
-	c, err = diffFile(vfs.OS{}, root, template, rel)
-	if err != nil || c == nil || c.verb != added {
-		t.Errorf("only in the template: change = %+v, err = %v", c, err)
-	}
-
-	// Both, identical: nothing to say.
-	write(t, root, rel, "name: check\n")
-	c, err = diffFile(vfs.OS{}, root, template, rel)
-	if err != nil || c != nil {
-		t.Errorf("identical on both sides: change = %v, err = %v", c, err)
-	}
-
+	write(t, template, ".writrun/skills/select/SKILL.md", "# Select\n")
 	// Both, different: changed.
-	write(t, template, rel, "name: check\n# reworded\n")
-	c, err = diffFile(vfs.OS{}, root, template, rel)
-	if err != nil || c == nil || c.verb != changed {
-		t.Errorf("different on the two sides: change = %+v, err = %v", c, err)
-	}
-
+	write(t, root, ".writrun/scripts/take.sh", "echo take\n")
+	write(t, template, ".writrun/scripts/take.sh", "echo take, reworded\n")
+	// Both, identical: nothing to say.
+	write(t, root, ".writrun/templates/task.md", "# Task\n")
+	write(t, template, ".writrun/templates/task.md", "# Task\n")
 	// Only the repository has it: the tag dropped it, so it goes.
-	if err := os.Remove(filepath.Join(template, rel)); err != nil {
-		t.Fatal(err)
+	write(t, root, ".writrun/scripts/gone.sh", "echo gone\n")
+
+	r, err := plan(vfs.OS{}, root, template, oldTag, newTag)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
 	}
-	c, err = diffFile(vfs.OS{}, root, template, rel)
-	if err != nil || c == nil || c.verb != removed {
-		t.Errorf("only in the repository: change = %+v, err = %v", c, err)
+	want := map[string]verb{
+		".writrun/skills/select/SKILL.md": added,
+		".writrun/scripts/take.sh":        changed,
+		".writrun/scripts/gone.sh":        removed,
+		kittag.Rel:                        changed,
+	}
+	got := map[string]verb{}
+	for _, c := range r.changes {
+		got[c.rel] = c.verb
+	}
+	for rel, v := range want {
+		if got[rel] != v {
+			t.Errorf("%s = %q, want %q", rel, got[rel], v)
+		}
+	}
+	if _, there := got[".writrun/templates/task.md"]; there {
+		t.Error("an identical file was named as a change")
+	}
+}
+
+// TestAFileNoListNamesIsRefreshed is the rule's own test: a tag that
+// adds a file needs no Go change for update to write it
+// (docs/technical/engineering/coupling.md).
+func TestAFileNoListNamesIsRefreshed(t *testing.T) {
+	root, template := t.TempDir(), t.TempDir()
+	write(t, root, ".writrun/VERSION", oldTag+"\n")
+	write(t, template, ".writrun/VERSION", newTag+"\n")
+	write(t, template, ".writrun/a-folder-nobody-anticipated/thing.md", "# New\n")
+	write(t, template, ".github/workflows/writrun-invented.yml", "name: invented\n")
+
+	r, err := plan(vfs.OS{}, root, template, oldTag, newTag)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if err := r.apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	for _, rel := range []string{
+		".writrun/a-folder-nobody-anticipated/thing.md",
+		".github/workflows/writrun-invented.yml",
+	} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("%s was planned and never written: %v", rel, err)
+		}
 	}
 }
 
@@ -96,31 +126,23 @@ func TestReadTreeOnAnAbsentDirectoryIsEmpty(t *testing.T) {
 	}
 }
 
-func TestMergeAgentsRefusesATemplateWithoutTheFence(t *testing.T) {
-	template := t.TempDir()
-	if _, err := mergeAgents(vfs.OS{}, template, []byte(agentsAt("x"))); err == nil {
-		t.Fatal("a template with no AGENTS.md was accepted")
-	}
-	write(t, template, "AGENTS.md", "# No fence in here.\n")
-	if _, err := mergeAgents(vfs.OS{}, template, []byte(agentsAt("x"))); err == nil {
-		t.Fatal("a template AGENTS.md with no fence was accepted")
-	}
-}
-
-func TestApplyRemovesADirectoryTheTagNoLongerShips(t *testing.T) {
+func TestApplyRemovesAFileTheTagNoLongerShips(t *testing.T) {
 	root, template := t.TempDir(), t.TempDir()
 	write(t, root, ".writrun/skills/select/SKILL.md", "# Select\n")
 	write(t, root, ".writrun/VERSION", oldTag+"\n")
 	// The template ships no skills/ at all.
+	write(t, template, ".writrun/VERSION", newTag+"\n")
 	write(t, template, ".writrun/scripts/take.sh", "echo take\n")
 
-	r := &refresh{disk: vfs.OS{}, root: root, template: template, to: newTag,
-		dirs: []string{".writrun/skills"}, agentsPath: filepath.Join(root, "AGENTS.md")}
+	r, err := plan(vfs.OS{}, root, template, oldTag, newTag)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
 	if err := r.apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".writrun/skills")); err == nil {
-		t.Error("a directory the tag no longer ships survived")
+	if _, err := os.Stat(filepath.Join(root, ".writrun/skills/select/SKILL.md")); err == nil {
+		t.Error("a file the tag no longer ships survived")
 	}
 	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != newTag {
 		t.Errorf("VERSION = %q", got)
@@ -134,8 +156,7 @@ func TestApplyRemovesAWorkflowTheTagDropped(t *testing.T) {
 	write(t, root, ".writrun/VERSION", oldTag+"\n")
 
 	r := &refresh{disk: vfs.OS{}, root: root, template: template, to: newTag,
-		changes:    []change{{rel: rel, verb: removed}, {rel: ".writrun/VERSION", verb: changed}},
-		agentsPath: filepath.Join(root, "AGENTS.md")}
+		changes: []change{{rel: rel, verb: removed}, {rel: kittag.Rel, verb: changed}}}
 	if err := r.apply(); err != nil {
 		t.Fatalf("apply: %v", err)
 	}
@@ -148,9 +169,26 @@ func TestApplyRemovesAWorkflowTheTagDropped(t *testing.T) {
 	}
 }
 
+func TestAWorkflowTheProjectWroteIsNeverRemoved(t *testing.T) {
+	root, template := t.TempDir(), t.TempDir()
+	write(t, root, ".writrun/VERSION", oldTag+"\n")
+	write(t, root, ".github/workflows/tests.yml", "name: the project's own\n")
+	write(t, template, ".writrun/VERSION", newTag+"\n")
+
+	r, err := plan(vfs.OS{}, root, template, oldTag, newTag)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	for _, c := range r.changes {
+		if c.rel == ".github/workflows/tests.yml" {
+			t.Fatalf("the project's own workflow is planned to %s", c.verb)
+		}
+	}
+}
+
 func TestRenderSaysWhenOnlyTheTagMoved(t *testing.T) {
 	r := &refresh{disk: vfs.OS{}, from: oldTag, to: newTag,
-		changes: []change{{rel: ".writrun/VERSION", verb: changed}}}
+		changes: []change{{rel: kittag.Rel, verb: changed}}}
 	if !r.empty() {
 		t.Fatal("a refresh with nothing but the tag is not empty()")
 	}
@@ -168,7 +206,7 @@ func TestCopyFileCarriesTheModeBit(t *testing.T) {
 		t.Fatal(err)
 	}
 	dst := filepath.Join(dir, "nested", "deeper", "take.sh")
-	if err := copyFile(vfs.OS{}, src, dst, 0o755); err != nil {
+	if err := copyFile(vfs.OS{}, src, dst); err != nil {
 		t.Fatalf("copyFile: %v", err)
 	}
 	info, err := os.Stat(dst)
@@ -178,7 +216,7 @@ func TestCopyFileCarriesTheModeBit(t *testing.T) {
 	if info.Mode().Perm()&0o100 == 0 {
 		t.Errorf("the executable bit was lost: %v", info.Mode())
 	}
-	if err := copyFile(vfs.OS{}, filepath.Join(dir, "not-there"), dst, 0o644); err == nil {
+	if err := copyFile(vfs.OS{}, filepath.Join(dir, "not-there"), dst); err == nil {
 		t.Error("copying a file that is not there was not an error")
 	}
 }

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/chapter"
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
+	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -96,10 +96,23 @@ func checkFiles(disk vfs.FS, root string) []gap {
 	switch {
 	case err != nil:
 		gaps = append(gaps, gap{1, "AGENTS.md — the agents' entry point is missing"})
-	case !strings.Contains(string(agents), fence.Begin) || !strings.Contains(string(agents), fence.End):
-		gaps = append(gaps, gap{1, "AGENTS.md — the fenced writrun:begin/writrun:end markers are damaged"})
+	case !pointer.Has(agents):
+		gaps = append(gaps, gap{1, "AGENTS.md — no section links " + pointer.Target + ", so an agent reading it never reaches the flow"})
 	case strings.Contains(string(agents), todoPlaceholder):
-		gaps = append(gaps, gap{1, "AGENTS.md — TODOs remain; the four human gates must be answered, not left as placeholders"})
+		gaps = append(gaps, gap{1, "AGENTS.md — a TODO remains; the skeleton's paragraph is the project's to write"})
+	}
+
+	// The gates are the kit's own declaration, and the adoption just
+	// copied it with every answer still a placeholder. Naming the file
+	// is the whole of what init can say: which answers are right is the
+	// project's, and doctor names them one by one once the repository
+	// is in use (task-0019).
+	gates, err := disk.ReadFile(filepath.Join(root, ".writrun", "gates.md"))
+	switch {
+	case err != nil:
+		gaps = append(gaps, gap{1, ".writrun/gates.md — the project's gate answers are missing"})
+	case strings.Contains(string(gates), todoPlaceholder):
+		gaps = append(gaps, gap{1, ".writrun/gates.md — the gates are still the kit's TODOs; each must be answered"})
 	}
 
 	// The file and its reading are kittag's; what an unrecorded tag
@@ -119,9 +132,9 @@ func checkFiles(disk vfs.FS, root string) []gap {
 	return gaps
 }
 
-// todoPlaceholder is the shape the kit's own unanswered gates take —
-// an HTML comment, not the bare word. A project whose AGENTS.md merely
-// mentions TODO has answered its gates all the same.
+// todoPlaceholder is the shape the kit's own placeholders take — an
+// HTML comment, not the bare word. A project whose prose merely
+// mentions TODO has answered all the same.
 const todoPlaceholder = "<!-- TODO"
 
 // checkForge is stage 2: the forge reachable and the settings the

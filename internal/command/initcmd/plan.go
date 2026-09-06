@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
+	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
@@ -22,8 +22,8 @@ type agentsAction int
 
 const (
 	agentsSkeleton agentsAction = iota // absent — the template's skeleton is written
-	agentsGraft                        // present — the fenced section is appended
-	agentsKept                         // present and already carrying the markers
+	agentsGraft                        // present — WritRun's section is appended
+	agentsKept                         // present and already linking the kit's flow
 )
 
 // copyStep is one file the adoption writes: where it comes from in the
@@ -105,7 +105,7 @@ func agentsDecision(disk vfs.FS, path string) agentsAction {
 	if err != nil {
 		return agentsSkeleton
 	}
-	if strings.Contains(string(content), fence.Begin) {
+	if pointer.Has(content) {
 		return agentsKept
 	}
 	return agentsGraft
@@ -126,9 +126,9 @@ func (a *adoption) render(w io.Writer) {
 	case agentsSkeleton:
 		fmt.Fprintln(w, "  AGENTS.md    absent — the skeleton is written; its TODOs are yours to answer")
 	case agentsGraft:
-		fmt.Fprintln(w, "  AGENTS.md    graft — the fenced WritRun section is appended; every byte outside it stays")
+		fmt.Fprintln(w, "  AGENTS.md    graft — WritRun's section is appended; every byte outside it stays")
 	case agentsKept:
-		fmt.Fprintln(w, "  AGENTS.md    already carries the fenced markers — left alone")
+		fmt.Fprintln(w, "  AGENTS.md    already links "+pointer.Target+" — left alone")
 	}
 	if len(a.vocab.Types) == 0 {
 		fmt.Fprintln(w, "  conventions  shipped defaults — no Conventional history and no contributing guide to extract from")
@@ -255,7 +255,7 @@ func (a *adoption) applyAgents() error {
 	case agentsSkeleton:
 		return a.disk.WriteFile(dst, templateAgents, 0o644)
 	case agentsGraft:
-		section, err := fence.Section(templateAgents)
+		section, err := pointer.Section(templateAgents)
 		if err != nil {
 			return err
 		}
@@ -263,7 +263,7 @@ func (a *adoption) applyAgents() error {
 		if err != nil {
 			return fmt.Errorf("grafting AGENTS.md: %w", err)
 		}
-		return a.disk.WriteFile(dst, fence.Graft(existing, section), 0o644)
+		return a.disk.WriteFile(dst, pointer.Graft(existing, section), 0o644)
 	}
 	return nil
 }
