@@ -14,8 +14,11 @@ import (
 )
 
 const (
-	root         = "/repo"
-	authorBranch = "docs/authoring"
+	root = "/repo"
+	// authorBranch carries more subject words than `normalize` keeps.
+	// A one-word fixture cannot tell a slug that round-trips from one
+	// that is silently re-composed into a different branch.
+	authorBranch = "docs/the-declaration-is-a-section"
 	newTaskPath  = "work/tasks/task-0016-declare-derived-work.md"
 	newSpecPath  = "work/specs/spec-0014-declare-derived-work.md"
 	// title is one summary the declared style accepts, carrying no
@@ -69,6 +72,10 @@ type fakeGit struct {
 	// refs is every ref that resolves; a ref absent from it is git's
 	// "unknown revision".
 	refs map[string]bool
+	// remotes is what `git remote` lists; empty is a repository with
+	// no forge, where nothing is fetched.
+	remotes  []string
+	fetchErr error
 	// files is the diff's listing; added is keyed by pathspec.
 	files []string
 	added map[string][]string
@@ -83,6 +90,10 @@ func (g *fakeGit) run(_ string, args ...string) (string, error) {
 	switch {
 	case joined == "status --porcelain":
 		return g.dirty, nil
+	case joined == "remote":
+		return strings.Join(g.remotes, "\n") + "\n", nil
+	case args[0] == "fetch":
+		return "", g.fetchErr
 	case joined == "rev-parse --abbrev-ref HEAD":
 		return g.branch + "\n", nil
 	case len(args) > 1 && args[0] == "rev-parse" && args[1] == "--verify":
@@ -201,9 +212,10 @@ func newHarness(t *testing.T) *harness {
 		}},
 		files: vfs.NewFake(),
 		git: &fakeGit{
-			branch: authorBranch,
-			refs:   map[string]bool{"refs/remotes/origin/main": true},
-			files:  []string{"docs/product/pull-requests/author.md", newTaskPath, newSpecPath},
+			branch:  authorBranch,
+			remotes: []string{"origin"},
+			refs:    map[string]bool{"refs/remotes/origin/main": true},
+			files:   []string{"docs/product/pull-requests/author.md", newTaskPath, newSpecPath},
 			added: map[string][]string{
 				tasksDir + "/task-*.md": {newTaskPath},
 				specsDir + "/spec-*.md": {newSpecPath},
@@ -271,6 +283,78 @@ Implements spec-NNNN.
 
 ## Notes
 `
+
+// splitShell is the reader a person's shell is, for the one line this
+// package prints for them to paste: single-quoted arguments, where a
+// quote inside one is written by closing, escaping and reopening.
+func splitShell(line string) []string {
+	var out []string
+	var cur strings.Builder
+	inWord, quoted := false, false
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		switch {
+		case c == '\'':
+			quoted = !quoted
+			inWord = true
+		case c == '\\' && !quoted && i+1 < len(line):
+			i++
+			cur.WriteByte(line[i])
+			inWord = true
+		case (c == ' ' || c == '\t') && !quoted:
+			if inWord {
+				out = append(out, cur.String())
+				cur.Reset()
+				inWord = false
+			}
+		default:
+			cur.WriteByte(c)
+			inWord = true
+		}
+	}
+	if inWord {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+// replay runs a printed command line the way a shell would: split it,
+// drop the binary's own name, and hand the rest to the frame — which is
+// what reads `--yes`, so a resume that carries it must go through here
+// rather than around it. The terminal is gone, because the run that
+// printed the line is the run that had none.
+func replay(t *testing.T, h *harness, line string) error {
+	t.Helper()
+	fields := splitShell(strings.TrimSpace(line))
+	if len(fields) == 0 || fields[0] != "writrun" {
+		t.Fatalf("the printed line does not open with the binary: %q", line)
+	}
+	h.term.In = false
+	var err error
+	f := command.Frame{
+		Commands: []command.Command{{
+			Name: "author",
+			Need: command.NeedAdopted,
+			Run: func(ctx *command.Ctx, args []string) error {
+				err = run(ctx, h.deps(), args)
+				return err
+			},
+		}},
+		Stdout:   &h.out,
+		Stderr:   &h.errb,
+		Terminal: h.term,
+		FindRepo: func(string) (string, bool, error) { return root, true, nil },
+		Getenv:   func(string) string { return "" },
+		Getwd:    func() (string, error) { return root, nil },
+	}
+	if code := command.Run(f, fields[1:]); code != 0 {
+		if err == nil {
+			err = fmt.Errorf("the frame refused the line, exit %d", code)
+		}
+		return err
+	}
+	return nil
+}
 
 // exitOf is the exit code the frame would report for err — the same
 // read internal/command.Run makes on a wrapped script's verdict.

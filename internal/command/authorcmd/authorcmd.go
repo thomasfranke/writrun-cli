@@ -77,23 +77,9 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	if !*resumeFlag {
-		if _, err := d.Git(ctx.Root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+ch.branch); err == nil {
-			return fmt.Errorf("%s is already on the forge — authoring starts locally; --resume finishes an authoring whose pull request never opened", ch.branch)
-		}
-	}
-
-	branch, err := branchName(ch, *slugFlag)
+	branch, err := plan(d, ctx.Root, ch, *slugFlag, *resumeFlag)
 	if err != nil {
 		return err
-	}
-	if branch != ch.branch {
-		if *resumeFlag {
-			return fmt.Errorf("--resume finishes the authoring this branch already pushed, but the composition names %s and this is %s", branch, ch.branch)
-		}
-		if _, err := d.Git(ctx.Root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch); err == nil {
-			return fmt.Errorf("%s already exists locally and is not this branch — name another with --slug", branch)
-		}
 	}
 
 	// 2 — the checks, in the order the methodology fixed. The first
@@ -139,6 +125,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		body:   body(d, ctx.Root, rows),
 		files:  ch.files,
 		rng:    *rangeFlag,
+		yes:    ctx.Yes,
 	}
 	show(ctx.Stdout, c)
 
@@ -147,6 +134,52 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return err
 	}
 	return open(ctx, d, ch, c)
+}
+
+// plan names the branch this act will carry, and refuses every state
+// the act must not be started from.
+//
+// **A resume does not compose a branch; it finishes the one under
+// HEAD.** Both failure paths leave HEAD on the branch they cut or
+// pushed, so that branch is the act, and re-deriving a name from
+// `--slug` would answer a question that is already settled — and answer
+// it differently for every branch the composition would have shortened
+// or folded (`docs/one-two-three-four`, `docs/Rules_V2`). A `--slug`
+// given with `--resume` is a claim about *which* act is being finished,
+// so it is compared to the branch verbatim rather than put back through
+// the composition.
+func plan(d Deps, root string, ch change, slug string, resume bool) (string, error) {
+	if resume {
+		if !strings.HasPrefix(ch.branch, docsPrefix) || len(ch.branch) == len(docsPrefix) {
+			return "", fmt.Errorf("--resume finishes an authoring, and %s is not a %s branch — what it finishes is the branch the act left behind", ch.branch, docsPrefix)
+		}
+		if slug != "" && docsPrefix+slug != ch.branch {
+			return "", fmt.Errorf("--resume finishes the authoring this branch already pushed, but the composition names %s and this is %s", docsPrefix+slug, ch.branch)
+		}
+		return ch.branch, nil
+	}
+
+	branch, err := branchName(ch, slug)
+	if err != nil {
+		return "", err
+	}
+	// Both names are asked about, because either one already on the
+	// forge is a branch this act must not push onto: the one HEAD
+	// carries would make the push an update of somebody's open pull
+	// request, and the one the composition names would do the same
+	// after a cut nobody asked for (take_task.sh refuses on both).
+	if _, err := d.Git(root, "rev-parse", "--verify", "--quiet", "refs/remotes/"+originRemote+"/"+ch.branch); err == nil {
+		return "", fmt.Errorf("%s is already on the forge — authoring starts locally; --resume finishes an authoring whose pull request never opened", ch.branch)
+	}
+	if branch != ch.branch {
+		if _, err := d.Git(root, "rev-parse", "--verify", "--quiet", "refs/remotes/"+originRemote+"/"+branch); err == nil {
+			return "", fmt.Errorf("%s is already on the forge, and this act would cut it fresh and push over it — name another with --slug", branch)
+		}
+		if _, err := d.Git(root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch); err == nil {
+			return "", fmt.Errorf("%s already exists locally and is not this branch — name another with --slug", branch)
+		}
+	}
+	return branch, nil
 }
 
 // composition is what the command will do, shown whole before it is
@@ -160,6 +193,10 @@ type composition struct {
 	// rng is the range the run was given, empty when it was inferred —
 	// carried so a resume names the same one.
 	rng string
+	// yes says the confirmation was answered by --yes rather than by a
+	// terminal, so the resume can carry the answer to a question the
+	// context that failed has no way to be asked.
+	yes bool
 }
 
 // show prints the branch, the title, the body and the files, in that
@@ -192,7 +229,7 @@ func open(ctx *command.Ctx, d Deps, ch change, c composition) error {
 		}
 	}
 	if _, err := d.Git(ctx.Root, "push", "-u", "origin", c.branch); err != nil {
-		return fmt.Errorf("%w\n%s is kept local. Finish the act with:\n  %s", err, c.branch, resumeCommand(c))
+		return fmt.Errorf("%w\n%s is kept local, and HEAD is on it. Finish the act with:\n  %s", err, c.branch, resumeCommand(c))
 	}
 	out, err := d.Gh("pr", "create", "--base", "main", "--head", c.branch,
 		"--title", c.title, "--body", c.body)
@@ -209,16 +246,35 @@ func open(ctx *command.Ctx, d Deps, ch change, c composition) error {
 }
 
 // resumeCommand is the rerun that finishes a half-done act, written in
-// one place so the two failure paths cannot name different acts. It
-// carries every argument that decided the branch, the title and the
-// range: a rerun composing something else would not be the resume it
-// claims to be.
+// one place so the two failure paths cannot name different acts.
+//
+// It carries every argument the rerun needs to perform *this* act and
+// no other: the branch and the range it was composed against, and the
+// answer to the question. `--yes` is not decoration — the act that
+// failed was allowed by it, and a run that failed where no terminal
+// exists is exactly the run whose resume would abort at the question
+// instead of finishing (take_task.sh carries `--confirm` for the same
+// reason, and says so).
+//
+// Every value is single-quoted: this is a line a person pastes into a
+// shell, and a title carrying a backtick or a `$` would otherwise be
+// run rather than passed.
 func resumeCommand(c composition) string {
-	s := fmt.Sprintf("writrun author --slug %s --title %q", c.slug, c.title)
+	s := "writrun author --slug " + shellQuote(c.slug) + " --title " + shellQuote(c.title)
 	if c.rng != "" {
-		s += " --range " + c.rng
+		s += " --range " + shellQuote(c.rng)
+	}
+	if c.yes {
+		s += " --yes"
 	}
 	return s + " --resume"
+}
+
+// shellQuote is one argument, safe to paste. Single quotes hold
+// everything a shell would otherwise read, and the one character they
+// cannot hold is closed, escaped and reopened.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // titleQuestion names the style the project declared, so the summary is

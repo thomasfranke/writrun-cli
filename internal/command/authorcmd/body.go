@@ -134,17 +134,29 @@ func nonEmpty(s string) string {
 func joined(ids []string) string { return strings.Join(ids, ", ") }
 
 // body is the template's authoring half, the table filled in. A
-// repository whose template is unreadable still gets a correct body —
-// the fallback carries the same headings, the contract marker included,
-// because a missing template is no reason to open a pull request the
-// door cannot read.
+// template that cannot carry the declaration gets the fallback instead
+// — the same headings, the contract marker included — because no state
+// of the adopter's template is a reason to open a pull request the door
+// cannot read.
+//
+// Unreadable is one such state. The other is a template that *is* read
+// and does not carry `## Derived work` where this can fill it: the
+// heading renamed (which the template itself warns blinds the check),
+// or a leading comment left unterminated, which consumes the file. The
+// edit is silent in both — the shipped placeholder row and its `none`
+// comment would survive onto the forge, declaring `task-NNNN` — so the
+// fill reports whether it happened rather than being assumed.
 func body(d Deps, root string, rows []row) string {
 	t := table(rows)
 	content, err := d.Files.ReadFile(path.Join(root, templatePath))
 	if err != nil {
 		return fallbackBody(t)
 	}
-	return authoringHalf(string(content), t)
+	half, filled := authoringHalf(string(content), t)
+	if !filled {
+		return fallbackBody(t)
+	}
+	return half
 }
 
 // authoringHalf keeps `## Derived work` and drops the implementing
@@ -159,27 +171,35 @@ func body(d Deps, root string, rows []row) string {
 // word — a body that kept the comment would satisfy the check while
 // declaring nothing, which is the blindness the declaration exists to
 // end.
-func authoringHalf(tmpl, t string) string {
+// The second return says whether the Derived-work section was found and
+// filled. False is not a smaller success: it is a body carrying
+// whatever the template said instead of what this change derived, and
+// the caller answers it with the fallback.
+func authoringHalf(tmpl, t string) (string, bool) {
 	lines := strings.Split(tmpl, "\n")
 	i := skipLeadingComment(lines)
+	filled := false
 	var out []string
 	for ; i < len(lines); i++ {
 		switch strings.TrimRight(lines[i], " \t") {
 		case derivedHeading:
 			out = append(out, derivedHeading, "", t, "")
 			i = endOfSection(lines, i)
+			filled = true
 		case specHeading:
 			i = endOfSection(lines, i)
 		default:
 			out = append(out, lines[i])
 		}
 	}
-	return strings.TrimRight(strings.Join(out, "\n"), "\n") + "\n"
+	return strings.TrimRight(strings.Join(out, "\n"), "\n") + "\n", filled
 }
 
 // skipLeadingComment steps over the template's own instructions to its
 // filler — an HTML comment opening at line 1 — and the blank lines
-// under it.
+// under it. A comment that never closes consumes the file, which leaves
+// no `## Derived work` to fill and so answers itself through the
+// fallback rather than emitting a template read half way.
 func skipLeadingComment(lines []string) int {
 	i := 0
 	if len(lines) == 0 || !strings.HasPrefix(strings.TrimSpace(lines[0]), "<!--") {

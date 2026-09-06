@@ -23,6 +23,11 @@ const (
 // (conventions/branches.md).
 const docsPrefix = "docs/"
 
+// originRemote is the forge's name in a clone, and the one remote this
+// command reads: the branch it would push to, and the base it reads the
+// change against, are both under it.
+const originRemote = "origin"
+
 // taskTag is the contract marker an implementing title leads with, and
 // the one an authoring title never carries.
 var taskTag = regexp.MustCompile(`\[TASK-[0-9]{4}\]`)
@@ -58,6 +63,16 @@ func readChange(git gitx.Runner, root, override string) (change, error) {
 	branch := strings.TrimSpace(out)
 	if branch == "" || branch == "HEAD" {
 		return change{}, errors.New("this is a detached HEAD — author opens the pull request for a branch")
+	}
+
+	// The refs this command reads are a cache of the forge, and every
+	// answer under them — the base the diff is read against, and
+	// whether a branch is already public — is wrong by exactly however
+	// long it has been since the last fetch. take_task.sh refreshes
+	// before it reads for the same reason: a stale ref does not report
+	// an unknown, it reports a confident wrong answer.
+	if err := refresh(git, root); err != nil {
+		return change{}, err
 	}
 
 	rng := override
@@ -100,6 +115,31 @@ func readChange(git gitx.Runner, root, override string) (change, error) {
 	return ch, nil
 }
 
+// refresh brings the remote-tracking refs up to date before anything is
+// read off them. A repository with no `origin` is not stale, it is
+// local, and the local `main` below is the whole answer; a fetch that
+// failed is neither, so it is a refusal rather than a read of whatever
+// the cache still held.
+func refresh(git gitx.Runner, root string) error {
+	out, err := git(root, "remote")
+	if err != nil {
+		return fmt.Errorf("reading the remotes: %w", err)
+	}
+	found := false
+	for _, r := range trimmedLines(out) {
+		if r == originRemote {
+			found = true
+		}
+	}
+	if !found {
+		return nil
+	}
+	if _, err := git(root, "fetch", "--quiet", originRemote); err != nil {
+		return fmt.Errorf("%w\nThe base and the branch would be read against a stale %s, so nothing was done", err, originRemote)
+	}
+	return nil
+}
+
 // baseRange resolves the range the checks read the change against, the
 // way the kit's own scripts resolve theirs: the pushed main, else the
 // local one, else nothing to read against and the caller is asked to
@@ -132,6 +172,10 @@ func branchName(ch change, slug string) (string, error) {
 	if strings.HasPrefix(ch.branch, docsPrefix) && len(ch.branch) > len(docsPrefix) {
 		return ch.branch, nil
 	}
+	// `docs` is git's own listing, so this is the first `docs/` path in
+	// path order — not, where a change writes into more than one, a
+	// judgement about which of them the rule is. `--slug` makes that
+	// judgement, and the composition is shown before it acts.
 	if s := subjectOf(ch.docs[0]); s != "" {
 		return docsPrefix + s, nil
 	}

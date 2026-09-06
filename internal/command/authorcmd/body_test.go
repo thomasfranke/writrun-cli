@@ -39,7 +39,10 @@ func TestACellKeepsItsPipe(t *testing.T) {
 // by grepping for exactly that word — a body that kept it would satisfy
 // the check while declaring nothing.
 func TestTheDerivedSectionsInstructionCommentIsDropped(t *testing.T) {
-	got := authoringHalf(template, table([]row{{task: "task-0016", spec: "spec-0014", what: "A thing"}}))
+	got, filled := authoringHalf(template, table([]row{{task: "task-0016", spec: "spec-0014", what: "A thing"}}))
+	if !filled {
+		t.Fatal("the section was never filled")
+	}
 	if strings.Contains(got, "AUTHORING PRs ONLY") {
 		t.Errorf("the instruction comment survived:\n%s", got)
 	}
@@ -53,7 +56,7 @@ func TestTheDerivedSectionsInstructionCommentIsDropped(t *testing.T) {
 }
 
 func TestTheImplementingHalfIsDropped(t *testing.T) {
-	got := authoringHalf(template, table(nil))
+	got, _ := authoringHalf(template, table(nil))
 	for _, gone := range []string{specHeading, "Implements spec-NNNN", "IMPLEMENTATION PRs ONLY", "Shipped by WritRun"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("%q survived:\n%s", gone, got)
@@ -70,17 +73,21 @@ func TestTheImplementingHalfIsDropped(t *testing.T) {
 }
 
 // A template with neither half is still a template: what it has is
-// kept, and nothing is invented around it.
+// kept, and nothing is invented around it — but nothing was filled
+// either, and the caller is told so rather than left to grep.
 func TestATemplateWithoutTheHeadingsIsKeptAsItIs(t *testing.T) {
-	got := authoringHalf("## What\n\n## Notes\n", table(nil))
+	got, filled := authoringHalf("## What\n\n## Notes\n", table(nil))
 	if got != "## What\n\n## Notes\n" {
 		t.Errorf("authoringHalf = %q", got)
+	}
+	if filled {
+		t.Error("a template with no `## Derived work` reported a filled section")
 	}
 }
 
 // A section that runs to the end of the file ends there.
 func TestASectionAtTheEndIsDroppedWhole(t *testing.T) {
-	got := authoringHalf("## What\n\n"+specHeading+"\n\nImplements spec-NNNN.\n", table(nil))
+	got, _ := authoringHalf("## What\n\n"+specHeading+"\n\nImplements spec-NNNN.\n", table(nil))
 	if strings.Contains(got, "Implements") {
 		t.Errorf("the trailing section survived: %q", got)
 	}
@@ -104,9 +111,50 @@ func TestSkipLeadingCommentOnlyStepsOverALeadingOne(t *testing.T) {
 		t.Errorf("skipLeadingComment(nil) = %d, want 0", got)
 	}
 	// An unterminated comment eats the file rather than emitting it
-	// half-read — a template that shape is a fault to see, not to ship.
+	// half-read. What is left carries no `## Derived work`, so the fill
+	// reports that it did not happen and the caller answers with the
+	// fallback — the template is never shipped half-read either way.
 	if got := skipLeadingComment([]string{"<!--", "still open"}); got < 2 {
 		t.Errorf("skipLeadingComment = %d, want the whole file consumed", got)
+	}
+	if _, filled := authoringHalf("<!--\nstill open\n"+derivedHeading+"\n\n| x |\n", table(nil)); filled {
+		t.Error("a template consumed by its own comment reported a filled section")
+	}
+}
+
+// The template is the adopter's to edit, and two edits leave it unable
+// to carry the declaration: the contract-marker heading renamed — which
+// the template itself warns blinds the check — and a leading comment
+// left unterminated. Both are silent in the fill, so both are answered
+// by the fallback rather than by shipping the placeholder row and the
+// `none` comment the door would then read.
+func TestATemplateThatCannotCarryTheDeclarationFallsBack(t *testing.T) {
+	cases := []struct{ name, tmpl string }{
+		{"the heading renamed", strings.Replace(template, derivedHeading, "## Derived Work", 1)},
+		{"a comment that never closes", "<!--\nstill open, and nothing below closes it\n\n## What\n\n" +
+			derivedHeading + "\n\n| task-NNNN | spec-NNNN | |\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHarness(t)
+			h.seed(templatePath, c.tmpl)
+			if err := h.author(); err != nil {
+				t.Fatalf("author: %v", err)
+			}
+			body := h.gh.created
+			if strings.Contains(body, "task-NNNN") {
+				t.Errorf("the template's placeholder row reached the forge:\n%s", body)
+			}
+			if strings.Contains(body, "AUTHORING PRs ONLY") {
+				t.Errorf("the instruction comment the door reads as `none` reached the forge:\n%s", body)
+			}
+			if !strings.Contains(body, derivedHeading) {
+				t.Errorf("the contract marker is gone, so the door goes blind:\n%s", body)
+			}
+			if !strings.Contains(body, "| task-0016 | spec-0014 | Declare the derived work |") {
+				t.Errorf("the body does not declare what this change derived:\n%s", body)
+			}
+		})
 	}
 }
 

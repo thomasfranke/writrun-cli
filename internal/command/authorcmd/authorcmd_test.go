@@ -302,6 +302,25 @@ func TestTheChangeIsRefusedBeforeAnyCheckRuns(t *testing.T) {
 			},
 			want: "already exists locally",
 		},
+		{
+			// The branch HEAD carries is local, so the refusal above
+			// never fires — and the act would cut the composed name
+			// fresh and push it over whatever the forge already has
+			// under it, which is somebody's open pull request.
+			name: "a composed branch already on the forge",
+			spoil: func(h *harness) {
+				h.git.branch = "scratch"
+				h.git.refs["refs/remotes/origin/docs/author"] = true
+			},
+			want: "already on the forge",
+		},
+		{
+			name: "a fetch that could not answer",
+			spoil: func(h *harness) {
+				h.git.fetchErr = errors.New("could not read from remote repository")
+			},
+			want: "stale origin",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -438,11 +457,143 @@ func TestAFailureAfterTheFirstWriteNamesTheResume(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("err = %v, want it to say %q", err, c.want)
 			}
-			if !strings.Contains(err.Error(), "writrun author --slug authoring --title") ||
+			if !strings.Contains(err.Error(), "writrun author --slug ") ||
 				!strings.Contains(err.Error(), "--resume") {
 				t.Errorf("the resume was not named: %v", err)
 			}
 		})
+	}
+}
+
+// resumeLine is the command the failure printed, lifted off the error
+// the way a person lifts it off their terminal.
+func resumeLine(t *testing.T, err error) string {
+	t.Helper()
+	if err == nil {
+		t.Fatal("the act did not fail, so nothing was printed to resume it")
+	}
+	for _, l := range strings.Split(err.Error(), "\n") {
+		if l = strings.TrimSpace(l); strings.HasPrefix(l, "writrun author") {
+			return l
+		}
+	}
+	t.Fatalf("no resume was printed:\n%v", err)
+	return ""
+}
+
+// **The printed resume is run, not read.** A failure after the first
+// write names the exact command that resumes the flow, and "exact"
+// means the line finishes the act when it is pasted back into the
+// context that produced it — a branch of any name, a title of any
+// shape, and no terminal to answer the question with
+// (product/rules.md).
+func TestThePrintedResumeFinishesTheAct(t *testing.T) {
+	cases := []struct{ name, branch, title string }{
+		{
+			// More subject words than the branch alphabet keeps: a
+			// slug put back through the composition would name
+			// docs/one-two-three and refuse the branch it was printed
+			// for.
+			name:   "a branch of more words than the alphabet keeps",
+			branch: "docs/one-two-three-four",
+			title:  title,
+		},
+		{
+			name:   "a branch the alphabet would fold",
+			branch: "docs/Rules_V2",
+			title:  title,
+		},
+		{
+			// Pasted into a shell, an unquoted title of this shape
+			// runs `x` and expands $HOME before author ever sees it.
+			name:   "a title carrying what a shell would read",
+			branch: authorBranch,
+			title:  "[DOCS] The $HOME rule `x` costs $5 — it's declared",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newHarness(t)
+			h.git.branch = c.branch
+			h.ctx.Yes = true
+			h.term.In = false
+			h.gh.createErr = errors.New("api error")
+			line := resumeLine(t, run(h.ctx, h.deps(), []string{"--title", c.title}))
+
+			// The act is half done: the branch is pushed, and the one
+			// state it must not be left in is this one.
+			r := newHarness(t)
+			r.git.branch = c.branch
+			r.git.refs["refs/remotes/origin/"+c.branch] = true
+			if err := replay(t, r, line); err != nil {
+				t.Fatalf("the printed resume did not finish the act:\n  %s\n%v", line, err)
+			}
+			if !r.gh.reached("pr create") {
+				t.Errorf("the resume opened no pull request: %v", r.gh.calls)
+			}
+			if !strings.Contains(r.gh.created, "--head "+c.branch) {
+				t.Errorf("the resume opened another branch's pull request: %s", r.gh.created)
+			}
+			if !strings.Contains(r.gh.created, "--title "+c.title) {
+				t.Errorf("the title did not survive the round trip: %s", r.gh.created)
+			}
+		})
+	}
+}
+
+// A resume finishes the branch under HEAD, and an authoring act never
+// left a branch that is not one.
+func TestResumeRefusesABranchNoActLeftBehind(t *testing.T) {
+	h := newHarness(t)
+	h.git.branch = "scratch"
+	err := h.author("--resume")
+	if err == nil || !strings.Contains(err.Error(), "is not a docs/ branch") {
+		t.Fatalf("err = %v, want a refusal about the branch it is on", err)
+	}
+	if len(h.gh.calls) > 0 {
+		t.Errorf("the forge was reached: %v", h.gh.calls)
+	}
+}
+
+// The remote-tracking refs are a cache of the forge, and every answer
+// read off them — the base, and whether a branch is public — is a
+// confident wrong one until it is refreshed (take_task.sh, same read).
+func TestTheForgeIsRefreshedBeforeItIsRead(t *testing.T) {
+	h := newHarness(t)
+	if err := h.author(); err != nil {
+		t.Fatalf("author: %v", err)
+	}
+	fetched, read := -1, -1
+	for i, c := range h.git.calls {
+		if strings.HasPrefix(c, "fetch") && fetched < 0 {
+			fetched = i
+		}
+		if strings.Contains(c, "refs/remotes/origin/") && read < 0 {
+			read = i
+		}
+	}
+	if fetched < 0 {
+		t.Fatalf("nothing was fetched: %v", h.git.calls)
+	}
+	if read >= 0 && fetched > read {
+		t.Errorf("origin was read at %d before the fetch at %d: %v", read, fetched, h.git.calls)
+	}
+}
+
+// A repository with no forge is not stale, it is local: nothing is
+// fetched, and the local main is the whole answer.
+func TestARepositoryWithNoForgeFetchesNothing(t *testing.T) {
+	h := newHarness(t)
+	h.git.remotes = nil
+	h.git.refs = map[string]bool{"refs/heads/main": true}
+	if err := h.author(); err != nil {
+		t.Fatalf("author: %v", err)
+	}
+	if h.git.did("fetch") {
+		t.Errorf("a repository with no origin fetched anyway: %v", h.git.calls)
+	}
+	if !strings.Contains(strings.Join(h.scripts.calls, "\n"), stateScript+" main...HEAD") {
+		t.Errorf("the local base was not used: %v", h.scripts.calls)
 	}
 }
 
@@ -467,7 +618,7 @@ func TestResumeFinishesAPushedBranch(t *testing.T) {
 func TestResumeRefusesADifferentBranch(t *testing.T) {
 	h := newHarness(t)
 	h.git.refs["refs/remotes/origin/"+authorBranch] = true
-	err := h.author("--resume", "--slug", "something-else")
+	err := h.author("--resume", "--slug", "something-else-entirely")
 	if err == nil || !strings.Contains(err.Error(), "--resume finishes") {
 		t.Fatalf("err = %v, want a refusal about the branch it names", err)
 	}
@@ -548,8 +699,14 @@ func TestAGivenRangeReachesTheChecksAndTheResume(t *testing.T) {
 	h := newHarness(t)
 	h.git.pushErr = errors.New("permission denied")
 	err := h.author("--range", "upstream/main...HEAD")
-	if err == nil || !strings.Contains(err.Error(), "--range upstream/main...HEAD") {
+	if err == nil || !strings.Contains(err.Error(), "--range 'upstream/main...HEAD'") {
 		t.Fatalf("err = %v, want the resume to name the range", err)
+	}
+	// The question was answered at a terminal, so the resume asks it
+	// again there: --yes is carried where it was given, and nowhere
+	// else, or a hand-confirmed act would resume unattended.
+	if strings.Contains(resumeLine(t, err), "--yes") {
+		t.Errorf("the resume carries --yes for a run that was asked: %s", resumeLine(t, err))
 	}
 	if !strings.Contains(strings.Join(h.scripts.calls, "\n"), stateScript+" upstream/main...HEAD") {
 		t.Errorf("the state check read another range: %v", h.scripts.calls)
