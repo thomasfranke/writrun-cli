@@ -62,6 +62,39 @@ func TestAWriteNeedsItsParent(t *testing.T) {
 	}
 }
 
+// Writing over a file that is already there does not change its mode:
+// `os.WriteFile` hands perm to O_CREATE, which an existing file
+// ignores, so a fake that applied it would let a caller chmod by
+// writing where the real filesystem never does — and a restore that
+// puts a file's bytes back would look like it also reset its mode.
+func TestWritingOverAFileKeepsTheModeItHad(t *testing.T) {
+	f := NewFake()
+	f.Seed("/repo/take.sh", []byte("echo take\n"), 0o755)
+
+	if err := f.WriteFile("/repo/take.sh", []byte("echo again\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	info, err := f.Stat("/repo/take.sh")
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Errorf("mode = %v, want the 0755 it already had", info.Mode().Perm())
+	}
+
+	// A file that is not there yet takes the mode it is given.
+	if err := f.WriteFile("/repo/new.md", []byte("x"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	info, err = f.Stat("/repo/new.md")
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("mode = %v, want 0600 on a file this write created", info.Mode().Perm())
+	}
+}
+
 func TestFailNamesThePathAndOnlyThatPath(t *testing.T) {
 	f := NewFake()
 	f.Seed("/repo/a.md", []byte("a"), 0o644)

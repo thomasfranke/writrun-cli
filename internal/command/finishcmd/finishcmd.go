@@ -10,6 +10,7 @@
 package finishcmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -141,10 +142,18 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 			return fmt.Errorf("%s's ## Outcome is empty — record what was built before finishing (%s)", s.id, s.path)
 		}
 	}
-	// Every write from here on is remembered, so any end that is not a
-	// success can put the tree back exactly as it was found
-	// (spec-0017; product/pull-requests/shape.md).
+	// Every file this command is about to touch is remembered as it
+	// stands now — before a byte is written to any of them — so any end
+	// that is not a success can put the tree back exactly as it was
+	// found (spec-0017; product/pull-requests/shape.md). Remembering
+	// the files rather than the writes is what makes that true on the
+	// path where a field already carries its value: nothing is written
+	// there, but step 3 can still append to the file.
 	undo := &journal{}
+	for _, s := range specs {
+		undo.remember(s.path, s.content)
+	}
+	undo.remember(taskPath, task)
 	for _, s := range specs {
 		if err := write(ctx, d, undo, s.path, s.content, "status", "implemented"); err != nil {
 			return undo.restore(ctx, d, err)
@@ -173,6 +182,16 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, provenanceScript, prov...); err != nil {
 		return undo.restore(ctx, d, passthrough(provenanceScript, err))
 	}
+	// The ledger appends to the task file, and that append is this
+	// command's doing as much as the date above it. The journal takes
+	// over what the script left, so the undo puts the file back as it
+	// was found and does not mistake the script's line for somebody
+	// else's edit. A read that fails leaves the previous expectation
+	// standing, and the undo then says the file changed under it rather
+	// than writing over what it could not read.
+	if now, err := d.Files.ReadFile(path.Join(ctx.Root, taskPath)); err == nil {
+		undo.left(taskPath, now)
+	}
 
 	// 4 — the completion gates. Exit 0 is required before the forge is
 	// asked for anything (spec-0010, step 4). They run after the writes
@@ -194,7 +213,8 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	return nil
 }
 
-// journal remembers what the completion writes replaced.
+// journal remembers what this command found in every file it is about
+// to touch, so any end that is not a success can put the tree back.
 //
 // The two writes sit at step 2, before `preflight.sh`, because the
 // gates read the queue off the working tree — moving them after the
@@ -204,44 +224,124 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 // then the status, then the composition, then the confirmation. So the
 // order stands, and the promise that a refused command leaves nothing
 // behind is kept by putting the writes back (spec-0017).
+//
+// **Every file is remembered, not every write.** A field already
+// carrying its value is not written, but the file can still be changed
+// afterwards by `record_provenance.sh` at step 3 — and a journal that
+// only remembered the writes left that append behind on exactly the
+// path where the worker had already dated the task by hand, which is
+// the flow AGENTS.md describes. What is remembered is the file as this
+// command found it; what is put back is that.
 type journal struct {
 	entries []undone
 }
 
-// undone is one file and the bytes it carried before this command
-// touched it.
+// undone is one file, the bytes it carried before this command touched
+// it, and the bytes this command last left there.
+//
+// `after` is the guard against reverting an edit that is not this
+// command's: `preflight.sh` runs for as long as it runs, and an editor
+// saving over one of these files in that window is not a completion
+// edit to undo. A nil `after` says the command's last act on the file
+// did not complete — a write that failed after truncating it — so
+// whatever is there is this command's mess and goes back regardless.
 type undone struct {
 	rel    string
 	before []byte
+	after  []byte
 }
 
-// record remembers a write that actually happened. A field already
-// carrying its value was not written, so there is nothing to put back.
-func (j *journal) record(rel string, before []byte) {
-	j.entries = append(j.entries, undone{rel: rel, before: append([]byte(nil), before...)})
+// remember records a file as it was found, before anything writes to
+// it. It is called once per file and ignores a second call, so a task
+// naming the same spec twice is remembered once.
+func (j *journal) remember(rel string, before []byte) {
+	for _, e := range j.entries {
+		if e.rel == rel {
+			return
+		}
+	}
+	kept := append([]byte(nil), before...)
+	j.entries = append(j.entries, undone{rel: rel, before: kept, after: kept})
 }
 
-// restore puts every remembered write back and hands up the failure
-// that caused it, unedited — so a declined finish is still a decline
-// and a script's exit code is still that script's.
+// left records what this command put in the file, so the undo can tell
+// its own edit from somebody else's.
+func (j *journal) left(rel string, after []byte) {
+	for i := range j.entries {
+		if j.entries[i].rel == rel {
+			j.entries[i].after = append([]byte(nil), after...)
+			return
+		}
+	}
+}
+
+// unknown says the command's last act on the file did not complete, so
+// the undo may not ask what the file holds before putting it back.
+func (j *journal) unknown(rel string) {
+	for i := range j.entries {
+		if j.entries[i].rel == rel {
+			j.entries[i].after = nil
+			return
+		}
+	}
+}
+
+// restore puts every remembered file back as it was found and hands up
+// the failure that caused it, unedited — so a declined finish is still
+// a decline and a script's exit code is still that script's.
 //
-// A restore that fails is the one case that rewrites the verdict: the
-// tree is left changed, and saying so out loud matters more than
-// carrying a code up, because the frame passes an exit code through
-// without printing a word (spec-0017, edge cases).
+// **The ledger entry goes back with everything else.** Step 3 appends
+// to the task file, and an end that is not a success undoes that append
+// along with the completion date, because the entry records an act that
+// did not happen: nothing was finished, so nothing was spent finishing
+// it, and the diff against the base is empty rather than carrying a
+// lone provenance line. `record_provenance.sh` declares itself
+// append-only and says it never rewrites an entry it found; this
+// reversal is made from outside it, deliberately, and is filed as
+// report-0017 so triage rules on the tension rather than this comment.
+//
+// A restore that cannot be made is the one case that rewrites the
+// verdict: the tree is left changed, and saying so out loud matters
+// more than carrying a code up, because the frame passes an exit code
+// through without printing a word (spec-0017, edge cases).
 func (j *journal) restore(ctx *command.Ctx, d Deps, cause error) error {
-	var failed []string
+	var failed, foreign []string
 	for i := len(j.entries) - 1; i >= 0; i-- {
 		e := j.entries[i]
-		if err := d.Files.WriteFile(path.Join(ctx.Root, e.rel), e.before, 0o644); err != nil {
+		full := path.Join(ctx.Root, e.rel)
+		if e.after != nil {
+			now, err := d.Files.ReadFile(full)
+			if err != nil {
+				failed = append(failed, fmt.Sprintf("%s (%v)", e.rel, err))
+				continue
+			}
+			if bytes.Equal(now, e.before) {
+				// Nothing this run did to it survives; there is
+				// nothing to say and nothing to write.
+				continue
+			}
+			if !bytes.Equal(now, e.after) {
+				foreign = append(foreign, e.rel)
+				fmt.Fprintf(ctx.Stdout, "left %s alone — it changed while this run was working, so the change is not this run's to undo\n", e.rel)
+				continue
+			}
+		}
+		if err := d.Files.WriteFile(full, e.before, 0o644); err != nil {
 			failed = append(failed, fmt.Sprintf("%s (%v)", e.rel, err))
 			continue
 		}
-		fmt.Fprintf(ctx.Stdout, "restored %s — the completion edit is undone\n", e.rel)
+		fmt.Fprintf(ctx.Stdout, "restored %s — every edit this run made to it is undone\n", e.rel)
 	}
-	if len(failed) > 0 {
-		return fmt.Errorf("%v — and the completion edits could not be undone: %s. The working tree is left changed; put those files back by hand",
+	switch {
+	case len(failed) > 0 && len(foreign) > 0:
+		return fmt.Errorf("%v — and the edits this run made could not be undone: %s; %s changed under it and was left alone. The working tree is left changed; put those files back by hand",
+			cause, strings.Join(failed, "; "), strings.Join(foreign, ", "))
+	case len(failed) > 0:
+		return fmt.Errorf("%v — and the edits this run made could not be undone: %s. The working tree is left changed; put those files back by hand",
 			cause, strings.Join(failed, "; "))
+	case len(foreign) > 0:
+		return fmt.Errorf("%v — and %s changed while this run was working, so its edits were left alone. The working tree is left changed; put those files back by hand",
+			cause, strings.Join(foreign, ", "))
 	}
 	return cause
 }
@@ -286,10 +386,15 @@ func write(ctx *command.Ctx, d Deps, undo *journal, rel string, content []byte, 
 		fmt.Fprintf(ctx.Stdout, "unchanged: %s already carries %s: %s\n", rel, name, value)
 		return nil
 	}
+	// What this write is about to leave there, said before it is
+	// attempted: a write that fails after truncating the file has left
+	// something, and a journal told only about writes that succeeded
+	// has nothing to put back over it.
+	undo.left(rel, next)
 	if err := d.Files.WriteFile(path.Join(ctx.Root, rel), next, 0o644); err != nil {
+		undo.unknown(rel)
 		return fmt.Errorf("writing %s: %w", rel, err)
 	}
-	undo.record(rel, content)
 	fmt.Fprintf(ctx.Stdout, "wrote %s: %s on %s\n", name, value, rel)
 	return nil
 }

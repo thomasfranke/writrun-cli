@@ -11,6 +11,14 @@ on_branch task/0001-a-thing
 export GH_PR_VIEW_FAILS=1
 cd "$TARGET" || exit 1
 
+tree_is_clean() {
+  local out
+  out=$(git_q -C "$TARGET" status --porcelain)
+  [ -z "$out" ] && return 0
+  printf 'the stopped finish left:\n%s\n' "$out"
+  return 1
+}
+
 check "the forge's own words reach the user" 1 "no pull requests found for branch" \
   -- finish_cmd --yes
 
@@ -22,5 +30,7 @@ check "the completion edits are put back" 0 "approved" \
   -- field status work/specs/spec-0001-a-thing.md
 check "the completion date is put back" 0 "null" \
   -- field completed work/tasks/task-0001-a-thing.md
+check "git status --porcelain is empty after the stop" 0 "" \
+  -- tree_is_clean
 
 finish
