@@ -1,6 +1,6 @@
 ---
 id: task-0024
-status: in-progress
+status: in-review
 blocked_reason: null
 taken_by: thomasfranke
 spec_ref: [spec-0023]
