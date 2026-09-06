@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 )
 
 func TestNewDeclaresTheCommand(t *testing.T) {
@@ -69,7 +70,7 @@ func TestTheConfirmedAmendWritesPushesAndOpensReady(t *testing.T) {
 	if err := h.amend(); err != nil {
 		t.Fatalf("amend = %v", err)
 	}
-	if got := field([]byte(h.read(t, specPath)), "status"); got != "draft" {
+	if got := queue.Field([]byte(h.read(t, specPath)), "status"); got != "draft" {
 		t.Errorf("spec status = %q, want draft", got)
 	}
 	if !h.git.ran("switch -c docs/amend-command origin/main") {
@@ -99,7 +100,7 @@ func TestTheEditPrecedesThePushAndThePushPrecedesTheOpening(t *testing.T) {
 	h := newHarness(t)
 	wroteBeforeSwitch := false
 	h.git.onSwap = func() {
-		if field([]byte(h.read(t, specPath)), "status") == "draft" {
+		if queue.Field([]byte(h.read(t, specPath)), "status") == "draft" {
 			wroteBeforeSwitch = true
 		}
 	}
@@ -443,7 +444,7 @@ func TestTheSpecIsReReadOnTheBranch(t *testing.T) {
 	if !strings.Contains(got, "A newer paragraph.") {
 		t.Error("the branch's own version of the spec was overwritten")
 	}
-	if field([]byte(got), "status") != "draft" {
+	if queue.Field([]byte(got), "status") != "draft" {
 		t.Error("the re-read spec was not returned to draft")
 	}
 }
@@ -486,10 +487,10 @@ func TestATaskIdIsNotResolvedToASpec(t *testing.T) {
 	if !strings.Contains(err.Error(), "task-0012") || !strings.Contains(err.Error(), "different") {
 		t.Errorf("error = %v; want it to name the id and say it is another file", err)
 	}
-	if got := h.read(t, otherSpec); field([]byte(got), "status") != "approved" {
+	if got := h.read(t, otherSpec); queue.Field([]byte(got), "status") != "approved" {
 		t.Error("spec-0012 was returned to draft by an id naming a task")
 	}
-	if got := h.read(t, specPath); field([]byte(got), "status") != "approved" {
+	if got := h.read(t, specPath); queue.Field([]byte(got), "status") != "approved" {
 		t.Error("spec-0011 was written")
 	}
 	if len(h.git.calls) != 0 || len(h.gh.calls) != 0 {

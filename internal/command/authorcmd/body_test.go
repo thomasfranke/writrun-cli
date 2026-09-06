@@ -158,40 +158,18 @@ func TestATemplateThatCannotCarryTheDeclarationFallsBack(t *testing.T) {
 	}
 }
 
-func TestFieldAndListReadTheFrontMatterAlone(t *testing.T) {
-	content := []byte(taskFixture("task-0016", "spec-0014, spec-0015", "A thing"))
-	if got := field(content, "id"); got != "task-0016" {
-		t.Errorf("id = %q", got)
+// The front matter, the list and the title are internal/queue's to
+// read, and its tests hold the disputed readings. What is held here is
+// the one column this command composes out of the title.
+func TestSubjectIsTheSentenceAfterTheId(t *testing.T) {
+	if got := subject([]byte(specFixture("spec-0014", "task-0016", "The declaration is the section"))); got != "The declaration is the section" {
+		t.Errorf("subject = %q", got)
 	}
-	if got := list(content, "spec_ref"); strings.Join(got, ",") != "spec-0014,spec-0015" {
-		t.Errorf("spec_ref = %v", got)
+	if got := subject([]byte(taskFixture("task-0016", "spec-0014", "Declare the derived work"))); got != "Declare the derived work" {
+		t.Errorf("subject = %q; a task's title carries no id to drop", got)
 	}
-	if got := list(content, "depends_on"); len(got) != 0 {
-		t.Errorf("depends_on = %v, want nothing", got)
-	}
-	if got := field(content, "nothing"); got != "" {
-		t.Errorf("a field the schema has not = %q", got)
-	}
-	if got := field([]byte("# no front matter\n"), "id"); got != "" {
-		t.Errorf("id of a file with no front matter = %q", got)
-	}
-	if got := field([]byte("---\nid: task-1\n"), "id"); got != "" {
-		t.Errorf("id of an unclosed front matter = %q", got)
-	}
-	if got := list([]byte("---\nid: x\nspec_ref: null\n---\n"), "spec_ref"); len(got) != 0 {
-		t.Errorf("a null list = %v", got)
-	}
-}
-
-func TestHeadingIsTheSentenceAfterTheId(t *testing.T) {
-	if got := heading([]byte(specFixture("spec-0014", "task-0016", "The declaration is the section"))); got != "The declaration is the section" {
-		t.Errorf("heading = %q", got)
-	}
-	if got := heading([]byte(taskFixture("task-0016", "spec-0014", "Declare the derived work"))); got != "Declare the derived work" {
-		t.Errorf("heading = %q", got)
-	}
-	if got := heading([]byte("no heading at all\n")); got != "" {
-		t.Errorf("heading = %q, want nothing", got)
+	if got := subject([]byte("no heading at all\n")); got != "" {
+		t.Errorf("subject = %q, want nothing", got)
 	}
 }
 

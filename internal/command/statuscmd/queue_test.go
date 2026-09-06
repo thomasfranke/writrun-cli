@@ -1,71 +1,73 @@
 package statuscmd
 
 import (
-	"reflect"
+	"errors"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-func TestIdNumberReadsWhatTheQueueSpells(t *testing.T) {
-	for _, tc := range []struct {
-		name, prefix string
-		want         int
-		ok           bool
-	}{
-		{"task-0014-status-command", "task-", 14, true},
-		{"task-14", "task-", 14, true},
-		{"spec-0013-status", "spec-", 13, true},
-		{"README", "task-", 0, false},
-		{"task-", "task-", 0, false},
-		{"task-abc", "task-", 0, false},
-		{"spec-0013", "task-", 0, false},
-	} {
-		got, ok := idNumber(tc.name, tc.prefix)
-		if ok != tc.ok || got != tc.want {
-			t.Errorf("idNumber(%q, %q) = %d, %v; want %d, %v", tc.name, tc.prefix, got, ok, tc.want, tc.ok)
+// The front matter, the id and the file are internal/queue's to read,
+// and its tests hold the disputed readings. What is held here is what
+// this command makes of the answers.
+
+// The branch names a task by the id it spells, at the width the queue
+// spells it — `ql_task_num`'s number, padded back to four digits.
+func TestTaskIdIsSpelledAtTheQueuesWidth(t *testing.T) {
+	cases := map[string]string{
+		"14":    "task-0014",
+		"1":     "task-0001",
+		"1234":  "task-1234",
+		"12345": "task-12345",
+	}
+	for num, want := range cases {
+		if got := taskID(num); got != want {
+			t.Errorf("taskID(%q) = %q, want %q", num, got, want)
 		}
 	}
 }
 
-func TestListReadsAFrontMatterList(t *testing.T) {
-	for _, tc := range []struct {
-		raw  string
-		want []string
-	}{
-		{"[spec-0013]", []string{"spec-0013"}},
-		{"[spec-0013, spec-0021]", []string{"spec-0013", "spec-0021"}},
-		{"[]", nil},
-		{"null", nil},
-		{"", nil},
-		{"spec-0013", []string{"spec-0013"}},
-	} {
-		if got := list(tc.raw); !reflect.DeepEqual(got, tc.want) {
-			t.Errorf("list(%q) = %v; want %v", tc.raw, got, tc.want)
+// A branch is read as a task only where it is spelled as one, and the
+// number inside it is the kit's. `task/0000-x` names no task: the
+// padding is the whole of its number (`ql_task_num task-0000` is
+// empty).
+func TestOnlyATaskBranchNamesATask(t *testing.T) {
+	files := vfs.NewFake()
+	files.Seed(root+"/work/tasks/task-0014-status-command.md", []byte(taskFile), 0o644)
+	files.Seed(root+"/work/specs/spec-0013-status.md", []byte(specFile), 0o644)
+
+	cases := map[string]struct{ named, found bool }{
+		"task/0014-status-command": {true, true},
+		"task/14-status-command":   {true, true},
+		"task/0099-nothing-here":   {true, false},
+		"task/0000-nothing":        {false, false},
+		"task/abc-0014":            {false, false},
+		"docs/something":           {false, false},
+		"main":                     {false, false},
+		"":                         {false, false},
+	}
+	for branch, want := range cases {
+		got := resolveTask(files, root, branch)
+		if got.named != want.named || got.found != want.found {
+			t.Errorf("resolveTask(%q) = named %v, found %v; want %v, %v",
+				branch, got.named, got.found, want.named, want.found)
 		}
 	}
 }
 
-func TestFrontMatterReadsOnlyTheLeadingBlock(t *testing.T) {
-	fm := frontMatter([]byte(taskFile))
-	if fm["id"] != "task-0014" || fm["status"] != "in-progress" {
-		t.Errorf("front matter = %v", fm)
+// A queue file the walk cannot reach is a task the answer does not
+// hold, in the words this command already gives a branch naming one the
+// queue has not.
+func TestAQueueThatCannotBeWalkedIsATaskNotHeld(t *testing.T) {
+	files := vfs.NewFake()
+	files.Seed(root+"/work/tasks/task-0014-status-command.md", []byte(taskFile), 0o644)
+	files.FailOp("walk", root+"/work/tasks", errors.New("permission denied"))
+	got := resolveTask(files, root, "task/0014-status-command")
+	if !got.named || got.found {
+		t.Fatalf("resolveTask = %+v; want the task named and not found", got)
 	}
-	if _, there := fm["Some body."]; there {
-		t.Error("the body was read as front matter")
-	}
-	if got := frontMatter([]byte("# A README\n\nstatus: open\n")); len(got) != 0 {
-		t.Errorf("a file without front matter yielded %v", got)
-	}
-	if got := frontMatter([]byte("---\nid: task-0014\n")); got["id"] != "task-0014" {
-		t.Errorf("an unclosed block yielded %v", got)
-	}
-}
-
-func TestHeadingIsTheFilesTitleOrNothing(t *testing.T) {
-	if got := heading([]byte(taskFile)); got != "Answer where the work stands from the current branch" {
-		t.Errorf("heading = %q", got)
-	}
-	if got := heading([]byte("---\nid: task-0014\n---\n\nno title\n")); got != "" {
-		t.Errorf("heading = %q; want nothing where there is no title", got)
+	if lines := got.lines(); lines[0].text != "task-0014 — the queue holds no such task" {
+		t.Errorf("line = %q", lines[0].text)
 	}
 }
 

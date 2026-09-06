@@ -1,0 +1,348 @@
+canonical|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+canonical|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+canonical|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+canonical|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+canonical|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+canonical|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+canonical|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+canonical|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+canonical|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+canonical|task-0012|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+canonical|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+canonical|0012|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+canonical|12|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+canonical|task/0012-x|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+canonical|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+canonical|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+canonical|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+canonical|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+canonical|-|author|exit=0|work=-|gh=23|refs=3|table=Task,Spec,What it implements;task-0013,spec-0013,Read the queue the way the kit reads it|OK — 5 queue file(s), all canonical./OK — 0 shown shape(s): 0 whole, 0 fragment(s), 0 not front matter; 2 retired word(s) read./OK — no forbidden lifecycle transition in main...HEAD
+canonical|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 in-progress Read the queue the way the kit reads it/Spec spec-0012 approved
+canonical|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+canonical|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+crlf|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+crlf|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+crlf|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+crlf|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+crlf|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+crlf|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+crlf|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+crlf|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+crlf|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+crlf|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+crlf|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+crlf|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+crlf|12|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+crlf|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+crlf|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+crlf|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+crlf|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+crlf|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+crlf|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/tasks/task-0013-derived.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/specs/spec-0012-queue-reader.md: front matter must open at line 1 wit
+crlf|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports none open
+crlf|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports none open
+crlf|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports none open
+crlf|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports none open
+crlf|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 no status Read the queue the way the kit reads it/Spec none — this task names no spec
+crlf|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports none open
+crlf|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
+crlf|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
+crlf|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
+crlf|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+fence-space|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+fence-space|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+fence-space|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+fence-space|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+fence-space|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+fence-space|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+fence-space|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+fence-space|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+fence-space|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+fence-space|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+fence-space|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+fence-space|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+fence-space|12|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+fence-space|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+fence-space|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+fence-space|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+fence-space|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+fence-space|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+fence-space|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/tasks/task-0013-derived.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/specs/spec-0012-queue-reader.md: front matter must open at line 1 wit
+fence-space|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports none open
+fence-space|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports none open
+fence-space|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports none open
+fence-space|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports none open
+fence-space|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 no status Read the queue the way the kit reads it/Spec none — this task names no spec
+fence-space|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports none open
+fence-space|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
+fence-space|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
+fence-space|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
+fence-space|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+unclosed|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+unclosed|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+unclosed|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+unclosed|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+unclosed|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+unclosed|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+unclosed|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+unclosed|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+unclosed|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+unclosed|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+unclosed|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+unclosed|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+unclosed|12|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+unclosed|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+unclosed|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+unclosed|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+unclosed|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+unclosed|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+unclosed|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/tasks/task-0013-derived.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/specs/spec-0012-queue-reader.md: front matter must open at line 1 wit
+unclosed|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports none open
+unclosed|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports none open
+unclosed|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports none open
+unclosed|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports none open
+unclosed|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 no status Read the queue the way the kit reads it/Spec none — this task names no spec
+unclosed|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports none open
+unclosed|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
+unclosed|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
+unclosed|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
+unclosed|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+no-front-matter|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+no-front-matter|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+no-front-matter|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+no-front-matter|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+no-front-matter|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+no-front-matter|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+no-front-matter|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+no-front-matter|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+no-front-matter|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+no-front-matter|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+no-front-matter|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+no-front-matter|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+no-front-matter|12|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+no-front-matter|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+no-front-matter|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+no-front-matter|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+no-front-matter|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+no-front-matter|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+no-front-matter|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/tasks/task-0013-derived.md: front matter must open at line 1 with --- and close with ---/MALFORMED: work/specs/spec-0012-queue-reader.md: front matter must open at line 1 wit
+no-front-matter|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports none open
+no-front-matter|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports none open
+no-front-matter|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports none open
+no-front-matter|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports none open
+no-front-matter|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 no status Read the queue the way the kit reads it/Spec none — this task names no spec
+no-front-matter|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports none open
+no-front-matter|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
+no-front-matter|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
+no-front-matter|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
+no-front-matter|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+duplicate-status|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+duplicate-status|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+duplicate-status|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+duplicate-status|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+duplicate-status|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+duplicate-status|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+duplicate-status|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+duplicate-status|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+duplicate-status|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+duplicate-status|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+duplicate-status|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+duplicate-status|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+duplicate-status|12|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+duplicate-status|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+duplicate-status|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+duplicate-status|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+duplicate-status|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+duplicate-status|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+duplicate-status|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'status' must appear exactly once (found 2)/MALFORMED: work/tasks/task-0013-derived.md: field 'status' must appear exactly once (found 2)/MALFORMED: work/specs/spec-0012-queue-reader.md: field 'status' must appear exactly once (found 2)
+duplicate-status|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 in-progress Read the queue the way the kit reads it/Spec spec-0012 approved
+duplicate-status|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+duplicate-status|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+space-colon|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+space-colon|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
+space-colon|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
+space-colon|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
+space-colon|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+space-colon|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+space-colon|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+space-colon|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+space-colon|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+space-colon|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+space-colon|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+space-colon|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+space-colon|12|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+space-colon|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+space-colon|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+space-colon|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+space-colon|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+space-colon|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+space-colon|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: malformed key 'status '/MALFORMED: work/tasks/task-0012-queue-reader.md: field 'status' must appear exactly once (found 0)/MALFORMED: work/tasks/task-0012-queue-reader.md: status '' is not a task status (backlog|ready|in-progress|in-review|done|blocke
+space-colon|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports none open
+space-colon|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports none open
+space-colon|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports none open
+space-colon|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports none open
+space-colon|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 no status Read the queue the way the kit reads it/Spec spec-0012 no status
+space-colon|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports none open
+space-colon|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
+space-colon|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
+space-colon|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
+space-colon|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+mixed-endings|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+mixed-endings|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+mixed-endings|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+mixed-endings|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+mixed-endings|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+mixed-endings|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+mixed-endings|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+mixed-endings|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+mixed-endings|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+mixed-endings|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+mixed-endings|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+mixed-endings|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+mixed-endings|12|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+mixed-endings|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+mixed-endings|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+mixed-endings|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+mixed-endings|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+mixed-endings|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+mixed-endings|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'id' carries trailing whitespace/MALFORMED: work/tasks/task-0012-queue-reader.md: field 'status' carries trailing whitespace/MALFORMED: work/tasks/task-0012-queue-reader.md: field 'blocked_reason' carries trailing whitespace
+mixed-endings|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 in-progress Read the queue the way the kit reads it/Spec spec-0012 approved
+mixed-endings|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+mixed-endings|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+long-line|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+long-line|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+long-line|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+long-line|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+long-line|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+long-line|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+long-line|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+long-line|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+long-line|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+long-line|task-0012|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+long-line|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+long-line|0012|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+long-line|12|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+long-line|task/0012-x|finish|exit=0|work=work/specs/spec-0012-queue-reader.md,work/tasks/task-0012-queue-reader.md|gh=2|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./wrote status: implemented on work/specs/spec-0012-queue-reader.md/wrote completed: <stamp> on work/tasks/task-0012-queue-reader.md
+long-line|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+long-line|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+long-line|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+long-line|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+long-line|-|author|exit=0|work=-|gh=23|refs=3|table=Task,Spec,What it implements;task-0013,spec-0013,Read the queue the way the kit reads it|OK — 5 queue file(s), all canonical./OK — 0 shown shape(s): 0 whole, 0 fragment(s), 0 not front matter; 2 retired word(s) read./OK — no forbidden lifecycle transition in main...HEAD
+long-line|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 in-progress Read the queue the way the kit reads it/Spec spec-0012 approved
+long-line|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+long-line|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+missing-id|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+missing-id|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+missing-id|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+missing-id|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
+missing-id|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+missing-id|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+missing-id|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+missing-id|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+missing-id|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+missing-id|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+missing-id|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+missing-id|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+missing-id|12|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+missing-id|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: work/tasks/task-0012-queue-reader.md carries no id
+missing-id|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+missing-id|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+missing-id|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+missing-id|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+missing-id|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'id' must appear exactly once (found 0)/MALFORMED: work/tasks/task-0012-queue-reader.md: id '' is not the filename's id — a queue file is named <id>.md or <id>-<subject>.md/MALFORMED: work/tasks/task-0013-derived.md: field 'id' must appear exa
+missing-id|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 in-progress Read the queue the way the kit reads it/Spec spec-0012 approved
+missing-id|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+missing-id|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+missing-status|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+missing-status|spec-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
+missing-status|0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
+missing-status|12|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
+missing-status|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+missing-status|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+missing-status|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+missing-status|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+missing-status|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+missing-status|task-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+missing-status|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+missing-status|0012|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+missing-status|12|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+missing-status|task/0012-x|finish|exit=1|work=-|gh=0|refs=2|table=-|OK: diff matches the promised deltas of spec-0012./writrun finish: work/specs/spec-0012-queue-reader.md: the front matter carries no status field
+missing-status|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+missing-status|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+missing-status|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+missing-status|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+missing-status|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'status' must appear exactly once (found 0)/MALFORMED: work/tasks/task-0012-queue-reader.md: status '' is not a task status (backlog|ready|in-progress|in-review|done|blocked|dropped)/MALFORMED: work/tasks/task-0013-derived.md: field 'status' mus
+missing-status|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports none open
+missing-status|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports none open
+missing-status|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports none open
+missing-status|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports none open
+missing-status|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 no status Read the queue the way the kit reads it/Spec spec-0012 no status
+missing-status|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports none open
+missing-status|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
+missing-status|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
+missing-status|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
+missing-status|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+null-list|task-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+null-list|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+null-list|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+null-list|12|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=26|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
+null-list|task/0012-x|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task/0012-x" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
+null-list|task-0000|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0000" names no spec id
+null-list|task-abc-0012|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-abc-0012" names no spec id
+null-list|report-0020|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "report-0020" names no spec id
+null-list|task-0099|amend|exit=1|work=-|gh=0|refs=2|table=-|writrun amend: "task-0099" names a task, and this resolves a spec — its number alone would land on spec-99, which is a different file about different work
+null-list|task-0012|finish|exit=3|work=-|gh=0|refs=2|table=-|Spec file for null not found under work/specs/
+null-list|spec-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "spec-0012" names a spec, and this resolves a task — its number alone would land on task-12, which is a different file about different work
+null-list|0012|finish|exit=3|work=-|gh=0|refs=2|table=-|Spec file for null not found under work/specs/
+null-list|12|finish|exit=3|work=-|gh=0|refs=2|table=-|Spec file for null not found under work/specs/
+null-list|task/0012-x|finish|exit=3|work=-|gh=0|refs=2|table=-|Spec file for null not found under work/specs/
+null-list|task-0000|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-0000" names no task id
+null-list|task-abc-0012|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "task-abc-0012" names no task id
+null-list|report-0020|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: "report-0020" names no task id
+null-list|task-0099|finish|exit=1|work=-|gh=0|refs=2|table=-|writrun finish: task-99 resolves to no file under work/tasks/
+null-list|-|author|exit=1|work=-|gh=0|refs=2|table=-|MALFORMED: work/tasks/task-0012-queue-reader.md: field 'spec_ref' item 'null' is not a spec id/MALFORMED: work/tasks/task-0013-derived.md: field 'spec_ref' item 'null' is not a spec id
+null-list|task-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|spec-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch spec-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|12|status|exit=0|work=-|gh=0|refs=2|table=-|Branch 12/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|task/0012-x|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task/0012-x/Task task-0012 in-progress Read the queue the way the kit reads it/Spec null — no file under work/specs/
+null-list|task-0000|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0000/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|task-abc-0012|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|report-0020|status|exit=0|work=-|gh=0|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|task-0099|status|exit=0|work=-|gh=0|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
+null-list|-|screen|exit=0|work=-|gh=0|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins

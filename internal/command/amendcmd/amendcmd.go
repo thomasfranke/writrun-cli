@@ -49,6 +49,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -118,7 +119,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 
 	// 1 — a spec that is not approved. Nothing else runs, nothing is
 	// read from the forge, nothing is asked (spec-0011, step 1).
-	rel, err := queueFile(d.Files, ctx.Root, specsDir, "spec", id)
+	rel, err := queue.Resolve(d.Files, ctx.Root, specsDir, queue.Spec, id)
 	if err != nil {
 		return err
 	}
@@ -126,11 +127,11 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", rel, err)
 	}
-	specID := field(content, "id")
+	specID := queue.Field(content, "id")
 	if specID == "" {
 		return fmt.Errorf("%s carries no id", rel)
 	}
-	if status := field(content, "status"); status != "approved" {
+	if status := queue.Field(content, "status"); status != "approved" {
 		return fmt.Errorf("%s is %s — amend returns an approved spec to draft; "+
 			"a draft is already open for change and an implemented one is history (%s)",
 			specID, statusOrNone(status), rel)
@@ -142,7 +143,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// cannot be written from being discovered after the branch is cut.
 	// The status was just read as `approved`, so a proof that returns no
 	// error always changed the file: only the error is a verdict.
-	if _, _, err := setField(content, "status", "draft"); err != nil {
+	if _, _, err := queue.Set(content, "status", "draft"); err != nil {
 		return fmt.Errorf("%s: %w", rel, err)
 	}
 
@@ -269,11 +270,11 @@ func act(ctx *command.Ctx, d Deps, p plan) error {
 	if err != nil {
 		return fmt.Errorf("reading %s on %s: %w — the branch is cut; `git switch -` leaves it behind", p.relPath, p.branch, err)
 	}
-	if status := field(onBranch, "status"); status != "approved" {
+	if status := queue.Field(onBranch, "status"); status != "approved" {
 		return fmt.Errorf("%s reads %s on %s — it was amended elsewhere; nothing was written, and `git switch -` leaves the branch behind",
 			p.specID, statusOrNone(status), base)
 	}
-	next, _, err := setField(onBranch, "status", "draft")
+	next, _, err := queue.Set(onBranch, "status", "draft")
 	if err != nil {
 		return fmt.Errorf("%s: %w", p.relPath, err)
 	}
@@ -454,7 +455,7 @@ func match(tasks []string, pulls []pull) []suspension {
 	out := make([]suspension, 0, len(tasks))
 	for _, task := range tasks {
 		s := suspension{task: task}
-		want := numOf(task)
+		want := queue.Num(queue.Task, task)
 		for _, p := range pulls {
 			for _, carried := range carriedOf(p.branch, p.title) {
 				if carried == want {

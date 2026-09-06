@@ -28,6 +28,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -105,7 +106,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 			return err
 		}
 	}
-	taskPath, err := queueFile(d.Files, ctx.Root, tasksDir, "task", id)
+	taskPath, err := queue.Resolve(d.Files, ctx.Root, tasksDir, queue.Task, id)
 	if err != nil {
 		return err
 	}
@@ -113,7 +114,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", taskPath, err)
 	}
-	taskID := field(task, "id")
+	taskID := queue.Field(task, "id")
 	if taskID == "" {
 		return fmt.Errorf("%s carries no id", taskPath)
 	}
@@ -126,7 +127,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 
 	// 1 — the promised deltas. A non-zero verdict stops the command
 	// here: nothing is written, nothing else runs (spec-0010, step 1).
-	specIDs := specRefs(task)
+	specIDs := queue.List(task, "spec_ref")
 	if len(specIDs) == 0 {
 		fmt.Fprintf(ctx.Stdout, "%s carries no spec — no deltas to check.\n", taskID)
 	} else if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, deltasScript,
@@ -177,7 +178,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	// here, and not anywhere in this package (spec-0010, scope). A date
 	// already there is the worker's declaration of finishing, so a
 	// second run reports it rather than restamping it.
-	if done := strings.TrimSpace(field(task, "completed")); done != "" && done != "null" {
+	if done := strings.TrimSpace(queue.Field(task, "completed")); done != "" && done != "null" {
 		fmt.Fprintf(ctx.Stdout, "unchanged: %s already carries completed: %s\n", taskPath, done)
 	} else if err := write(ctx, d, undo, taskPath, task, "completed", d.Now().UTC().Format(time.RFC3339)); err != nil {
 		return undo.restore(ctx, d, err)
@@ -407,7 +408,7 @@ type spec struct {
 func readSpecs(files vfs.FS, root string, ids []string) ([]spec, error) {
 	var specs []spec
 	for _, id := range ids {
-		p, err := queueFile(files, root, specsDir, "spec", id)
+		p, err := queue.Resolve(files, root, specsDir, queue.Spec, id)
 		if err != nil {
 			return nil, err
 		}
@@ -425,11 +426,11 @@ func readSpecs(files vfs.FS, root string, ids []string) ([]spec, error) {
 // command is rerunnable, and a second run must not restamp a date the
 // first one declared.
 func write(ctx *command.Ctx, d Deps, undo *journal, rel string, content []byte, name, value string) error {
-	if strings.TrimSpace(field(content, name)) == value {
+	if strings.TrimSpace(queue.Field(content, name)) == value {
 		fmt.Fprintf(ctx.Stdout, "unchanged: %s already carries %s: %s\n", rel, name, value)
 		return nil
 	}
-	next, changed, err := setField(content, name, value)
+	next, changed, err := queue.Set(content, name, value)
 	if err != nil {
 		return fmt.Errorf("%s: %w", rel, err)
 	}
