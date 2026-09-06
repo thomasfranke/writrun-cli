@@ -240,5 +240,3 @@ func (h *harness) deps() Deps {
 func (h *harness) amend(args ...string) error {
 	return run(h.ctx, h.deps(), append([]string{"spec-0011", "--title", amendTitle}, args...))
 }
-
-func (h *harness) said() string { return h.out.String() + h.errb.String() }
