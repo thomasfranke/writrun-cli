@@ -30,3 +30,4 @@ appending a row.
 | [0010](docs/0010-help-is-one-line-per-command.md) | 2026-09-03 | docs | `--help` is one line per command plus the docs' address. |
 | [0011](docs/0011-one-decision-per-file.md) | 2026-09-03 | docs | one decision per file, numbered, in the subject's folder. |
 | [0012](docs/0012-technical-subjects-are-folders.md) | 2026-09-04 | docs | technical subjects are folders; `architecture.md` alone stays at the root. |
+| [0013](architecture/0013-the-kit-is-read-from-the-kit.md) | 2026-09-06 | architecture | the kit is read from the kit; Go names only what the binary calls. |
