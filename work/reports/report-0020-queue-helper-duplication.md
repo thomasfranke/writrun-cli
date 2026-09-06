@@ -1,13 +1,15 @@
 ---
 id: report-0020
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0023]
 doc_ref: null
 created: 2026-09-06T01:29:48Z
-triaged: null
+triaged: 2026-09-06T04:28:17Z
 ---
 
 # The queue front-matter helpers are duplicated with no task behind them
+
+**References:** [task-0023](../tasks/task-0023-queue-reader.md)
 
 `numOf`, `queueFile`, `frontMatter`, `field`, `setField` and `specRefs`
 stand in `internal/command/amendcmd/queue.go` and in
