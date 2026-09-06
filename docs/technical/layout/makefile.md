@@ -13,6 +13,7 @@ calls these targets too, so renaming one is a workflow change.
 | `make test-e2e` | a whole flow against a local WritRun clone |
 | `make test-<suite>` | one suite directory, e.g. `make test-release`, `make test-update` |
 | `make cover` | the unit tier with the coverage gate, printing the percentages and the floors |
+| `make ui` | the screen against this repository — `writrun` with no command; needs a terminal |
 | `make release [patch\|minor\|major]` | the whole release path; default `patch` |
 
 - **`make cover` takes a floor**: `make cover 95` raises the total's

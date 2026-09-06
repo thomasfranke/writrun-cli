@@ -2,7 +2,7 @@
 # them. CI calls these targets too (tests.yml, release-readiness.yml), so
 # renaming one is a workflow change.
 
-.PHONY: tests test test-unit test-integration cover
+.PHONY: tests test test-unit test-integration cover ui
 
 # Everything — every tier: Go unit tests, then the bash suites. The
 # coverage gate is not here: it lives in CI (technical/testing/tiers.md).
@@ -13,6 +13,13 @@ tests:
 
 # `make test` is the muscle-memory alias for the same thing.
 test: tests
+
+# The screen, against this repository itself — `writrun` with no command
+# (product/screen.md). `go run` rather than a build so the source under
+# the cursor is the source that runs; the screen needs a terminal, so
+# this target is a session's, never CI's.
+ui:
+	@go run ./cmd/writrun
 
 # unit is Go, table-driven, beside the code (technical/testing/tiers.md).
 test-unit:
