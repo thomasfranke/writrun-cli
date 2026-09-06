@@ -12,6 +12,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -302,7 +303,7 @@ func (r *refresh) apply() error {
 		}
 	}
 
-	if err := r.disk.WriteFile(filepath.Join(r.root, ".writrun", "VERSION"), []byte(r.to+"\n"), 0o644); err != nil {
+	if err := r.disk.WriteFile(kittag.Path(r.root), []byte(r.to+"\n"), 0o644); err != nil {
 		return fmt.Errorf("recording the tag: %w", err)
 	}
 	if r.agents != nil {

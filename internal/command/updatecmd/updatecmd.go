@@ -16,6 +16,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -69,7 +70,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	switch cmp := compareTags(d.Tag, current); {
+	switch cmp := kittag.Compare(d.Tag, current); {
 	case cmp == 0:
 		fmt.Fprintf(ctx.Stdout, "Already at WritRun %s — nothing to refresh.\n", current)
 		return nil
@@ -128,13 +129,14 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 }
 
 // recordedTag is the tag the kit records — the refresh's starting
-// point, read from the file the adoption wrote.
+// point, read from the file the adoption wrote. The file and its
+// parsing are kittag's; what an unrecorded tag means to a refresh is
+// this command's.
 func recordedTag(files vfs.FS, root string) (string, error) {
-	raw, err := files.ReadFile(filepath.Join(root, ".writrun", "VERSION"))
+	tag, err := kittag.Read(files, root)
 	if err != nil {
 		return "", fmt.Errorf("reading .writrun/VERSION: %w", err)
 	}
-	tag := strings.TrimSpace(string(raw))
 	if tag == "" {
 		return "", fmt.Errorf(".writrun/VERSION records no tag — the kit's version is what a refresh refreshes from")
 	}

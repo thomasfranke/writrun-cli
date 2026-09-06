@@ -3,6 +3,8 @@ package doctorcmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/requirements"
 )
 
 func TestEveryAssumptionHoldingFindsNothing(t *testing.T) {
@@ -13,7 +15,7 @@ func TestEveryAssumptionHoldingFindsNothing(t *testing.T) {
 }
 
 func TestAMissingRequirementIsNamed(t *testing.T) {
-	for _, bin := range requirements {
+	for _, bin := range requirements.All() {
 		t.Run(bin, func(t *testing.T) {
 			f := newFixture(t, "1")
 			f.path[bin] = false
@@ -24,12 +26,13 @@ func TestAMissingRequirementIsNamed(t *testing.T) {
 
 func TestEveryRequirementMissingNamesEveryOne(t *testing.T) {
 	f := newFixture(t, "1")
-	for _, bin := range requirements {
+	want := requirements.All()
+	for _, bin := range want {
 		f.path[bin] = false
 	}
 	found := at(f.findings(), 0)
-	if len(found) != len(requirements) {
-		t.Fatalf("stage 0 findings = %d, want %d:\n%s", len(found), len(requirements), texts(found))
+	if len(found) != len(want) {
+		t.Fatalf("stage 0 findings = %d, want %d:\n%s", len(found), len(want), texts(found))
 	}
 }
 
@@ -141,14 +144,6 @@ func TestAnUnreadableTagIsNamed(t *testing.T) {
 			write(t, f.root, ".writrun/VERSION", c.tag)
 			only(t, f.findings(), 1, breaks, "is not a readable tag")
 		})
-	}
-}
-
-func TestATagWithALeadingZeroReads(t *testing.T) {
-	for _, tag := range []string{"v0.0.03", "v0.0.3", "v1.10", "v10.0.100"} {
-		if !parseableTag(tag) {
-			t.Errorf("parseableTag(%q) = false, want true", tag)
-		}
 	}
 }
 

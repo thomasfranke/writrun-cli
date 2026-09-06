@@ -1,7 +1,7 @@
 ---
 id: spec-0018
 task_ref: task-0019
-status: approved
+status: implemented
 created: 2026-09-05T19:11:34Z
 ---
 
@@ -64,10 +64,10 @@ from.
 
 ## Definition of Done
 
-- [ ] Each duplication is either extracted or kept with the reason recorded.
-- [ ] No command's output changed.
-- [ ] `tests/integration/` passes with no edit to any case.
-- [ ] Suite green.
+- [x] Each duplication is either extracted or kept with the reason recorded.
+- [x] No command's output changed.
+- [x] `tests/integration/` passes with no edit to any case.
+- [x] Suite green.
 
 ## Proposed product changes
 
@@ -79,4 +79,58 @@ from.
 
 ## Outcome
 
-_(fill after execution)_
+One duplication was extracted, one was kept. No command's output
+changed: the three commands were run over the same repository before
+and after, with `.writrun/VERSION` recorded, empty, absent, unreadable,
+spelled with a leading zero, and ahead of the pinned tag, and every
+byte of stdout, stderr and every exit code matched.
+
+**`.writrun/VERSION` — extracted.** `internal/kittag` owns the file's
+path and its parsing: `Path`, `Read`, `Compare`, `SameRelease`,
+`Components`, `Readable`. It reads through the `vfs.FS` port its callers
+already own, so it leaves the process through nothing of its own and
+needs no fake. `update`, `status` and `doctor` read the file only from
+here; `init` asks its own stage-1 question of it, and both writers
+record the tag through `Path`, so the join is spelled once even where
+the reading is not shared.
+
+- Ordering and equality are separate entry points, and `SameRelease` is
+  `Compare(a, b) == 0` exactly. `Compare` answers 0 only on two tags it
+  read as one release and 1 — never 0 — on a tag it could not read, so
+  `update`'s rule that an unreadable tag is a move forward reaches no
+  caller asking only whether two tags match. The second name exists so
+  that caller never spells the question as an ordering, not because the
+  answer differs.
+- `doctor`'s third parse is `Readable`, kept stricter than `Components`
+  on purpose. A recorded tag needs a leading `v` and two all-digit
+  components; a comparison takes what it can order, because refusing a
+  spelling would call a refresh a downgrade.
+- The words a bad tag gets stay with each command. `Read` returns the
+  empty string and the filesystem's own error and grades nothing, so
+  `update` still refuses a refresh, `status` still names the file, and
+  `doctor` still writes a finding.
+
+**The stage checks — stage 0 extracted, stage 1 kept.** The stage-0
+probe is one list and one loop, identical in both copies and fixed by
+`docs/technical/runtime/requirements.md`; it is now
+`internal/requirements`, which returns the binaries that are missing
+and grades nothing — as an unexported list handed out by `All` as a
+copy, because a package-level variable another package could write is
+state `technical/engineering/boundaries.md` refuses.
+
+Stage 1's *questions* are not shared, and the reason is at
+`initcmd.checkFiles`: `init` reports on the adoption it has just run,
+`doctor` reports on a repository in use, and one function answering
+both would answer neither. That reason covers the questions and the
+words, not the mechanics under them: what asks nothing is shared. The
+docs-chapter walk was the same code in both copies down to an
+unreachable nil guard and is now `internal/chapter`; what each command
+calls a folder without one stays with that command.
+
+Which behaviour won, on the three the copies disagree about:
+
+| Disagreement | Correct |
+|---|---|
+| Where the declared stage comes from | Both. `init` has only the flag it just asked for; `doctor` reads `read_setting.sh` because the file is the repository's answer by then. |
+| Whether `check_front_matter.sh` and `check_settings.sh` run | Both. A verdict on the queue is the repository's own script, which is `doctor`'s work; `init` runs no script against a repository still being adopted, and blocks nothing. |
+| How the four human gates are tested | `doctor`'s. It names the gate that went unanswered and survives a retitled section, where `init` tests `AGENTS.md` for `<!-- TODO`. `init` asks the adoption-local question and its output is unchanged here; `doctor`'s is the behaviour that wins if the two are ever unified. |

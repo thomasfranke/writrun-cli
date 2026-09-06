@@ -7,27 +7,6 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-func TestCompareTags(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want int
-	}{
-		{"v0.0.03", "v0.0.03", 0},
-		{"v0.0.3", "v0.0.03", 0}, // the padding is not identity
-		{"v0.0.10", "v0.0.9", 1}, // which string order gets wrong
-		{"v0.0.9", "v0.0.10", -1},
-		{"v0.1.0", "v0.0.99", 1},
-		{"v1.0", "v1.0.0", 0}, // a missing component is zero
-		{"v1.0.1", "v1.0", 1},
-		{"not-a-tag", "v0.0.1", 1}, // unreadable is never a downgrade
-	}
-	for _, tc := range cases {
-		if got := compareTags(tc.a, tc.b); got != tc.want {
-			t.Errorf("compareTags(%q, %q) = %d, want %d", tc.a, tc.b, got, tc.want)
-		}
-	}
-}
-
 func TestRecordedTagRefusesAnEmptyFile(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, ".writrun/VERSION", "   \n")

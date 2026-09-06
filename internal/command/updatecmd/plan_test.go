@@ -182,12 +182,3 @@ func TestCopyFileCarriesTheModeBit(t *testing.T) {
 		t.Error("copying a file that is not there was not an error")
 	}
 }
-
-func TestParseTagRejectsTheBareV(t *testing.T) {
-	if _, ok := parseTag("v"); ok {
-		t.Error("a bare v parsed as a version")
-	}
-	if _, ok := parseTag("v1.x.0"); ok {
-		t.Error("a non-numeric component parsed as a version")
-	}
-}
