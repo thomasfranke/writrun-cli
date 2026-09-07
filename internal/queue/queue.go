@@ -38,6 +38,33 @@ const (
 	Spec Kind = "spec"
 )
 
+// The queue's folders, relative to the repository root. They are the
+// methodology's layout, and this package is where the binary reads it,
+// so they are declared here and referenced everywhere else
+// (docs/technical/engineering/coupling.md, rule 1).
+const (
+	// Root is the queue's tree, which is what a path is tested against
+	// where the kind does not matter.
+	Root       = "work"
+	TasksDir   = Root + "/tasks"
+	SpecsDir   = Root + "/specs"
+	ReportsDir = Root + "/reports"
+)
+
+// Dir is where one kind's files live. Resolve reads it rather than
+// taking it as a parameter: every caller passed the folder matching the
+// kind it asked for, and the parameter is what let five copies of each
+// path exist.
+func Dir(kind Kind) string {
+	switch kind {
+	case Task:
+		return TasksDir
+	case Spec:
+		return SpecsDir
+	}
+	return ""
+}
+
 // declared matches the kind an id spells for itself.
 var declared = regexp.MustCompile(`^(task|spec)[-/]`)
 
@@ -93,7 +120,8 @@ func Num(kind Kind, s string) string {
 // The walk's own errors are returned rather than swallowed. A caller
 // that has nothing to say about them says what it says about a file it
 // did not find.
-func Resolve(files vfs.FS, root, dir string, kind Kind, id string) (string, error) {
+func Resolve(files vfs.FS, root string, kind Kind, id string) (string, error) {
+	dir := Dir(kind)
 	num := Num(kind, id)
 	if num == "" {
 		if other := Declares(id); other != "" && other != kind {

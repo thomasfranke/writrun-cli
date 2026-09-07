@@ -15,9 +15,7 @@ import (
 // The queue's directories, as the methodology lays them out. They are
 // read, never written.
 const (
-	tasksDir   = "work/tasks"
-	specsDir   = "work/specs"
-	reportsDir = "work/reports"
+	specsDir = queue.SpecsDir
 )
 
 // branchPrefix is the branch naming convention the queue's flow fixes:
@@ -112,7 +110,7 @@ func resolveTask(files vfs.FS, root, branch string) task {
 	}
 	t := task{named: true, id: taskID(num)}
 
-	rel, err := queue.Resolve(files, root, tasksDir, queue.Task, branch)
+	rel, err := queue.Resolve(files, root, queue.Task, branch)
 	if err != nil {
 		return t
 	}
@@ -145,7 +143,7 @@ func taskID(num string) string {
 // readSpec names one spec and the status its file records.
 func readSpec(files vfs.FS, root, id string) spec {
 	s := spec{id: id}
-	rel, err := queue.Resolve(files, root, specsDir, queue.Spec, id)
+	rel, err := queue.Resolve(files, root, queue.Spec, id)
 	if err != nil {
 		return s
 	}
@@ -162,7 +160,7 @@ func readSpec(files vfs.FS, root, id string) spec {
 // Anything beside them in the directory — the README, a file carrying
 // no front matter — holds no status and is not a report.
 func openReports(files vfs.FS, root string) string {
-	dir := path.Join(root, reportsDir)
+	dir := path.Join(root, queue.ReportsDir)
 	open := 0
 	err := files.WalkDir(dir, func(p string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -181,7 +179,7 @@ func openReports(files vfs.FS, root string) string {
 		return nil
 	})
 	if err != nil {
-		return fmt.Sprintf("%s/ could not be read: %v", reportsDir, err)
+		return fmt.Sprintf("%s/ could not be read: %v", queue.ReportsDir, err)
 	}
 	if open == 0 {
 		return "none open"

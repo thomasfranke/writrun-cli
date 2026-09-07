@@ -31,11 +31,11 @@ import (
 // composition to hand it, and still before the push — which is this
 // command's first write.
 const (
-	frontMatterScript = ".writrun/skills/writrun-check-front-matter/check_front_matter.sh"
-	docShapesScript   = ".writrun/scripts/stage-2-pull-requests/check_doc_shapes.sh"
-	stateScript       = ".writrun/skills/writrun-check-task-state/check_state.sh"
-	observanceScript  = ".writrun/scripts/stage-2-pull-requests/check_observance.sh"
-	settingScript     = ".writrun/scripts/stage-2-pull-requests/read_setting.sh"
+	frontMatterScript = kit.CheckFrontMatter
+	docShapesScript   = kit.CheckDocShapes
+	stateScript       = kit.CheckState
+	observanceScript  = kit.CheckObservance
+	settingScript     = kit.ReadSetting
 )
 
 // Deps is the wiring author needs beyond the frame's Ctx.

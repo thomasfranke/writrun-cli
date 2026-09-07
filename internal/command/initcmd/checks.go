@@ -9,6 +9,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/chapter"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/pointer"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -86,7 +87,7 @@ func checkFiles(disk vfs.FS, root string) []gap {
 			gaps = append(gaps, gap{1, fmt.Sprintf("docs/%s/ — at least one real %s doc is required beyond the README", folder, folder)})
 		}
 	}
-	for _, rel := range []string{"work/tasks", "work/specs", "work/reports"} {
+	for _, rel := range []string{queue.TasksDir, queue.SpecsDir, queue.ReportsDir} {
 		if _, err := disk.Stat(filepath.Join(root, rel)); err != nil {
 			gaps = append(gaps, gap{1, rel + "/ — the queue's folder is missing"})
 		}

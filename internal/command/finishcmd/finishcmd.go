@@ -35,9 +35,9 @@ import (
 // The three authorities this command runs, in the order it runs them.
 // Not one of their judgements is repeated here.
 const (
-	deltasScript     = ".writrun/skills/writrun-check-spec-deltas/check_deltas.sh"
-	provenanceScript = ".writrun/scripts/stage-1-tasks-and-specs/record_provenance.sh"
-	preflightScript  = ".writrun/scripts/stage-1-tasks-and-specs/preflight.sh"
+	deltasScript     = kit.CheckDeltas
+	provenanceScript = kit.RecordProvenance
+	preflightScript  = kit.Preflight
 )
 
 // Deps is the wiring finish needs beyond the frame's Ctx.
@@ -106,7 +106,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 			return err
 		}
 	}
-	taskPath, err := queue.Resolve(d.Files, ctx.Root, tasksDir, queue.Task, id)
+	taskPath, err := queue.Resolve(d.Files, ctx.Root, queue.Task, id)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ type spec struct {
 func readSpecs(files vfs.FS, root string, ids []string) ([]spec, error) {
 	var specs []spec
 	for _, id := range ids {
-		p, err := queue.Resolve(files, root, specsDir, queue.Spec, id)
+		p, err := queue.Resolve(files, root, queue.Spec, id)
 		if err != nil {
 			return nil, err
 		}

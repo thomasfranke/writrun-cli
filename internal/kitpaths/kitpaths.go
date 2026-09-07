@@ -8,20 +8,29 @@
 // change in this file (docs/technical/engineering/coupling.md, rule 1).
 package kitpaths
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/kit"
+)
 
 // Untouchable are the paths a refresh never rewrites: the adopter's
 // conventions, settings and gate answers, the entry points a project
 // owns whole from v0.0.04 on, its docs and its queue.
 var Untouchable = []string{
-	".writrun/conventions",
-	".writrun/settings.json",
-	".writrun/gates.md",
+	conventionsDir,
+	kit.Settings,
+	kit.Gates,
 	"AGENTS.md",
 	"CLAUDE.md",
 	"docs",
 	"work",
 }
+
+// conventionsDir is the adopter's conventions folder. Nothing calls
+// into it — the kit's scripts read it and this binary does not — so it
+// is named here, where the one question asked of it is answered.
+const conventionsDir = ".writrun/conventions"
 
 // KitOwned are the kit's own files that sit under an Untouchable path.
 // A refresh writes them although the path above them is the project's —
@@ -36,7 +45,7 @@ var KitOwned = []string{"docs/writrun-instructions.md"}
 // `settings.json` is deliberately not among them. Its shipped default
 // declares `stage: 1`, which is an answer a refresh may not give on the
 // project's behalf.
-var Seeded = []string{".writrun/gates.md"}
+var Seeded = []string{kit.Gates}
 
 // namespaced are the directories where the kit prefixes its own files,
 // which is how `uninstall` and a refresh's removals tell them from the

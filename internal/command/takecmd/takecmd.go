@@ -22,8 +22,8 @@ import (
 // authority on which tasks may be offered for selection. Both are the
 // adopted repository's own.
 const (
-	takeScript = ".writrun/scripts/stage-2-pull-requests/take_task.sh"
-	listScript = ".writrun/skills/writrun-select-next-task/list_tasks.sh"
+	takeScript = kit.TakeTask
+	listScript = kit.ListTasks
 )
 
 // availableHeader opens the lister's Available section — the group the

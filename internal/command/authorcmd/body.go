@@ -5,13 +5,14 @@ import (
 	"path"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/queue"
 )
 
 // templatePath is the kit's one home for the pull-request body
 // (conventions/prs.md). Everything in it is the project's to edit
 // except one marker.
-const templatePath = ".writrun/templates/pull_request_template.md"
+const templatePath = kit.PullRequestTemplate
 
 // The two headings the template's two halves open with. `## Derived
 // work` is a **contract marker** — `writrun check` finds the
@@ -38,11 +39,11 @@ type row struct{ task, spec, what string }
 // check_derived_work.sh makes at the door, so the body and the check
 // cannot disagree about what this change derived.
 func derived(d Deps, root, rng string) ([]row, error) {
-	tasks, err := added(d, root, rng, tasksDir+"/task-*.md")
+	tasks, err := added(d, root, rng, queue.TasksDir+"/task-*.md")
 	if err != nil {
 		return nil, err
 	}
-	specs, err := added(d, root, rng, specsDir+"/spec-*.md")
+	specs, err := added(d, root, rng, queue.SpecsDir+"/spec-*.md")
 	if err != nil {
 		return nil, err
 	}

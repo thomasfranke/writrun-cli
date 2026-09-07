@@ -22,17 +22,18 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // generator is the authority this command wraps: the creation skill's
 // own scaffolder, which owns the id, the front matter and the file's
 // name. Nothing here mints, numbers or validates in its place.
-const generator = ".writrun/skills/writrun-create-task-and-spec/new.sh"
+const generator = kit.NewQueueFile
 
 // reports is where a recorded report lives — the one directory the
 // generator may have named back.
-const reports = "work/reports/"
+const reports = queue.ReportsDir + "/"
 
 // Deps is the wiring report needs beyond the frame's Ctx.
 type Deps struct {
