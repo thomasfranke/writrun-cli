@@ -119,6 +119,14 @@ EOF
     cd "$TARGET" || exit 1
     git_q init -q
     git_q symbolic-ref HEAD refs/heads/main
+    # Written into the repository's own config, not passed per
+    # invocation: from v0.0.04 `take_task.sh` makes the branch's first
+    # commit itself, and a plain `git commit` reads the identity from
+    # here. Without it the fixture borrows whatever the machine has,
+    # which is an identity on a workstation and none on a CI runner.
+    git config user.name suite
+    git config user.email suite@test
+    git config commit.gpgsign false
     git_q add -A
     git_q commit -q -m "the kit and the queue"
   )
