@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 )
 
 // The two trees an authoring change may touch: the permanent docs the
@@ -14,9 +15,7 @@ import (
 // are the methodology's own layout, not this command's choice.
 const (
 	docsTree  = "docs/"
-	queueTree = "work/"
-	tasksDir  = "work/tasks"
-	specsDir  = "work/specs"
+	queueTree = queue.Root + "/"
 )
 
 // docsPrefix is what an authoring branch is named with

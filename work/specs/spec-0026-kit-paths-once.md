@@ -80,9 +80,9 @@ are rewritten to assert the value; the Outcome names each.
 
 ## Definition of Done
 
-- [ ] Every path in the table above has one declaration.
-- [ ] The source-walking check is in the suite and green.
-- [ ] No command's behaviour changed — the existing suites pass unchanged.
+- [x] Every path in the table above has one declaration.
+- [x] The source-walking check is in the suite and green.
+- [x] No command's behaviour changed — the existing suites pass unchanged.
 
 ## Proposed product changes
 
@@ -94,4 +94,58 @@ are rewritten to assert the value; the Outcome names each.
 
 ## Outcome
 
-_(fill after execution)_
+Every path in the table has one declaration.
+
+**`internal/kit` names what it runs.** Thirteen scripts and three kit
+files, each after the act rather than the file — `Preflight`,
+`CheckObservance`, `TakeTask`, `PullRequestTemplate`. Running a script
+is that package's act, so the paths sit beside the runner. The tag
+stayed `internal/kittag`'s, and `.writrun/AGENTS.md` stayed
+`internal/pointer`'s: each is already the package that owns its act.
+
+**`internal/queue` names the queue's folders**, and `Resolve` lost its
+`dir` parameter. Every one of its five callers passed the folder
+matching the kind it asked for, so the parameter was the whole reason
+five copies of `work/tasks` and `work/specs` existed; `Dir(kind)`
+answers it now. `Root` carries the tree for the one caller that tests a
+path against `work/` without caring which kind it is.
+
+**`internal/kitpaths` references rather than repeats.** `Untouchable`
+and `Seeded` name `kit.Settings` and `kit.Gates`, and what stays a
+literal there is what nothing calls: `.writrun/conventions`, `docs`,
+`work`, `AGENTS.md`, `CLAUDE.md`.
+
+`internal/kit/paths_test.go` is what keeps it collapsed: it parses
+every production `.go` file under `internal/` and `cmd/` and reports a
+string literal opening `.writrun/` or `work/` outside the five
+packages that may hold one. Run against the tree as it stood before
+this change it names all ten duplicates;
+`TestTheCheckSeesAPlantedPath` proves it can fail at all.
+
+**Two refinements to the spec's own words, both found by running the
+check.**
+
+The Scope named four declaring packages and the check allows five. The
+fifth is `internal/kitpaths`, whose subject is exactly the paths the
+binary never calls — an inventory that had to reference every path it
+governs would have nothing left to say. `Dir(kind)` covers the queue's
+folders, and the check's comment states the split.
+
+The check reads a *declaration*, not a sentence. Seventeen literals
+matched the prefixes on the first run, and seven were messages opening
+with a path — `".writrun/VERSION records no tag"` is a command's own
+words about a file, and rule 1 governs what the binary calls, not what
+it prints. Whitespace is the whole test, since a path has none;
+`TestASentenceIsNotADeclaration` holds the line.
+
+The other ten were the duplication this task is about, and three of
+them were not in the spec's table: the `[]string{"work/tasks",
+"work/specs", "work/reports"}` lists in `doctorcmd/files.go` and
+`initcmd/checks.go`, and `authorcmd`'s `queueTree`. The check found
+them; the table, written by hand, had missed them.
+
+No command's behaviour changed. Every tier passes unchanged — unit,
+all sixteen integration domains and the adopt e2e, run under
+`HOME=$(mktemp -d)` so no fixture borrows the machine's git identity.
+Coverage 97.1% over `internal/`, with `internal/kit` at 100% and
+`internal/queue` at 98.6%.

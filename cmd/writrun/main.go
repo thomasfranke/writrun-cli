@@ -188,4 +188,4 @@ func openScreen(ctx *command.Ctx) (string, string, error) {
 // listerScript is the selection skill's lister, named here as listcmd
 // names it — one path, two callers, and neither reimplements what it
 // decides.
-const listerScript = ".writrun/skills/writrun-select-next-task/list_tasks.sh"
+const listerScript = kit.ListTasks

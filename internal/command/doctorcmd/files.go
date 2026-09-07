@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/chapter"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/pointer"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -46,7 +48,7 @@ func stage1(root string, d Deps) []finding {
 				text: fmt.Sprintf("docs/%s/ — at least one real %s doc is required beyond the README", folder, folder)})
 		}
 	}
-	for _, rel := range []string{"docs", "work/tasks", "work/specs", "work/reports"} {
+	for _, rel := range []string{"docs", queue.TasksDir, queue.SpecsDir, queue.ReportsDir} {
 		if !exists(d.Files, filepath.Join(root, filepath.FromSlash(rel))) {
 			found = append(found, finding{stage: 1, level: breaks,
 				text: rel + "/ — the docs/ and work/ split requires it, and it is missing"})
@@ -85,7 +87,7 @@ func agents(disk vfs.FS, root string) []finding {
 // kit's own declaration of the question, so the answers are read from
 // its rows rather than from a list of gates held here
 // (docs/technical/engineering/coupling.md, rule 2).
-const gatesFile = ".writrun/gates.md"
+const gatesFile = kit.Gates
 
 // gates reports every row of that file the project has not answered.
 // The transition each row names is the finding's own words, so a gate

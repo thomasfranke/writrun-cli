@@ -22,8 +22,8 @@ import (
 // lister, and the script that assembles step 7's brief. Both are the
 // adopted repository's own, and neither is reimplemented here.
 const (
-	listScript  = ".writrun/skills/writrun-select-next-task/list_tasks.sh"
-	briefScript = ".writrun/skills/writrun-select-next-task/brief.sh"
+	listScript  = kit.ListTasks
+	briefScript = kit.Brief
 )
 
 // agentsFile is the project's instructions — the second thing the

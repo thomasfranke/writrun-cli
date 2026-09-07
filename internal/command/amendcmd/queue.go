@@ -13,10 +13,7 @@ import (
 
 // The queue's two folders, relative to the repository root. They are
 // the methodology's own layout, not this command's choice.
-const (
-	tasksDir = "work/tasks"
-	specsDir = "work/specs"
-)
+const ()
 
 // inFlight is the pair of task statuses check_amendment_reference.sh
 // calls flight: the work a returned approval suspends. Every other
@@ -35,7 +32,7 @@ var inFlight = map[string]bool{"in-progress": true, "in-review": true}
 func suspended(files vfs.FS, root, specID string) ([]string, error) {
 	num := queue.Num(queue.Spec, specID)
 	var ids []string
-	err := files.WalkDir(path.Join(root, tasksDir), func(p string, e fs.DirEntry, err error) error {
+	err := files.WalkDir(path.Join(root, queue.TasksDir), func(p string, e fs.DirEntry, err error) error {
 		if err != nil || e.IsDir() {
 			return err
 		}
@@ -45,7 +42,7 @@ func suspended(files vfs.FS, root, specID string) ([]string, error) {
 		}
 		content, err := files.ReadFile(p)
 		if err != nil {
-			return fmt.Errorf("reading %s: %w", tasksDir+"/"+name, err)
+			return fmt.Errorf("reading %s: %w", queue.TasksDir+"/"+name, err)
 		}
 		if !inFlight[queue.Field(content, "status")] {
 			return nil

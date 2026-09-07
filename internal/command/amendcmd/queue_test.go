@@ -6,7 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
+)
+
+// The queue's folders, as the package that owns them names them.
+const (
+	tasksDir = queue.TasksDir
 )
 
 // How the front matter, the id and the file are read is

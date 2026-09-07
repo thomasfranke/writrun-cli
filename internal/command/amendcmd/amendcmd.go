@@ -56,13 +56,13 @@ import (
 // settingScript is the adopted repository's own reader for
 // `.writrun/settings.json` — the declared title style is read there and
 // never parsed here.
-const settingScript = ".writrun/scripts/stage-2-pull-requests/read_setting.sh"
+const settingScript = kit.ReadSetting
 
 // observanceScript is the door: the same check the forge runs over an
 // open pull request, asked here about the composition instead. The
 // vocabulary it judges against lives in that file and nowhere in this
 // binary.
-const observanceScript = ".writrun/scripts/stage-2-pull-requests/check_observance.sh"
+const observanceScript = kit.CheckObservance
 
 // composedRange is what the door is handed while the amendment's own
 // commit does not exist. `HEAD...HEAD` resolves to a merge base of HEAD
@@ -119,7 +119,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 
 	// 1 — a spec that is not approved. Nothing else runs, nothing is
 	// read from the forge, nothing is asked (spec-0011, step 1).
-	rel, err := queue.Resolve(d.Files, ctx.Root, specsDir, queue.Spec, id)
+	rel, err := queue.Resolve(d.Files, ctx.Root, queue.Spec, id)
 	if err != nil {
 		return err
 	}

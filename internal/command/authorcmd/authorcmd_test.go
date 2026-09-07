@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/queue"
 )
 
 func TestNewDeclaresTheCommand(t *testing.T) {
@@ -174,7 +175,7 @@ func TestARuleThatDerivesNothingDeclaresNone(t *testing.T) {
 // and the table says so rather than dropping it.
 func TestASpecWithNoAddedTaskStillGetsARow(t *testing.T) {
 	h := newHarness(t)
-	h.git.added = map[string][]string{specsDir + "/spec-*.md": {newSpecPath}}
+	h.git.added = map[string][]string{queue.SpecsDir + "/spec-*.md": {newSpecPath}}
 	if err := h.author(); err != nil {
 		t.Fatalf("author: %v", err)
 	}
@@ -186,7 +187,7 @@ func TestASpecWithNoAddedTaskStillGetsARow(t *testing.T) {
 // A cell the queue leaves empty is shown as empty, never invented.
 func TestASpecNamingNoTaskLeavesTheColumnEmpty(t *testing.T) {
 	h := newHarness(t)
-	h.git.added = map[string][]string{specsDir + "/spec-*.md": {newSpecPath}}
+	h.git.added = map[string][]string{queue.SpecsDir + "/spec-*.md": {newSpecPath}}
 	h.seed(newSpecPath, specFixture("spec-0014", "null", "The declaration is the section"))
 	if err := h.author(); err != nil {
 		t.Fatalf("author: %v", err)
