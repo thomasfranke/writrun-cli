@@ -1,8 +1,8 @@
 ---
 id: task-0027
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0026]
 doc_ref: technical/engineering/coupling.md
 origin: rule
