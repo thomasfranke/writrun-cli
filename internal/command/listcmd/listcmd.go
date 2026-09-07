@@ -12,11 +12,12 @@ import (
 	"io"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 )
 
 // lister is the selection skill's own listing script — the eligibility
 // authority this command wraps and never reimplements.
-const lister = ".writrun/skills/writrun-select-next-task/list_tasks.sh"
+const lister = kit.ListTasks
 
 // Script is the exec port as list uses it: one of the adopted
 // repository's own scripts, run from root, its reporting streamed to

@@ -6,10 +6,7 @@ import (
 
 // The queue's two folders, relative to the repository root. They are
 // the methodology's own layout, not this command's choice.
-const (
-	tasksDir = "work/tasks"
-	specsDir = "work/specs"
-)
+const ()
 
 // unfilled is what the generator writes into a fresh spec's Outcome,
 // plus the placeholder a hand-written one tends to carry. Either one is

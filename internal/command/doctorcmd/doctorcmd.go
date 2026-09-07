@@ -24,9 +24,9 @@ import (
 // declared, and the two checks whose exit code is the whole verdict on
 // the queue's front matter and on the settings file's shape.
 const (
-	settingsReader    = ".writrun/scripts/stage-2-pull-requests/read_setting.sh"
-	frontMatterScript = ".writrun/skills/writrun-check-front-matter/check_front_matter.sh"
-	settingsScript    = ".writrun/scripts/stage-2-pull-requests/check_settings.sh"
+	settingsReader    = kit.ReadSetting
+	frontMatterScript = kit.CheckFrontMatter
+	settingsScript    = kit.CheckSettings
 )
 
 // Deps is the wiring doctor needs beyond the frame's Ctx: the four

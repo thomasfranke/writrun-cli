@@ -11,8 +11,8 @@ import (
 
 const (
 	root     = "/repo"
-	tasksDir = "work/tasks"
-	specsDir = "work/specs"
+	tasksDir = TasksDir
+	specsDir = SpecsDir
 )
 
 // canonical is a queue file in the shape check_front_matter.sh accepts.
@@ -97,7 +97,7 @@ func TestResolveFindsTheFileWhateverWidthTheIdWasWrittenAt(t *testing.T) {
 	files.Seed(path.Join(root, specsDir, "README.md"), []byte("# Specs\n"), 0o644)
 
 	for _, id := range []string{"spec-0011", "spec-11", "0011", "11"} {
-		got, err := Resolve(files, root, specsDir, Spec, id)
+		got, err := Resolve(files, root, Spec, id)
 		if err != nil {
 			t.Fatalf("Resolve(%q) = %v", id, err)
 		}
@@ -105,12 +105,12 @@ func TestResolveFindsTheFileWhateverWidthTheIdWasWrittenAt(t *testing.T) {
 			t.Errorf("Resolve(%q) = %q, want %q", id, got, rel)
 		}
 	}
-	if _, err := Resolve(files, root, specsDir, Spec, "spec-0099"); err == nil {
+	if _, err := Resolve(files, root, Spec, "spec-0099"); err == nil {
 		t.Error("a spec that is not there resolved to something")
 	} else if !strings.Contains(err.Error(), "spec-99 resolves to no file") {
 		t.Errorf("error = %v; want it to name what was looked for", err)
 	}
-	if _, err := Resolve(files, root, specsDir, Spec, "words"); err == nil {
+	if _, err := Resolve(files, root, Spec, "words"); err == nil {
 		t.Error("an id naming no number resolved to something")
 	}
 }
@@ -123,7 +123,7 @@ func TestResolveRefusesAnIdOfTheOtherKind(t *testing.T) {
 	files.Seed(path.Join(root, specsDir, "spec-0012-release.md"),
 		[]byte(canonical("spec-0012", "approved")), 0o644)
 
-	got, err := Resolve(files, root, specsDir, Spec, "task-0012")
+	got, err := Resolve(files, root, Spec, "task-0012")
 	if err == nil {
 		t.Fatalf("Resolve resolved a task id to %q", got)
 	}
@@ -132,23 +132,23 @@ func TestResolveRefusesAnIdOfTheOtherKind(t *testing.T) {
 			t.Errorf("error = %v; want it to name %q", err, want)
 		}
 	}
-	if _, err := Resolve(files, root, specsDir, Spec, "task/0012-amend-command"); err == nil {
+	if _, err := Resolve(files, root, Spec, "task/0012-amend-command"); err == nil {
 		t.Error("a task branch name resolved to a spec")
 	}
 	// A third vocabulary declares no kind this binary resolves, so it
 	// is refused as naming no id rather than as a near miss.
-	_, err = Resolve(files, root, specsDir, Spec, "report-0020")
+	_, err = Resolve(files, root, Spec, "report-0020")
 	if err == nil || !strings.Contains(err.Error(), "names no spec id") {
 		t.Errorf("report-0020 = %v; want it refused as naming no spec id", err)
 	}
 	// `task-abc-0012` names no number at all, so there is no file to
 	// name in the refusal.
-	_, err = Resolve(files, root, specsDir, Spec, "task-abc-0012")
+	_, err = Resolve(files, root, Spec, "task-abc-0012")
 	if err == nil || !strings.Contains(err.Error(), "names no spec id") {
 		t.Errorf("task-abc-0012 = %v; want it refused as naming no spec id", err)
 	}
 	// The bare number still resolves: it declares no kind.
-	if _, err := Resolve(files, root, specsDir, Spec, "0012"); err != nil {
+	if _, err := Resolve(files, root, Spec, "0012"); err != nil {
 		t.Errorf("a bare number was refused: %v", err)
 	}
 }
@@ -159,7 +159,7 @@ func TestResolveReturnsTheWalksOwnError(t *testing.T) {
 	files := vfs.NewFake()
 	files.Seed(path.Join(root, tasksDir, "task-0012-a.md"), []byte(canonical("task-0012", "ready")), 0o644)
 	files.FailOp("walk", path.Join(root, tasksDir), errors.New("permission denied"))
-	if _, err := Resolve(files, root, tasksDir, Task, "task-0012"); err == nil {
+	if _, err := Resolve(files, root, Task, "task-0012"); err == nil {
 		t.Error("a queue that could not be walked resolved anyway")
 	}
 }

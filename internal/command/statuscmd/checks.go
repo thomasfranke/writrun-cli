@@ -13,7 +13,7 @@ import (
 // fixed — the authority this command wraps and never reimplements. It
 // is the same script `finish` runs, so the stage it stops at here is
 // the stage `finish` would stop at (docs/product/queue/status.md).
-const preflightScript = ".writrun/scripts/stage-1-tasks-and-specs/preflight.sh"
+const preflightScript = kit.Preflight
 
 // stopped opens the sentence preflight refuses with. It names the
 // stage and the code, so the answer to step 3 is a line the script

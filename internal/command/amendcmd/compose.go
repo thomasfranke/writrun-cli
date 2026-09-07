@@ -2,6 +2,7 @@ package amendcmd
 
 import (
 	"fmt"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"strings"
 )
 
@@ -9,7 +10,7 @@ import (
 // conventions give it. Absent, the fallback below carries the same
 // headings — a project that deleted the template still gets a body the
 // checks can read.
-const template = ".writrun/templates/pull_request_template.md"
+const template = kit.PullRequestTemplate
 
 // slugify turns a spec's file name or a phrase into branch words.
 func slugify(s string) string {
