@@ -119,6 +119,12 @@ func TestAnUnreadableAgentsIsAFault(t *testing.T) {
 
 func TestPlanSeparatesWhatGoesFromWhatIsGone(t *testing.T) {
 	disk, root := adoptedFake(t)
+	// A named file deleted by hand is `gone`; a namespaced one is
+	// simply not listed, because the folder is read rather than a list
+	// of names checked against it.
+	if err := disk.Remove(root + "/WRITRUN.md"); err != nil {
+		t.Fatal(err)
+	}
 	if err := disk.Remove(root + "/.github/workflows/writrun-issues.yml"); err != nil {
 		t.Fatal(err)
 	}
@@ -131,12 +137,17 @@ func TestPlanSeparatesWhatGoesFromWhatIsGone(t *testing.T) {
 	}
 	var goneNamed bool
 	for _, g := range r.gone {
-		if g == ".github/workflows/writrun-issues.yml" {
+		if g == "WRITRUN.md" {
 			goneNamed = true
 		}
 	}
 	if !goneNamed {
 		t.Errorf("a file deleted by hand is not in the gone set: %v", r.gone)
+	}
+	for _, f := range r.files {
+		if f == ".github/workflows/writrun-issues.yml" {
+			t.Error("a workflow that is not there is named for removal")
+		}
 	}
 }
 

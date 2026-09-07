@@ -11,12 +11,13 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"sort"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
+	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -84,11 +85,11 @@ type removal struct {
 	hookAt    string
 	hookState hook.State
 
-	// agents is what AGENTS.md becomes: nil with agentsDelete set
-	// means the file was nothing but the kit's skeleton.
+	// agents is what AGENTS.md becomes: nil with agentsWhole set means
+	// the file was nothing but the kit's skeleton.
 	agents      []byte
 	agentsWhole bool
-	agentsKept  bool // no fence found; the file is the project's alone
+	agentsKept  bool // no WritRun section found; the file is the project's alone
 }
 
 func plan(files vfs.FS, root, hookAt string) (*removal, error) {
@@ -102,12 +103,22 @@ func plan(files vfs.FS, root, hookAt string) (*removal, error) {
 		}
 	}
 	for _, rel := range kitpaths.RemoveFiles() {
-		if _, err := files.Stat(filepath.Join(root, rel)); err == nil {
+		if _, err := files.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil {
 			r.files = append(r.files, rel)
 		} else {
 			r.gone = append(r.gone, rel)
 		}
 	}
+	// The kit prefixes its own files in the two `.github` folders, and
+	// uninstall has no template to read: the namespace is what tells
+	// them from the project's, so a tag that added a workflow is
+	// removed without a Go change
+	// (docs/technical/engineering/coupling.md).
+	namespaced, err := kitFilesIn(files, root)
+	if err != nil {
+		return nil, err
+	}
+	r.files = append(r.files, namespaced...)
 
 	state, err := hook.Inspect(files, hookAt)
 	if err != nil {
@@ -123,10 +134,10 @@ func plan(files vfs.FS, root, hookAt string) (*removal, error) {
 	case err != nil:
 		return nil, fmt.Errorf("reading AGENTS.md: %w", err)
 	default:
-		out, only, fenceErr := fence.Remove(agents)
+		out, only, sectionErr := pointer.Remove(agents)
 		switch {
-		case fenceErr != nil:
-			// No fence to cut: whatever this file is, it is the
+		case sectionErr != nil:
+			// No section to cut: whatever this file is, it is the
 			// project's, and uninstall does not guess at its shape.
 			r.agentsKept = true
 		case only:
@@ -153,9 +164,9 @@ func (r *removal) render(w io.Writer) {
 	case r.agentsWhole:
 		fmt.Fprintln(w, "  remove       AGENTS.md — nothing in it but the kit's own section")
 	case r.agents != nil:
-		fmt.Fprintln(w, "  edit         AGENTS.md — the fenced section only; every byte outside it stays")
+		fmt.Fprintln(w, "  edit         AGENTS.md — WritRun's section only; every byte outside it stays")
 	case r.agentsKept:
-		fmt.Fprintln(w, "  kept         AGENTS.md — no fenced WritRun section found; left as the project wrote it")
+		fmt.Fprintln(w, "  kept         AGENTS.md — no WritRun section found; left as the project wrote it")
 	}
 	switch r.hookState {
 	case hook.Ours:
@@ -191,7 +202,7 @@ func (r *removal) apply() error {
 		}
 	}
 	for _, rel := range r.files {
-		if err := r.disk.Remove(filepath.Join(r.root, rel)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		if err := r.disk.Remove(filepath.Join(r.root, filepath.FromSlash(rel))); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("removing %s: %w", rel, err)
 		}
 	}
@@ -212,4 +223,36 @@ func (r *removal) apply() error {
 		}
 	}
 	return nil
+}
+
+// kitFilesIn lists the kit's namespaced files present in the folders it
+// shares with the project, sorted, as slash-separated paths.
+func kitFilesIn(files vfs.FS, root string) ([]string, error) {
+	var out []string
+	for _, dir := range kitpaths.NamespacedDirs() {
+		err := files.WalkDir(filepath.Join(root, filepath.FromSlash(dir)), func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				if errors.Is(err, fs.ErrNotExist) {
+					return nil
+				}
+				return err
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			if slash := filepath.ToSlash(rel); kitpaths.Namespaced(slash) {
+				out = append(out, slash)
+			}
+			return nil
+		})
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	}
+	sort.Strings(out)
+	return out, nil
 }

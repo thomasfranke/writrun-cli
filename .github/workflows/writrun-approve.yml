@@ -3,7 +3,7 @@ name: writrun approve
 # Records the `draft -> approved` transition once the maintainer has
 # assented. **Here the assenting act is the merge**, not an approving
 # review (docs/product/stage-2-pull-requests/approval.md, and this repository's
-# own answer in AGENTS.md): every pull request here is authored by its
+# own answer in .writrun/gates.md): every pull request here is authored by its
 # maintainer, and no forge lets a person approve their own, so a
 # review-based gate would never be satisfiable — and an unsatisfiable gate
 # gets worked around, which is worse than no gate.
@@ -47,6 +47,15 @@ name: writrun approve
 on:
   pull_request_target:
     types: [closed]
+
+# Shares writrun-issues.yml's group: both write the same mirrors, and a
+# merge landing while an issues run is mid-write raced it over one
+# artifact (report-0038, decision 0073). Queue, never cancel — this
+# workflow writes the queue itself, and a run cancelled between two
+# writes it meant as one leaves the record half-moved.
+concurrency:
+  group: writrun-mirror-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -162,8 +171,8 @@ jobs:
       - name: Commit
         if: steps.flip.outputs.changed == '1' || steps.stamp.outputs.changed == '1' || steps.status.outputs.changed == '1'
         # The subject comes from commit_subject.sh, a constant — not a
-        # literal here, because two workflows write these commits and
-        # nothing squashes them: a subject that drifted between the two
+        # literal here, because three workflows write these commits and
+        # nothing squashes them: a subject that drifted between them
         # lands on `main` permanently.
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -181,21 +190,14 @@ jobs:
           git commit \
             -m "$(bash .writrun/scripts/stage-2-pull-requests/commit_subject.sh merge)" \
             -m "Assent given by @${MERGED_BY} merging #${PR_NUMBER}."
-          # Another change may have landed between the merge and this run.
-          # Rebase onto it rather than force: the flip is an addition to
-          # the branch's history, never a replacement of it.
-          #
-          # A conflicting rebase stops half-applied and leaves conflict
-          # markers in the very queue files the mirror steps below read
-          # from disk. Abort back to the recording commit before failing:
-          # what this step can lose is the push, and the projection that
-          # follows still needs a queue it can parse.
-          if ! git pull --rebase origin "$BASE_REF"; then
-            git rebase --abort || true
-            echo "::error::Rebase onto ${BASE_REF} failed; the recording was not pushed."
-            exit 1
-          fi
-          git push origin "HEAD:${BASE_REF}"
+          # Another change may have landed between the merge and this
+          # run, and may land again between the rebase and the push.
+          # Landing is push_recording.sh's: rebase onto it rather than
+          # force — the flip is an addition to the branch's history,
+          # never a replacement of it — retried only while the branch
+          # keeps moving. The budget, the retry test and the abort live
+          # in its header.
+          bash .writrun/scripts/stage-2-pull-requests/push_recording.sh "$BASE_REF"
 
       # The two steps below are **the merged close's whole mirror
       # answer**, and no other workflow gives one: writrun-issues.yml and
@@ -248,12 +250,19 @@ jobs:
       - name: Label every task this merge touched, from the queue
         if: >
           !cancelled() && needs.gate.outputs.mirror == 'true'
-        # Deliberately *after* the commit: the script reads the queue from
-        # disk, and the flip is only in the queue once it has been written
-        # there. Reading the merge's own diff instead is what made
-        # `status:ready` unreachable — right for what the merge carried,
-        # wrong for what it caused
+        # Deliberately *after* the commit: the flip is only in the queue
+        # once it has been written there. Reading the merge's own diff
+        # instead is what made `status:ready` unreachable — right for what
+        # the merge carried, wrong for what it caused
         # (docs/product/stage-3-github-issues/labels.md).
+        #
+        # And read from the base branch, not from this runner's tree.
+        # These steps run under `!cancelled()`, so they follow a push that
+        # may have been refused — and the tree then still carries the
+        # commit `main` rejected. A mirror *behind* the queue catches up
+        # at the next recording; one *ahead* of it asserts a state `main`
+        # refused, and nothing ever comes back for it. `AUTHORITY_REF` is
+        # what makes the labeller read the branch that landed.
         #
         # `scope`, not `tasks`: every task the merge put in front of the
         # recording, not only those it moved. A task born ready — an
@@ -267,17 +276,64 @@ jobs:
         # the only reader that can repair a report mirror that drifted —
         # nothing else ever comes back for one.
         #
-        # The mint's own set joins it, because the two are derived from
-        # different sources and the pair must not drift: `scope` comes
-        # from the commit range, the mints from the pull request's files.
-        # A rebase merge is where they part — `merge_commit_sha` is only
-        # the last rebased commit, so a task file added in an earlier one
-        # is minted and never appears in the range. Minted and never
-        # labelled is the one outcome with no second event to correct it,
-        # so what was minted is named here by the pass that minted it.
+        # The mint's own set joins it, behind `--minted`, for two
+        # reasons. It must be *named*, because the two sets are derived
+        # from different sources and the pair must not drift: `scope`
+        # comes from the commit range, the mints from the pull request's
+        # files. A rebase merge is where they part — `merge_commit_sha`
+        # is only the last rebased commit, so a task file added in an
+        # earlier one is minted and never appears in the range.
+        #
+        # And it must be *marked*, because the mirror list the pass reads
+        # is read once and these mirrors were created seconds before it:
+        # an id minted here has an Issue by construction, so failing to
+        # find one is the pass's own defect and exits the step non-zero
+        # (work/reports/report-0021-rederive-labels-sh.md). Minted and
+        # never labelled is the one outcome with no second event to
+        # correct it, and it has these two paths to it.
+        #
+        # The flag carried one thing — what a miss means — and now
+        # carries two: it is also who may pay to ask again. Only an id
+        # behind it can spend the pass's re-read, so it is passed only
+        # where the mint succeeded. A failed mint's outputs are empty,
+        # and an empty entitlement would lose the one thing the
+        # unconditional re-read healed: a mirror the mint created before
+        # it failed, on the one path with no second event, missed by a
+        # first read the forge has not caught up to. So a failed mint
+        # passes no flag, every miss is entitled again, and that mirror
+        # is still found and labelled. The job is red from the mint
+        # either way.
         env:
           GH_TOKEN: ${{ github.token }}
+          # The branch the recording had to land on, as this runner can
+          # name it: the remote-tracking ref, which a successful push has
+          # already moved and which a refused one leaves reading what
+          # `main` really holds.
+          AUTHORITY_REF: origin/${{ github.event.pull_request.base.ref }}
+          # Through env, never ${{ }} into the command line. `specs` is
+          # built from file *paths* (a merged pull request's own), so an
+          # interpolated one is a path the shell would parse — and this
+          # workflow holds contents: write on pull_request_target. As
+          # shell variables they are values, and the word splitting below
+          # is the deliberate kind.
+          SPECS: ${{ steps.flip.outputs.specs }}
+          SCOPE: ${{ steps.status.outputs.scope }}
+          MINTED_TASKS: ${{ steps.mint.outputs.tasks }}
+          MINTED_REPORTS: ${{ steps.mint.outputs.reports }}
+          MINT_OUTCOME: ${{ steps.mint.outcome }}
         run: |
           set -euo pipefail
+          # The order is the contract: everything after --minted is the
+          # mint's, and a miss there fails the step. Passing the flag
+          # from a fixed position in the argv rather than from inside
+          # any of the values is what keeps that true. So the argv is
+          # built once and the flag appended to it: one invocation, and
+          # the gate is the only thing the mint's outcome decides.
+          # shellcheck disable=SC2206
+          args=("$GITHUB_REPOSITORY" $SPECS $SCOPE)
+          if [ "$MINT_OUTCOME" = "success" ]; then
+            # shellcheck disable=SC2206
+            args+=(--minted $MINTED_TASKS $MINTED_REPORTS)
+          fi
           bash .writrun/scripts/stage-3-github-issues/rederive_labels.sh \
-            "${{ github.repository }}" ${{ steps.flip.outputs.specs }} ${{ steps.status.outputs.scope }} ${{ steps.mint.outputs.tasks }} ${{ steps.mint.outputs.reports }}
+            "${args[@]}"

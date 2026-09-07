@@ -21,9 +21,9 @@ TARGET="$WORK/target"
 
 # make_repo [stage] — an adopted repository nothing in stages 0–3 has a
 # finding about: the three documents, the docs/ and work/ split, an
-# AGENTS.md with the fence intact and the four gates answered, the kit's
-# tag recorded, canonical settings, and one commit so a case can ask git
-# whether anything changed.
+# an AGENTS.md pointing at the flow, every gate in `.writrun/gates.md`
+# answered, the kit's tag recorded, canonical settings, and one commit so
+# a case can ask git whether anything changed.
 make_repo() {
   local stage="${1:-3}"
   mkdir -p "$TARGET/.writrun/scripts/stage-2-pull-requests" \
@@ -42,9 +42,10 @@ make_repo() {
   printf '# Tasks\n'                    > "$TARGET/work/tasks/README.md"
   printf '# Specs\n'                    > "$TARGET/work/specs/README.md"
   printf '# Reports\n'                  > "$TARGET/work/reports/README.md"
-  printf 'v0.0.03\n'                    > "$TARGET/.writrun/VERSION"
+  printf '%s\n' "$PINNED"      > "$TARGET/.writrun/VERSION"
 
   agents
+  gates
   settings "$stage"
 
   (
@@ -56,11 +57,25 @@ make_repo() {
   )
 }
 
-# agents [who] — AGENTS.md with the fence intact and the four gates
-# answered. Passing a placeholder leaves the docs gate unanswered.
+# agents — AGENTS.md as the kit grafts it: the project's prose, and
+# WritRun's section pointing at the flow.
 agents() {
-  local who="${1:-Thomas reviews before merge.}"
-  cat > "$TARGET/AGENTS.md" <<EOF
+  cat > "$TARGET/AGENTS.md" <<'EOF'
+# AGENTS.md — entry point for AI agents
+
+A project.
+
+## WritRun
+
+This project tracks its work with WritRun. Before touching `work/`,
+read and follow [`.writrun/AGENTS.md`](.writrun/AGENTS.md).
+EOF
+}
+
+# legacy_agents — the fenced section a kit before v0.0.04 grafted, which
+# v0.0.04 duplicates in `.writrun/AGENTS.md`.
+legacy_agents() {
+  cat > "$TARGET/AGENTS.md" <<'EOF'
 # AGENTS.md — entry point for AI agents
 
 A project.
@@ -70,7 +85,20 @@ A project.
 <!-- writrun:begin
      This section is WritRun's flow. -->
 
-### Human gates
+### Picking work
+
+The flow's text.
+
+<!-- writrun:end -->
+EOF
+}
+
+# gates [who] — .writrun/gates.md with every row answered. Passing a
+# placeholder leaves the docs row unanswered.
+gates() {
+  local who="${1:-Thomas reviews before merge.}"
+  cat > "$TARGET/.writrun/gates.md" <<EOF
+# Human gates — per principle 7
 
 | Transition | Who |
 |---|---|
@@ -78,9 +106,10 @@ A project.
 | An authored rule is finished, so derivation may start | Thomas declares it. |
 | Spec \`draft → approved\` | Thomas only, via the merged PR. |
 | Task with empty \`spec_ref\` and insufficient brief | Stop and ask for a spec. |
+| Derived work, before the PR opens | Present it in the session. |
+| Changing repository/forge settings | Thomas assents in session. |
+| A report becomes a task (\`tracked\`) | The agent derives; the merge assents. |
 | Everything else | Agent, autonomously. |
-
-<!-- writrun:end -->
 EOF
 }
 

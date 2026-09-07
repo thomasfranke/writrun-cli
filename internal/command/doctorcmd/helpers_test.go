@@ -12,10 +12,21 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// agentsDoc is an AGENTS.md as the kit grafts it and a project answers
-// it: the fence intact and the four gates carrying answers. A case that
-// wants one broken rewrites the line it is about.
+// agentsDoc is an AGENTS.md as the kit grafts it: the project's own
+// prose, and WritRun's section pointing at the flow.
 const agentsDoc = `# AGENTS.md — entry point for AI agents
+
+A project.
+
+## WritRun
+
+This project tracks its work with WritRun. Before touching ` + "`work/`" + `,
+read and follow [` + "`.writrun/AGENTS.md`" + `](.writrun/AGENTS.md).
+`
+
+// legacyAgents is what a v0.0.03 adoption left: the fenced section,
+// which v0.0.04 duplicates in `.writrun/AGENTS.md`.
+const legacyAgents = `# AGENTS.md — entry point for AI agents
 
 A project.
 
@@ -24,9 +35,16 @@ A project.
 <!-- writrun:begin
      This section is WritRun's flow. -->
 
-### Human gates
+### Picking work
 
-<!-- yours: this table is the project's own answers. -->
+The flow's text.
+
+<!-- writrun:end -->
+`
+
+// gatesDoc is `.writrun/gates.md` as a project answers it. A case that
+// wants one unanswered rewrites the row it is about.
+const gatesDoc = `# Human gates — per principle 7
 
 | Transition | Who |
 |---|---|
@@ -34,12 +52,10 @@ A project.
 | An authored rule is finished, so derivation may start | Thomas declares it. |
 | Spec ` + "`draft → approved`" + ` | Thomas only, via the merged PR. |
 | Task with empty ` + "`spec_ref`" + ` and insufficient brief | Stop and ask for a spec. |
+| Derived work, before the PR opens | Present it in the session. |
 | Changing repository/forge settings (Actions permissions, rulesets) | Thomas assents in session. |
+| A report becomes a task (` + "`tracked`" + `) | The agent derives; the merge assents. |
 | Everything else | Agent, autonomously. |
-
-### The settings
-
-<!-- writrun:end -->
 `
 
 // The workflow files a case writes into `.github/workflows`, read only
@@ -256,6 +272,7 @@ func newFixture(t *testing.T, stage string) *fixture {
 	write(t, root, "work/specs/README.md", "# Specs\n")
 	write(t, root, "work/reports/README.md", "# Reports\n")
 	write(t, root, "AGENTS.md", agentsDoc)
+	write(t, root, ".writrun/gates.md", gatesDoc)
 	write(t, root, ".writrun/VERSION", "v0.0.03\n")
 
 	return &fixture{

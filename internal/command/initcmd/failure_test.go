@@ -186,7 +186,7 @@ func TestThePlanSaysWhichWayAgentsGoes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "already carries the fenced markers") {
+	if !strings.Contains(out, "already links .writrun/AGENTS.md") {
 		t.Errorf("the plan does not say it leaves it alone:\n%s", out)
 	}
 }

@@ -10,8 +10,9 @@ Installs the WritRun kit into an existing repository.
   history, its contributing guide — into the conventions folder, rather
   than imposing the shipped defaults.
 - **Grafts an existing `AGENTS.md`**, never overwrites it: WritRun's
-  part enters as one fenced section. A repository without one gets the
-  skeleton.
+  part enters as one section, the heading that links
+  `.writrun/AGENTS.md`. A repository without one gets the skeleton, and
+  one already carrying the link is left alone.
 - Installs a commit-message hook that **validates** the commit
   convention. It never writes a message — the message belongs to
   whoever made the change.

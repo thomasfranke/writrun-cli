@@ -21,3 +21,8 @@ if [ ! -x "$WRITRUN" ]; then
     finish
   fi
 fi
+
+# PINNED is the WritRun tag this binary pins, read from the binary
+# itself — a fixture that spelled it out would have to be edited on
+# every bump, and would be the only place the two could disagree.
+PINNED=$("$WRITRUN" --version | sed -n 's/.*pins WritRun \(v[0-9.]*\).*/\1/p')

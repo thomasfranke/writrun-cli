@@ -58,11 +58,35 @@
 #      merge with nobody having weighed it — the mirror born closed, the
 #      evaluation the open Issue exists to invite silently never held
 #      (docs/product/concepts/report.md#recording-rides-any-change--routing-to-the-queue-does-not).
-#      The three routes that create no work — `authored`, `fixed`,
-#      `declined` — keep the exemption and ride anything. The stage
+#      The four routes that create no work — `authored`, `fixed`,
+#      `declined`, `routed` — keep the exemption and ride anything. The stage
 #      condition is the rule's own premise: the gate is a pull request's
 #      squash-merge, and a branchless project has none to be held to — it
 #      takes the route on `main`, because that is the only place it has.
+#   L. A task whose spec is still owed is held, and the gate holds it —
+#      not an agent remembering the rule. A newly added `origin: report`
+#      task with `spec_ref: []` either lands `blocked` with a
+#      `blocked_reason` naming what it waits for, or the change adds its
+#      spec, or the change says out loud that none is warranted
+#      (docs/product/stage-1-tasks-and-specs/authoring.md#reporting--work-found-or-reported-mid-flight).
+#      Without the hold it merges `ready` and is fully selectable: a task
+#      referencing no spec passes the approval filter by construction, so
+#      an agent takes it and implements against a brief nothing bounded,
+#      and the spec drafted mid-flight arrives with **Proposed changes**
+#      that bind a diff the work never targeted — MISSING and UNDECLARED
+#      at the completion gate, with the work already done.
+#      Two halves, like K, and for the same reason. The **file half**
+#      needs only the range and runs at every stage: `blocked` with a null
+#      reason names nothing to wait for, and no reader can release it. The
+#      **declaration half** is Stage 2+ and needs the pull request body,
+#      because `spec_ref: []` alone cannot tell "the spec is owed" from
+#      "no spec is warranted" — this project declares `spec_required:
+#      when-warranted`, so both are legitimate and the file cannot say
+#      which. What can say it is the change: a reporting pull request
+#      already states the pair it adds, so a pair that is deliberately
+#      half a pair is something it says rather than something a checker
+#      infers. Where the body cannot be read the half stands down on
+#      stdout, exactly as K's branch half does, and never passes quietly.
 #
 # A transition is read from the front matter at the two ends of the range
 # — the file as the base knew it against the file as it is now — never
@@ -191,6 +215,24 @@ if [ "$STAGE" -ge 2 ]; then
   CARRIES_OUTSIDE=$(printf '%s\n' "$CHANGED" | sed '/^$/d' | grep -v '^work/' || true)
 fi
 
+# Rule L's input: the pull request body, where a change says a task
+# warrants no spec. CI passes it as data — a fork controls the string and
+# this script only ever searches it — and a local run has none.
+#
+# **Unset is told from empty on purpose.** An empty body is a body that
+# was read and carries no declaration, which is a refusal. No body at all
+# is a question this run cannot ask, which is a stand-down. Collapsing
+# the two would either refuse every local run or pass every empty one.
+DECLARATION_READABLE=no
+[ -n "${PR_BODY+set}" ] && DECLARATION_READABLE=yes
+
+# num_of <id-or-filename> — the number in a queue id, padding stripped,
+# so `task-0054`, `task-54` and `task-0054-six-review-findings` are one
+# task.
+num_of() {
+  printf '%s' "$1" | sed -E 's/^[a-z]+-//; s/^0+//; s/[^0-9].*$//'
+}
+
 # rides_outside — the refusal's shared tail: what the change carries that
 # a reporting one may not, at most five paths and a count for the rest,
 # because a refusal nobody reads to the end is a refusal that taught
@@ -250,6 +292,32 @@ fm_ledger() {
 ledger_now()  { fm_ledger < "$1"; }
 ledger_base() { git show "${BASE}:$(base_path "$1")" 2>/dev/null | fm_ledger || true; }
 
+# spec_added_for <task-number> — did this change add a spec whose
+# `task_ref` resolves to that task? The pairing is the reference
+# resolving, never "a spec file appeared in the diff": a change adding
+# one task's spec and a second task without one must still be answered
+# for the second.
+spec_added_for() {
+  local want="$1" s tref
+  for s in $ADDED; do
+    case "$s" in work/specs/spec-*.md) ;; *) continue ;; esac
+    [ -f "$s" ] || continue
+    tref=$(fm_now "$s" task_ref)
+    [ -n "$tref" ] || continue
+    [ "$(num_of "$tref")" = "$want" ] && return 0
+  done
+  return 1
+}
+
+# declares_no_spec <task-number> — does the pull request body say, of
+# this task, that no spec is warranted? The line is per task, because the
+# judgement is per task: #184 landed five in one change, and a single
+# blanket sentence would have covered the four nobody weighed.
+declares_no_spec() {
+  printf '%s\n' "${PR_BODY:-}" \
+    | grep -qiE "(^|[^[:alnum:]])no spec for task-0*${1}([^0-9]|\$)"
+}
+
 for f in $CHANGED; do
   # Selection reads the filename's id, not the file's contents — the
   # shape schemas.md#front-matter-is-canonical already fixes for a task
@@ -301,7 +369,7 @@ for f in $CHANGED; do
       # stays, the body carries the reason, and the mirror shows it
       # (docs/product/concepts/report.md).
       case "$old" in
-        tracked|authored|fixed|declined)
+        tracked|authored|fixed|declined|routed)
           if [ "$new" = "open" ]; then
             echo "FORBIDDEN: ${f} returns ${old} -> open." >&2
             echo "  Triage ended this report; nothing reopens one. The same" >&2
@@ -339,7 +407,7 @@ for f in $CHANGED; do
           echo "  what enters the queue passes a gate: a reporting change of its" >&2
           echo "  own, on a report/ branch, whose merge is the assent that the" >&2
           echo "  finding deserves the work. Leave the report open here and route" >&2
-          echo "  it on its own branch; fixed and declined still ride." >&2
+          echo "  it on its own branch; fixed, declined and routed still ride." >&2
           status=1
         elif [ -n "$CARRIES_OUTSIDE" ]; then
           echo "FORBIDDEN: ${f} reaches 'tracked' in a change carrying more than reporting:" >&2
@@ -347,7 +415,7 @@ for f in $CHANGED; do
           echo "  A reporting change is the report and the pair the route mints," >&2
           echo "  and nothing else — the branch prefix is how such a change is" >&2
           echo "  named, never what makes it one. Route the report on a change" >&2
-          echo "  that carries only work/; fixed and declined still ride." >&2
+          echo "  that carries only work/; fixed, declined and routed still ride." >&2
           status=1
         fi
       fi
@@ -401,6 +469,53 @@ for f in $CHANGED; do
         echo "  finding deserves the work. Derive it in a reporting change" >&2
         echo "  of its own — renaming this branch is not what clears the gate." >&2
         status=1
+      fi
+
+      # L — the spec a task still owes holds the task, and this is what
+      # holds it. Scoped to the change's own declaration rather than to
+      # the file, because `spec_ref: []` means both "owed" and "none
+      # warranted" and only the change knows which
+      # (docs/product/stage-1-tasks-and-specs/authoring.md#reporting--work-found-or-reported-mid-flight).
+      # Newly added only: a task the base branch holds with an empty
+      # `spec_ref` is not this change's to answer for, and judging it
+      # would refuse every unrelated pull request that touches the queue.
+      if is_added "$f" && [ "$(fm_now "$f" origin)" = "report" ] \
+        && [ -z "$(fm_now "$f" spec_ref | tr -d '][ ')" ]; then
+        l_num=$(num_of "$(fm_now "$f" id)")
+        [ -n "$l_num" ] || l_num=$(num_of "$(basename "$f" .md)")
+        if spec_added_for "$l_num"; then
+          : # the pair travelled together, which is the default route
+        elif [ "$new" = "blocked" ]; then
+          # The file half, at every stage: the hold exists so a reader
+          # can release it, and a null reason names nothing to release.
+          l_reason=$(fm_now "$f" blocked_reason)
+          if [ -z "$l_reason" ] || [ "$l_reason" = "null" ]; then
+            echo "FORBIDDEN: ${f} is born blocked with no blocked_reason." >&2
+            echo "  It references no spec and adds none, so what it waits for" >&2
+            echo "  is the spec — and nothing but the reason says so. Name it:" >&2
+            echo "  blocked_reason: waiting on the spec, drafted in a change of its own." >&2
+            status=1
+          fi
+        elif [ "$STAGE" -ge 2 ] && [ "$new" = "backlog" ]; then
+          # The declaration half, Stage 2+: below it there is no pull
+          # request to carry a declaration, exactly as with E, F and K.
+          if [ "$DECLARATION_READABLE" = no ]; then
+            echo "Rule L: the declaration half stood down for ${f} — no PR_BODY is"
+            echo "readable, so whether this change declares that no spec is warranted"
+            echo "cannot be asked here. CI asks it. Check by hand that the task either"
+            echo "lands blocked with its reason or that the body says none is owed."
+          elif ! declares_no_spec "$l_num"; then
+            echo "FORBIDDEN: ${f} lands backlog with no spec and no word about it." >&2
+            echo "  It merges ready and is selectable at once, against a brief no" >&2
+            echo "  spec has bounded — and the spec drafted afterwards binds a diff" >&2
+            echo "  the work never targeted. Two ways out, and the change picks one:" >&2
+            echo "    hold it — status: blocked, with a blocked_reason naming the" >&2
+            echo "      spec still owed, released by the change that adds the spec;" >&2
+            echo "    or say none is owed — a line in the pull request body:" >&2
+            echo "      No spec for task-${l_num} — <why the task warrants none>." >&2
+            status=1
+          fi
+        fi
       fi
 
       # E — the five working states have one writer, and it is the

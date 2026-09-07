@@ -1,7 +1,7 @@
 ---
 id: spec-0025
 task_ref: task-0026
-status: approved
+status: implemented
 created: 2026-09-06T20:35:04Z
 ---
 
@@ -134,13 +134,13 @@ An integration case driving `init`, then `update` from `v0.0.03` to
 
 ## Definition of Done
 
-- [ ] `writrun update` refreshes this repository from `v0.0.03` to `v0.0.04`.
-- [ ] `.writrun/VERSION` records `v0.0.04` and `--version` names it.
-- [ ] `.writrun/gates.md` holds this repository's answers, none of them a TODO.
-- [ ] `writrun doctor` reports no stage-1 finding.
-- [ ] A second `writrun update` reports only the recorded tag as differing.
-- [ ] `AGENTS.md` carries the pointer and no fenced section, and states the `routed` route.
-- [ ] No Go file names a kit file that is not `AGENTS.md`, `CLAUDE.md`, `.writrun/VERSION`, `.writrun/AGENTS.md`, `.writrun/gates.md`, `.writrun/settings.json`, `.writrun/conventions/` or `docs/writrun-instructions.md`.
+- [x] `writrun update` refreshes this repository from `v0.0.03` to `v0.0.04`.
+- [x] `.writrun/VERSION` records `v0.0.04` and `--version` names it.
+- [x] `.writrun/gates.md` holds this repository's answers, none of them a TODO.
+- [x] `writrun doctor` reports no stage-1 finding.
+- [x] A second `writrun update` reports only the recorded tag as differing.
+- [x] `AGENTS.md` carries the pointer and no fenced section, and states the `routed` route.
+- [x] No Go file names a kit file that is not `AGENTS.md`, `CLAUDE.md`, `.writrun/VERSION`, `.writrun/AGENTS.md`, `.writrun/gates.md`, `.writrun/settings.json`, `.writrun/conventions/` or `docs/writrun-instructions.md`.
 
 ## Proposed product changes
 
@@ -155,4 +155,115 @@ An integration case driving `init`, then `update` from `v0.0.03` to
 
 ## Outcome
 
-_(fill after execution)_
+The three couplings the tag exposed are three different answers.
+
+**The inventory is gone.** `internal/kitpaths` no longer says what the
+kit ships; it says what the *adopter* owns. A refresh walks the fetched
+template and writes every file it finds that no `Untouchable` path
+covers, `KitOwned` carving out the one kit file under `docs/`. The
+`v0.0.04` refresh of this repository wrote 45 files, five of which no
+list in Go names: `.writrun/AGENTS.md`, `.github/workflows/writrun-intake.yml`,
+`.github/ISSUE_TEMPLATE/writrun-report.yml`, and — for the first time
+since adoption — `.writrun/README.md` and `WRITRUN.md`, which had sat
+at whatever tag installed them through every refresh anyone ran.
+
+`Seeded` is the category the inventory lacked: written where absent,
+never rewritten where present. `.writrun/gates.md` is its one member.
+`settings.json` is deliberately not, and `kitpaths_test.go` says why —
+its shipped default declares `stage: 1`, an answer a refresh may not
+give on the project's behalf.
+
+Removals reach only the kit's own files: everything under `.writrun/`
+that is not the adopter's, and — outside it — the files carrying the
+`writrun-` prefix in `.github/workflows/` and `.github/ISSUE_TEMPLATE/`.
+That namespace is also how `uninstall` recognises them, which is what it
+needed: it has no template to read, and a list of names is exactly what
+this spec removed.
+
+**The gates are read from the file that states them.** `theGates` and
+its four transitions are gone. `doctor` reads the rows of
+`.writrun/gates.md` and reports every row whose second cell is empty or
+a TODO, naming it by the row's own first cell — so
+`TestAGateThisBinaryHasNeverSeenIsJudgedTheSameWay` passes on a row no
+tag has shipped. `init` asks the same file the narrower question its
+own stage 1 asks: are the placeholders still there.
+
+**The fence is one shape, and it stays.** `internal/pointer` replaces
+`internal/fence` and edits what `v0.0.04` ships: the heading whose body
+links `.writrun/AGENTS.md`, bounded by the next heading of the same or
+higher level. `Replace` and the whole `yours` carry are gone with the
+fence they served — from `v0.0.04` the root `AGENTS.md` is the
+project's, whole, so `update` neither reads it for writing nor writes
+it. `Legacy` survives for the two commands that must still recognise a
+`v0.0.03` adoption: `update` names the leftover section in its plan and
+changes nothing, and `uninstall` cuts it in preference to the pointer,
+being the larger of the two.
+
+**One defect older than the tag.** `apply` wrote a planned change only
+where its path began `.github/`, on the reasoning that `RefreshDirs`
+carried every other one. A kit file under neither was counted in the
+plan and left on disk — `.writrun/AGENTS.md` would have been the first
+to hit it. `TestAFileNoListNamesIsRefreshed` is the case that would have
+caught it.
+
+**This repository.** `./bin/writrun update` moved it from `v0.0.03` to
+`v0.0.04` with `AGENTS.md`, `settings.json`, `conventions/`, `docs/` and
+`work/` untouched, exactly as the plan said. A second run reports
+"Already at WritRun v0.0.04". `writrun doctor` is all clear at stage 3.
+The seven gates were moved from the table `AGENTS.md` carried, none
+invented; an eighth row is this project's own, the yes owed before a
+report is routed upstream. `AGENTS.md` lost its fenced section for the
+pointer and adopted the `routed` triage end, and law 0 of
+`.ai/skills/docs/SKILL.md` follows it.
+
+Cases inverted rather than deleted:
+
+| Case | Why it changed |
+|---|---|
+| `updatecmd.TestADamagedFenceStopsEverything` | The fence was what a refresh rewrote, so a damaged one stopped everything. Now `TestALegacyFenceIsNamedAndNotTouched`: the section is named and left byte-identical, and the refresh proceeds. |
+| `updatecmd.TestAPlanThatCannotBeMadeStopsTheRefresh` | It asserted a template with no fence was refused. Now `TestATemplateWithNoPointerStillRefreshes` — a refresh does not read that file. |
+| `updatecmd.TestRunRefusesAnUnreadableAgents` | An absent `AGENTS.md` stopped a refresh. Now `TestAnAbsentAgentsFileDoesNotStopTheRefresh`: it is the project's file and a refresh has no opinion about one that is not there. |
+| `updatecmd.TestDiffFileAnswersEveryVerb`, `TestDiffTreeNamesAFileTheTagDropped`, `TestRenderSaysWhenTheSectionAlreadyMatches` | `diffFile`, `diffTree` and the section line went with the closed list. The same four verbs are asserted through `plan` over one walk of the template. |
+| `doctorcmd.TestDamagedMarkersAreNamed` | Damaged markers broke a flow. Now `TestALegacyFencedSectionAdvises`: a stale duplicate of `.writrun/AGENTS.md` advises, and `TestAnAgentsFileWithNoWritRunSectionIsNotAFinding` says what AGENTS.md must carry is `init`'s question, not doctor's forever. |
+| `doctorcmd.TestAGateStatedNowhereIsNamed`, `TestGatesAreFoundWithoutTheKitsHeading`, `TestAnotherTableDoesNotAnswerAGate` | All three were about finding the gates table inside `AGENTS.md`. The gates have a file; `TestATableInAgentsDoesNotAnswerAGate` keeps the half that still means something. |
+| `initcmd.checks_test` "damaged fence markers" | Now "no section linking the kit's flow", plus two new cases over `.writrun/gates.md`. |
+| `uninstallcmd.TestPlanSeparatesWhatGoesFromWhatIsGone` | It asserted a deleted workflow lands in `gone`. Workflows are found by namespace now, so a missing one is simply not listed; the case asserts that, and uses `WRITRUN.md` for the `gone` half. |
+| `tests/integration/doctor/the_gates_and_the_markers_are_named_test.sh` | Renamed `the_gates_and_the_entry_point_are_named_test.sh` and rewritten against `gates.md`. |
+| `tests/integration/update/damaged_markers_stop_everything_test.sh` | Renamed `a_legacy_fence_is_named_not_touched_test.sh`, asserting the inverse. |
+| `tests/integration/uninstall/only_the_fenced_section_leaves_agents_test.sh` | Renamed `only_writruns_section_leaves_agents_test.sh`. |
+
+Cases added: the whole of `internal/pointer/pointer_test.go`;
+`kitpaths_test.go` rewritten around `Untouched`, `Seeds`, `Removable`
+and `Namespaced`; `TestAFileNoListNamesIsRefreshed`,
+`TestTheSeedArrivesOnceAndIsNeverRewritten` and
+`TestAWorkflowTheProjectWroteIsNeverRemoved` in `updatecmd`;
+`TestAGateThisBinaryHasNeverSeenIsJudgedTheSameWay`,
+`TestAMissingGatesFileIsNamed` and `TestAGatesFileWithNoTableIsNamed` in
+`doctorcmd`.
+
+**Two deviations from Scope, both caused by the refresh rather than by
+the work, and both named here rather than left standing.**
+
+`internal/command/authorcmd/body.go` is outside the Scope's In list and
+was changed. `v0.0.04`'s pull-request template adds a third kind —
+`## Report` — and `authoringHalf` dropped only `## Spec`, so an
+authoring body reached the forge carrying `task-NNNN` and a URL to
+`owner/repo`. One heading joins the drop list, and the comment states
+the rule the list follows: an authoring body keeps `## Derived work` and
+drops every other kind's section, while `## How to verify` and `## How
+to test` are asked of every kind. Leaving it would have shipped a
+placeholder into a real pull request.
+
+The matrix's forge cell became a boolean. It recorded how many times a
+run called the stubbed `gh`, and `v0.0.04` raised the author cell from
+23 to 41 without moving one exit code, one path or one sentence across
+all 348 cells — the whole diff of the old golden against the new one,
+with the counts normalised, is empty. Worse, the count is not stable
+across contexts: the nested run inside the release e2e read a different
+one for the same behaviour. How chatty a kit script is belongs to the
+kit, so the cell now says whether the forge was reached, which is what
+the case's own preamble always claimed it held.
+
+The premise held. `template/.writrun/AGENTS.md` states "`writ update`
+replaces it whole" and `template/.writrun/gates.md` states "`writ
+update` never touches it", and the refresh does both.

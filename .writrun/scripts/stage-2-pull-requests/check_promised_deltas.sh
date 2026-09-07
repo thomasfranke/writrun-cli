@@ -20,58 +20,16 @@ RANGE="${1:?usage: check_promised_deltas.sh <diff-range>}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 CHECK_DELTAS="$REPO_ROOT/.writrun/skills/writrun-check-spec-deltas/check_deltas.sh"
 
+. "$(dirname "$0")/queue_lib.sh"
+
 # "The specs this change implements" is read from the front matter at the
 # range's two ends, never grepped out of the diff text — a spec body
 # quoting `status: implemented` at column 0 is not an implementation and
 # must not have its promises checked against this diff.
-case "$RANGE" in
-  *...*)
-    left="${RANGE%%...*}"
-    right="${RANGE##*...}"
-    # The same rule as the diff below: a merge-base that could not be
-    # computed is not a base of "nothing", it is an unanswered question.
-    if ! BASE=$(git merge-base "${left:-HEAD}" "${right:-HEAD}" 2>&1); then
-      echo "git merge-base ${left:-HEAD} ${right:-HEAD} failed:" >&2
-      printf '%s\n' "$BASE" | head -n 2 >&2
-      exit 3
-    fi
-    ;;
-  *..*) BASE="${RANGE%%..*}" ;;
-  *)    BASE="$RANGE" ;;
-esac
-fm_field() {
-  awk -v f="$1" '
-    NR == 1 { if ($0 != "---") exit; next }
-    /^---$/ { exit }
-    sub("^" f ": *", "") { sub(/[[:space:]]*$/, ""); print; exit }
-  '
-}
+ql_range_ends "$RANGE"
+BASE="$QL_BASE"
 
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields exactly the same empty string
-# whether nothing matched or nothing ran, and two of these checks are
-# gates (spec-0013).
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent — the very shape of the bug being removed.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
-
-# Read line by line and never with `for s in $GIT_OUT`: word splitting
+# Read line by line and never with `for s in $QL_GIT_OUT`: word splitting
 # turns one spec path containing a space into two paths that exist
 # nowhere, each skipped by the `-f` test below — an implemented spec
 # dropped in silence, which for a gate is the same failure as reading
@@ -79,7 +37,7 @@ git_read() {
 # reason, and a here-document rather than a pipe so the loop can write
 # into it at all.
 implemented=""
-git_read "git diff --name-only ${RANGE} -- work/specs" \
+ql_git_read "git diff --name-only ${RANGE} -- 'work/specs/*.md'" \
   diff --name-only "$RANGE" -- 'work/specs/*.md'
 while IFS= read -r s; do
   [ -n "$s" ] || continue
@@ -95,11 +53,11 @@ while IFS= read -r s; do
   esac
 
   [ -f "$s" ] || continue
-  [ "$(fm_field status < "$s")" = "implemented" ] || continue
-  [ "$(git show "${BASE}:$s" 2>/dev/null | fm_field status)" = "implemented" ] && continue
+  [ "$(ql_fm_field_in status < "$s")" = "implemented" ] || continue
+  [ "$(git show "${BASE}:$s" 2>/dev/null | ql_fm_field_in status)" = "implemented" ] && continue
   implemented="${implemented}${s}"$'\n'
 done <<TOUCHED
-${GIT_OUT}
+${QL_GIT_OUT}
 TOUCHED
 
 if [ -z "$implemented" ]; then

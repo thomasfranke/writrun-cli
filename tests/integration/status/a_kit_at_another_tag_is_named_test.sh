@@ -11,13 +11,14 @@ cd "$TARGET" || exit 1
 "$WRITRUN" status > "$WORK/mismatch.out" 2>&1
 
 check "the recorded tag is named" 0 "v0.0.01" -- grep "^Kit" "$WORK/mismatch.out"
-check "the pinned tag is named beside it" 0 "v0.0.03" -- grep "^Kit" "$WORK/mismatch.out"
+check "the pinned tag is named beside it" 0 "$PINNED" -- grep "^Kit" "$WORK/mismatch.out"
 check "a mismatch is not a failure" 0 "" -- "$WRITRUN" status
 check "nothing bridged it" 0 "v0.0.01" -- cat "$TARGET/.writrun/VERSION"
 
 # The same release spelled two ways is one release, not a mismatch.
-kit_tag v0.0.3
-check "a spelling is not a difference" 0 "Kit      WritRun v0.0.3 — the tag this client pins" \
+loose=$(printf '%s' "$PINNED" | sed 's/\.0*\([0-9]\)/.\1/g')
+kit_tag "$loose"
+check "a spelling is not a difference" 0 "Kit      WritRun $loose — the tag this client pins" \
   -- "$WRITRUN" status
 
 finish

@@ -54,6 +54,8 @@ if [ "$#" -lt 1 ] || [ -z "${1:-}" ]; then
 fi
 RANGE="$1"
 
+. "$(dirname "$0")/queue_lib.sh"
+
 # --- the pair table -------------------------------------------------------
 #
 # The dated decisions log and its chronology index. The index is the only
@@ -73,46 +75,8 @@ docs/technical/decisions/*[0-9][0-9][0-9][0-9]-*.md docs/technical/decisions/REA
 "
 
 # --- the range's base -----------------------------------------------------
-#
-# The same resolution its siblings use. A merge-base that could not be
-# computed is not a base of "nothing", it is an unanswered question.
-case "$RANGE" in
-  *...*)
-    left="${RANGE%%...*}"
-    right="${RANGE##*...}"
-    if ! BASE=$(git merge-base "${left:-HEAD}" "${right:-HEAD}" 2>&1); then
-      echo "git merge-base ${left:-HEAD} ${right:-HEAD} failed:" >&2
-      printf '%s\n' "$BASE" | head -n 2 >&2
-      exit 3
-    fi
-    ;;
-  *..*) BASE="${RANGE%%..*}" ;;
-  *)    BASE="$RANGE" ;;
-esac
-
-# git_read <label> <git-args...> — runs git and leaves its stdout in
-# GIT_OUT. On failure it prints what git said and exits 3, because a
-# check that could not read its input must never report the empty result
-# as a clean one: `$(git … || true)` yields exactly the same empty string
-# whether nothing matched or nothing ran, and this one is a gate
-# (spec-0013).
-#
-# **Never call this inside a command substitution.** The `exit` would end
-# only the subshell, and the caller would go on reading the empty value
-# this exists to prevent — the very shape of the bug being removed.
-GIT_OUT=""
-git_read() {
-  local label="$1" err
-  shift
-  err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
-  if ! GIT_OUT=$(git "$@" 2>"$err"); then
-    echo "${label} failed:" >&2
-    head -n 2 "$err" >&2
-    rm -f "$err"
-    exit 3
-  fi
-  rm -f "$err"
-}
+ql_range_ends "$RANGE"
+BASE="$QL_BASE"
 
 # promised_paths — every path both Proposed-changes sections of the spec
 # on stdin name, anchor stripped, normalised to repository-root the way
@@ -138,16 +102,6 @@ promised_paths() {
   ' \
     | sed -n 's/^- `\([^`]*\)`.*/\1/p' | sed 's/#.*//' \
     | sed '/^$/d' | sed 's|^|docs/|' | sort -u
-}
-
-# fm_field <field> <file> — the front-matter block alone; a body line
-# spelling `id:` at column 0 never counts.
-fm_field() {
-  awk -v f="$1" '
-    NR == 1 { if ($0 != "---") exit; next }
-    /^---$/ { exit }
-    sub("^" f ": *", "") { sub(/[[:space:]]*$/, ""); print; exit }
-  ' "$2"
 }
 
 # promise_covers <path> <promise> — the promise names this exact path, or
@@ -193,9 +147,9 @@ engages() {
 
 # --- the specs this change enters -----------------------------------------
 
-git_read "git diff --name-only ${RANGE} -- work/specs" \
+ql_git_read "git diff --name-only ${RANGE} -- 'work/specs/*.md'" \
   diff --name-only "$RANGE" -- 'work/specs/*.md'
-touched="$GIT_OUT"
+touched="$QL_GIT_OUT"
 
 read_specs=0
 faults=0
@@ -230,14 +184,14 @@ while IFS= read -r spec; do
   # The same promise as the range found it. A spec absent from the base
   # is new, and everything it promises is this range's to answer for —
   # asked with `cat-file -e` so that "not there" stays distinguishable
-  # from "git could not say", which git_read still refuses.
+  # from "git could not say", which ql_git_read still refuses.
   base_promised=""
   if git cat-file -e "${BASE}:${spec}" 2>/dev/null; then
-    git_read "git show ${BASE}:${spec}" show "${BASE}:${spec}"
-    base_promised=$(printf '%s\n' "$GIT_OUT" | promised_paths)
+    ql_git_read "git show ${BASE}:${spec}" show "${BASE}:${spec}"
+    base_promised=$(printf '%s\n' "$QL_GIT_OUT" | promised_paths)
   fi
 
-  id=$(fm_field id "$spec")
+  id=$(ql_fm_field id "$spec")
   [ -n "$id" ] || id="$spec"
 
   while read -r glob companion; do

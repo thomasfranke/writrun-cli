@@ -25,7 +25,7 @@ make_repo() {
   mkdir -p "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports" \
            "$TARGET/docs/product/queue" "$TARGET/docs/technical/testing"
   cp -R "$REPO_ROOT/.writrun" "$TARGET/.writrun"
-  printf 'v0.0.03\n' > "$TARGET/.writrun/VERSION"
+  printf '%s\n' "$PINNED" > "$TARGET/.writrun/VERSION"
   printf '# Tasks\n'   > "$TARGET/work/tasks/README.md"
   printf '# Specs\n'   > "$TARGET/work/specs/README.md"
   printf '# Reports\n' > "$TARGET/work/reports/README.md"

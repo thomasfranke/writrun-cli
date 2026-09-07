@@ -58,7 +58,9 @@ Three things happen off this line:
 - **A finding.** Something is noticed mid-work and it is not this task.
   Write a report — one file, one paragraph, no commitment. Later someone
   triages it: it becomes a task, becomes a rule, gets fixed on the spot,
-  or is declined with the reason kept. Recording one is cheap on purpose,
+  is declined with the reason kept, or is routed to the repository that
+  owns the defect — a defect of WritRun itself is reported to WritRun,
+  whose intake receives it. Recording one is cheap on purpose,
   and it rides whatever change you already had open. Only the route that
   turns it into a task is different: that one takes a `report/` branch of
   its own, and from Stage 2 the generator refuses it anywhere else.
@@ -76,8 +78,9 @@ Three things happen off this line:
 | `work/tasks/`, `work/specs/` | The queue and its plans. Statuses live in the file, never in the folder. |
 | `work/reports/` | What was noticed. Commits to nothing. |
 | `.writrun/` | The machinery: skills, scripts, conventions, settings. Its [README](.writrun/README.md) says which of them are WritRun's and which are yours. |
-| `.github/workflows/writrun-*.yml` | The checks and the recording. The two mirror workflows are optional. |
-| `AGENTS.md` | Where an agent starts. The WritRun part sits between markers; the rest is yours. |
+| `.github/workflows/writrun-*.yml` | The checks, the recording, and the intake that turns a labelled issue into a report. The two mirror workflows and the intake are optional. |
+| `AGENTS.md` | Where an agent starts. WritRun claims four lines of it — a pointer to `.writrun/AGENTS.md`, where the whole flow lives; the rest is yours. |
+| `CLAUDE.md` | One line, `@AGENTS.md` — Claude Code reads this file, not `AGENTS.md`, so the shim points it at the shared entry. |
 
 ## What you decide
 
@@ -98,5 +101,38 @@ where agents read it from.
 The skills in `.writrun/skills/` are WritRun's: picking the next task,
 creating tasks and specs, and three checks — the promised docs, the
 lifecycle, and the file shapes. An agent runs them; you never have to.
+
+## Adopting — you just copied `template/` here
+
+1. `.writrun/` and the workflows work as copied. Make the conventions
+   yours.
+2. **`AGENTS.md`** — no previous one? Fill the TODO. Already had one?
+   Add the four-line WritRun pointer section to it; never overwrite,
+   and add nothing else — the flow lives in `.writrun/AGENTS.md`, which
+   is WritRun's and gets replaced whole on update. Keep the pointer a
+   link, never an `@` reference: Claude Code imports recursively, and an
+   `@` would load the whole flow into every session. Fill
+   **`.writrun/gates.md`** with the project's answers — it is yours,
+   like `settings.json`, and no update touches it; naming an agent as a
+   gate's operator is an answer, leaving a gate unnamed is not.
+   Vendors: Codex and Antigravity read `AGENTS.md` at the root natively
+   (Antigravity caps a rules file at 12,000 characters — one more
+   reason the entry point stays short). Claude Code reads `CLAUDE.md`;
+   the kit's one-line shim answers that. Already had a `CLAUDE.md`?
+   Keep yours and add the `@AGENTS.md` line to it.
+3. **`docs/`** — read `docs/writrun-instructions.md`. Keep the docs you
+   already have. Any shape counts. Three documents are required of you:
+   an About file, a product doc and a technical doc — real ones, not a
+   table of chapters you plan to write.
+4. **`work/`** starts empty. It fills through the flow.
+5. **Stage 2 and up** need the forge configured — Actions permissions,
+   squash merges, the ruleset. WritRun's
+   `docs/product/stage-2-pull-requests/setup.md` carries the commands,
+   and some rules must stay **off** or the machinery's own recording is
+   blocked. The owner approves those settings in session: they live
+   outside the repository, so no review will ever catch a wrong one.
+
+Then declare your stage in `.writrun/settings.json` and delete this
+section. The rest of this file is your reference card.
 
 The kit is MIT-0: no attribution, no notice to keep.

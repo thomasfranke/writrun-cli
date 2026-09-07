@@ -16,7 +16,7 @@ check "the task is named with its title" 0 "task-0014  in-progress  Answer where
 check "the spec is named with its status" 0 "Spec     spec-0013  approved" -- cat "$WORK/answer.out"
 check "the checks are run and their verdict given" 0 "Checks   all pass" -- cat "$WORK/answer.out"
 check "the open reports are counted" 0 "Reports  1 open" -- cat "$WORK/answer.out"
-check "the kit's tag is named" 0 "Kit      WritRun v0.0.03" -- cat "$WORK/answer.out"
+check "the kit's tag is named" 0 "Kit      WritRun $PINNED" -- cat "$WORK/answer.out"
 check "answering is exit 0" 0 "" -- "$WRITRUN" status
 
 finish

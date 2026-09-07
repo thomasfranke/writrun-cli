@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # commit_subject.sh — prints the subject of a commit the machinery makes.
 #
-# Usage: commit_subject.sh <merge|forge>
+# Usage: commit_subject.sh <merge|forge|intake>
 #
 #   commit_subject.sh merge    what `writrun approve` records after a merge
 #   commit_subject.sh forge    what `writrun progress` records from an event
+#   commit_subject.sh intake   what `writrun intake` records from a label
 #
 # **The subject is a constant, and `pr_title_style` is not consulted.**
 # That key governs the pull request title, which is read in a queue by
@@ -14,9 +15,9 @@
 # per-project grammar. So the grammar here is Conventional Commits
 # everywhere (docs/technical/decisions/pull-requests/0063-title-and-subject-are-two-texts.md).
 #
-# **The file still exists because two workflows write these commits.**
-# One writer, two callers, no drift: a literal in each workflow would be
-# two places to edit and nothing squashes these, so a subject that
+# **The file still exists because three workflows write these commits.**
+# One writer, three callers, no drift: a literal in each workflow would
+# be three places to edit and nothing squashes these, so a subject that
 # diverged would sit on `main` for good. It is not checked anywhere, and
 # could not usefully be: `writrun check` reads pull request titles at the
 # door, and these commits pass no door.
@@ -33,7 +34,8 @@ set -euo pipefail
 
 EVENT="${1:-}"
 case "$EVENT" in
-  merge) printf 'chore(queue): record what the merge decided\n' ;;
-  forge) printf 'chore(queue): record what the forge just did\n' ;;
-  *) echo "usage: commit_subject.sh <merge|forge>" >&2; exit 3 ;;
+  merge)  printf 'chore(queue): record what the merge decided\n' ;;
+  forge)  printf 'chore(queue): record what the forge just did\n' ;;
+  intake) printf 'chore(queue): record what the label let in\n' ;;
+  *) echo "usage: commit_subject.sh <merge|forge|intake>" >&2; exit 3 ;;
 esac

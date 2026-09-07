@@ -38,30 +38,32 @@ make_source() {
 
 <!-- TODO: one paragraph. -->
 
-## WritRun — working the queue
+## WritRun
 
-<!-- writrun:begin
-     This section is WritRun's flow. -->
+This project tracks its work with WritRun. Before touching `work/`,
+`docs/`, or any task, spec, or report, read and follow
+[`.writrun/AGENTS.md`](.writrun/AGENTS.md).
+EOF
 
-### Picking work
+    cat > template/.writrun/AGENTS.md <<'EOF'
+# WritRun — the agent flow
+
+This file is WritRun's: `writ update` replaces it whole.
+
+## Picking work
 
 The flow's text.
+EOF
 
-### Human gates
+    cat > template/.writrun/gates.md <<'EOF'
+# Human gates
 
-<!-- yours: this table is the project's own answers; it survives updates. -->
+This file is the project's: `writ update` never touches it.
 
 | Transition | Who |
 |---|---|
 | Writing docs | <!-- TODO — default: human reviews --> |
 | Everything else | Agent, autonomously. |
-
-### Deriving work
-
-Present the derived tasks in the session before opening the PR.
-<!-- yours: keep, invert, or drop this default — it is the project's. -->
-
-<!-- writrun:end -->
 EOF
 
     cat > template/.writrun/settings.json <<'EOF'
@@ -118,6 +120,11 @@ EOF
     printf '# Select next task, reworded\n' > template/.writrun/skills/writrun-select-next-task/SKILL.md
     printf '# Spec template\n' > template/.writrun/templates/spec.md
     printf 'name: writrun check\non: pull_request\n# reworded\n' > template/.github/workflows/writrun-check.yml
+    # Two files no list in Go names: the tag adds them and a refresh
+    # writes them, which is what walking the template buys.
+    printf 'name: writrun intake\non: issues\n' > template/.github/workflows/writrun-intake.yml
+    mkdir -p template/.github/ISSUE_TEMPLATE
+    printf 'name: WritRun report\n' > template/.github/ISSUE_TEMPLATE/writrun-report.yml
     git_q add .
     git_q commit -q -m "the kit"
     git_q tag "$TAG"
@@ -139,6 +146,9 @@ age_kit() {
   cp -R "$old/template/.writrun/skills"    "$target/.writrun/skills"
   cp -R "$old/template/.writrun/templates" "$target/.writrun/templates"
   cp -R "$old/template/.writrun/scripts"   "$target/.writrun/scripts"
+  cp "$old/template/.writrun/AGENTS.md"    "$target/.writrun/AGENTS.md"
+  rm -rf "$target/.github/ISSUE_TEMPLATE"
+  rm -f "$target/.github/workflows/writrun-intake.yml"
   cp -R "$old/template/.github/workflows/." "$target/.github/workflows/"
   printf '%s\n' "$OLD_TAG" > "$target/.writrun/VERSION"
   git_q -C "$SOURCE" worktree remove --force "$old"

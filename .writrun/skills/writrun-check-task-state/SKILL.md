@@ -19,15 +19,26 @@ respected the gate is asking the wrong party.
 bash .writrun/skills/writrun-check-task-state/check_state.sh [diff-range]
 ```
 
-The range defaults to `main...HEAD`. One rule — the `tracked` route's —
-has two halves, and only one of them needs a branch name. The **branch
-half** reads `HEAD_REF` when set (CI passes the head branch that way)
-and the checkout's own branch otherwise; on a detached HEAD with neither
-it says on stdout that it stood down rather than passing quietly. The
-**diff half** reads what the change carries, which is always there, so
-it runs on a detached HEAD too — a change carrying code outside `work/`
-is refused whatever the branch is called, and where it has no name at
-all.
+The range defaults to `main...HEAD`. Two rules have two halves each, and
+in both the second half needs an input the range does not carry.
+
+The `tracked` route's: the **branch half** reads `HEAD_REF` when set (CI
+passes the head branch that way) and the checkout's own branch
+otherwise; on a detached HEAD with neither it says on stdout that it
+stood down rather than passing quietly. The **diff half** reads what the
+change carries, which is always there, so it runs on a detached HEAD too
+— a change carrying code outside `work/` is refused whatever the branch
+is called, and where it has no name at all.
+
+The owed spec's: the **file half** reads the range alone, at every
+stage, and refuses a task born `blocked` with a null `blocked_reason` —
+a hold naming nothing to wait for is a hold no reader can release. The
+**declaration half** reads `PR_BODY` (CI passes it the same way) and
+refuses a newly added `origin: report` task that lands `backlog` with
+`spec_ref: []`, no spec added beside it, and no line saying none is
+warranted. Without a body it stands down on stdout and names the task it
+could not judge. An *empty* body is not an unreadable one: it was read
+and declares nothing, which is a refusal.
 
 - **0 / OK** — no forbidden transition.
 - **1** — every violation prints, each with the fix. The verdicts are
@@ -60,9 +71,13 @@ the ordered form of that rule and the way to run all three gates.
   `report/…`. It no longer clears the check — rule K reads what the
   change carries as well as what it is called, and an implementing
   change carries code whatever its branch is named. What the rename
-  still costs is the ride it was taken for: `apply_pr_event.sh`
-  recognises `task/NNNN-…` and stops recording a renamed branch's task
-  at all. Move the report, the task and the spec to a change of their
-  own.
+  still costs is the ride it was taken for: `apply_pr_event.sh` records
+  every task the branch or the title names, so a rename that also drops
+  the `[TASK-NNNN]` tag stops recording the task at all. Move the
+  report, the task and the spec to a change of their own.
 - Never skip it because the change touched no code. A change that only
   edits front matter is exactly what it is for.
+- Never clear the owed-spec refusal by writing "No spec for task-NNNN"
+  over a task whose spec is coming. The line says the task warrants
+  none, permanently; a task waiting for one lands `blocked` with its
+  reason, and the change that adds the spec releases it.

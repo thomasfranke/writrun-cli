@@ -10,7 +10,12 @@
 #   PR_HEAD_REF / PR_TITLE — derived from the head branch's own id
 #   (task/NNNN-*) and every [TASK-NNNN] tag leading the title, so a
 #   merge whose diff never touched a task file still lands it, and the
-#   workflow stays wiring with no parsing of its own.
+#   workflow stays wiring with no parsing of its own. A claim over
+#   QL_CARRIED_MAX comes back as the helper's over-ceiling sentinel:
+#   the carried ids are dropped with the refusal printed, the
+#   range-derived scope still records, and the exit stays 0 — a merged
+#   close fires no second event, and the Commit step behind this is
+#   success-gated, so a red exit would lose the range's writes.
 #
 # Per task in scope — added or modified by the range, referenced by a
 # spec the range touched, or carried — one of three moves, in this
@@ -65,6 +70,19 @@ CARRIED_IDS="$*"
 if [ -z "$CARRIED_IDS" ]; then
   CARRIED_IDS=$(ql_carried_from_env)
 fi
+case "$CARRIED_IDS" in
+  over-ceiling:*)
+    # The claim is refused, the event is not: the diff range is the
+    # repository's own evidence and the title is only the author's
+    # claim, so the range-derived scope below still records — and the
+    # exit stays 0 once it has, because the approve workflow's Commit
+    # step is success-gated and a merged close fires no second event. A
+    # red exit here would lose the range's writes with the claim's.
+    echo "the head branch and title claim ${CARRIED_IDS#over-ceiling:} distinct tasks — the ceiling is ${QL_CARRIED_MAX}."
+    echo "The carried set is refused; only what the merge's own diff range proves is recorded."
+    CARRIED_IDS=""
+    ;;
+esac
 
 err=$(mktemp "${TMPDIR:-/tmp}/writrun-git.XXXXXX")
 if ! CHANGED=$(git diff --name-only "$RANGE" 2>"$err"); then

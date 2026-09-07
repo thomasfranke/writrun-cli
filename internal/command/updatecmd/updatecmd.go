@@ -9,11 +9,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
@@ -78,18 +76,6 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return fmt.Errorf("this binary pins WritRun %s and the kit records %s — a downgrade is a deliberate act update does not offer", d.Tag, current)
 	}
 
-	// The fence is read before the network is asked for anything: a
-	// damaged one stops the whole refresh, and stopping after a clone
-	// would have spent the fetch to reach the same refusal (spec-0003).
-	agentsPath := filepath.Join(ctx.Root, "AGENTS.md")
-	agents, err := d.Files.ReadFile(agentsPath)
-	if err != nil {
-		return fmt.Errorf("reading AGENTS.md: %w", err)
-	}
-	if _, _, err := fence.Remove(agents); err != nil {
-		return fmt.Errorf("AGENTS.md: %w — the fenced section is what a refresh rewrites, so nothing was changed", err)
-	}
-
 	// A dirty tree would mix the refresh with unrelated changes, and
 	// unlike an adoption a refresh *overwrites*: an uncommitted edit
 	// inside a kit-owned folder would be gone with nothing to restore
@@ -110,7 +96,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	}
 	defer kit.Cleanup()
 
-	r, err := plan(d.Files, ctx.Root, kit.Template, current, d.Tag, agents)
+	r, err := plan(d.Files, ctx.Root, kit.Template, current, d.Tag)
 	if err != nil {
 		return err
 	}

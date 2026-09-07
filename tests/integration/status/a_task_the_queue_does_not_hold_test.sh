@@ -14,6 +14,6 @@ check "the id is named as unknown" 0 "Task     task-0099 — the queue holds no 
   -- cat "$WORK/unknown.out"
 check "no spec is invented for it" 1 "" -- grep -q "^Spec" "$WORK/unknown.out"
 check "no check is claimed to have run" 1 "" -- grep -q "^Checks" "$WORK/unknown.out"
-check "the rest is still answered" 0 "Kit      WritRun v0.0.03" -- cat "$WORK/unknown.out"
+check "the rest is still answered" 0 "Kit      WritRun $PINNED" -- cat "$WORK/unknown.out"
 
 finish

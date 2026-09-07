@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thomasfranke/writrun-cli/internal/fence"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/pointer"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 
@@ -89,8 +89,8 @@ func TestApplyPerformsTheWholePlan(t *testing.T) {
 	if settings := read(t, target, ".writrun/settings.json"); !strings.Contains(settings, `"stage": 2`) {
 		t.Errorf("settings do not record stage 2:\n%s", settings)
 	}
-	if agents := read(t, target, "AGENTS.md"); !strings.Contains(agents, fence.Begin) {
-		t.Error("AGENTS.md lacks the fenced section")
+	if agents := read(t, target, "AGENTS.md"); !strings.Contains(agents, pointer.Target) {
+		t.Error("AGENTS.md lacks WritRun's section")
 	}
 	if observance := read(t, target, ".writrun/scripts/stage-2-pull-requests/check_observance.sh"); !strings.Contains(observance, `TYPES="feat"`) {
 		t.Errorf("the extracted vocabulary did not land:\n%s", observance)
@@ -131,10 +131,10 @@ func TestApplyGraftKeepsEveryByteOutsideTheFence(t *testing.T) {
 	}
 	after := read(t, target, "AGENTS.md")
 	if !strings.HasPrefix(after, existing) {
-		t.Error("bytes outside the fenced section changed")
+		t.Error("bytes outside WritRun's section changed")
 	}
-	if !strings.Contains(after, fence.End) {
-		t.Error("the fenced section was not grafted")
+	if !strings.Contains(after, pointer.Target) {
+		t.Error("WritRun's section was not grafted")
 	}
 }
 

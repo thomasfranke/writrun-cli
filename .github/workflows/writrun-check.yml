@@ -9,10 +9,10 @@ name: writrun check
 # integration tier executes it — YAML here only wires events to scripts.
 # The reasoning for each check is documented in its script.
 
-# `edited` is here for the two jobs that read the PR body: declaring
-# "Derived work: none" and naming the pull request an amendment suspends
-# are both body edits — those checks must rerun when one happens, not
-# wait for a push.
+# `edited` is here for the jobs that read the PR body: declaring "Derived
+# work: none", naming the pull request an amendment suspends, and saying
+# a task warrants no spec are all body edits — those checks must rerun
+# when one happens, not wait for a push.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -64,9 +64,14 @@ jobs:
       - name: Check lifecycle transitions
         # The head branch name reaches rule K through the environment,
         # never inline interpolation — a fork controls the string, and the
-        # script only ever prefix-matches it against `report/`.
+        # script only ever prefix-matches it against `report/`. The body
+        # reaches rule L the same way, and for the same reason: it is
+        # attacker-controlled text on a fork PR, and the script only ever
+        # searches it. A step that omits it hands rule L a stand-down
+        # instead of a verdict, which is why the omission is loud.
         env:
           HEAD_REF: ${{ github.head_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           bash .writrun/skills/writrun-check-task-state/check_state.sh \
             "origin/${{ github.base_ref }}...HEAD"

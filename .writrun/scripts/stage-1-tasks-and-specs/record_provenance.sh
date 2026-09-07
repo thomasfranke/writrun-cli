@@ -14,7 +14,7 @@
 # permission is what keeps that from becoming "a branch may edit front
 # matter": this script only ever *appends*. It never rewrites an entry it
 # found, and `writrun-check-task-state` refuses a diff that does
-# (docs/technical/README.md#task-schema).
+# (docs/technical/schemas/task.md#task-schema).
 #
 # Run from the repository root. The entry is written in the schema's key
 # order regardless of the order the arguments arrive in, because the

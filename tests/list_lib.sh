@@ -11,6 +11,9 @@
 . "$(dirname "${BASH_SOURCE[0]}")/cli_lib.sh"
 
 LISTER=".writrun/skills/writrun-select-next-task/list_tasks.sh"
+# The lister sources the queue reader from the scripts folder, so the
+# fixture carries both — the kit's own layout, not this file's choice.
+QUEUE_LIB=".writrun/scripts/stage-2-pull-requests/queue_lib.sh"
 
 git_q() { git -c user.name=suite -c user.email=suite@test -c commit.gpgsign=false "$@"; }
 
@@ -20,8 +23,10 @@ TARGET="$WORK/target"
 # queue, and one commit, so a case can ask git whether anything changed.
 make_repo() {
   mkdir -p "$TARGET/.writrun/skills/writrun-select-next-task" \
+           "$TARGET/.writrun/scripts/stage-2-pull-requests" \
            "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp "$REPO_ROOT/$LISTER" "$TARGET/$LISTER"
+  cp "$REPO_ROOT/$QUEUE_LIB" "$TARGET/$QUEUE_LIB"
   printf '# Tasks\n' > "$TARGET/work/tasks/README.md"
   printf '# Specs\n' > "$TARGET/work/specs/README.md"
   printf '# Reports\n' > "$TARGET/work/reports/README.md"

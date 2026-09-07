@@ -38,6 +38,8 @@ func adoptedFixture(t *testing.T) string {
 	write(t, root, "AGENTS.md", strings.ReplaceAll(templateAgents, "<!-- TODO: one paragraph. -->", "A project."))
 	write(t, root, ".writrun/VERSION", testTag+"\n")
 	write(t, root, ".writrun/settings.json", `{"stage": 1}`)
+	write(t, root, ".writrun/gates.md", strings.ReplaceAll(templateGates,
+		"<!-- TODO — default: human reviews -->", "Thomas reviews before merge."))
 	return root
 }
 
@@ -63,8 +65,10 @@ func TestCheckStagesNamesTheFileGaps(t *testing.T) {
 		{"a missing About file", func() { rm(t, root, "docs/about.md") }, "docs/about.md"},
 		{"a product folder of only READMEs", func() { rm(t, root, "docs/product/rules.md") }, "docs/product/"},
 		{"a missing queue folder", func() { rm(t, root, "work/reports") }, "work/reports/"},
-		{"unanswered TODOs in AGENTS.md", func() { write(t, root, "AGENTS.md", templateAgents) }, "TODOs remain"},
-		{"damaged fence markers", func() { write(t, root, "AGENTS.md", "# AGENTS.md\nno fence\n") }, "markers are damaged"},
+		{"an unanswered TODO in AGENTS.md", func() { write(t, root, "AGENTS.md", templateAgents) }, "a TODO remains"},
+		{"no section linking the kit's flow", func() { write(t, root, "AGENTS.md", "# AGENTS.md\nnothing of WritRun's\n") }, "no section links"},
+		{"gates still the kit's TODOs", func() { write(t, root, ".writrun/gates.md", templateGates) }, "still the kit's TODOs"},
+		{"a missing gates file", func() { rm(t, root, ".writrun/gates.md") }, ".writrun/gates.md"},
 		{"an unrecorded kit version", func() { write(t, root, ".writrun/VERSION", "\n") }, ".writrun/VERSION"},
 		{"settings that do not parse", func() { write(t, root, ".writrun/settings.json", "{") }, "not canonical"},
 	}

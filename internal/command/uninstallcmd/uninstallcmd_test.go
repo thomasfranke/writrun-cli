@@ -199,19 +199,19 @@ func TestABareSkeletonAgentsGoesWhole(t *testing.T) {
 	}
 }
 
-func TestAnAgentsWithNoFenceIsLeftAlone(t *testing.T) {
+func TestAnAgentsWithNoWritRunSectionIsLeftAlone(t *testing.T) {
 	root := makeAdopted(t)
-	write(t, root, "AGENTS.md", "# Ours alone\n\nNo fence here.\n")
+	write(t, root, "AGENTS.md", "# Ours alone\n\nNothing of WritRun's here.\n")
 
 	out, err := runUninstall(t, root)
 	if err != nil {
 		t.Fatalf("uninstall: %v\n%s", err, out)
 	}
-	if !strings.Contains(out, "no fenced WritRun section found") {
+	if !strings.Contains(out, "no WritRun section found") {
 		t.Errorf("the plan does not say it is kept:\n%s", out)
 	}
-	if got := read(t, root, "AGENTS.md"); got != "# Ours alone\n\nNo fence here.\n" {
-		t.Errorf("a file with no fence was edited: %q", got)
+	if got := read(t, root, "AGENTS.md"); got != "# Ours alone\n\nNothing of WritRun's here.\n" {
+		t.Errorf("a file with no WritRun section was edited: %q", got)
 	}
 }
 

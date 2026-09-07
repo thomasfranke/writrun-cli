@@ -10,26 +10,17 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/kittag"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
-
-func TestRunRefusesAnUnreadableAgents(t *testing.T) {
-	root := makeAdopted(t)
-	if err := os.Remove(filepath.Join(root, "AGENTS.md")); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := runUpdate(t, root, Deps{}); err == nil {
-		t.Fatal("a repository with no AGENTS.md was refreshed")
-	}
-}
 
 func TestRunReportsAGitThatCannotAnswer(t *testing.T) {
 	// The tree is read through git; outside a repository there is no
 	// answer, and a refresh may not proceed on a guess.
 	root := t.TempDir()
 	write(t, root, ".writrun/VERSION", oldTag+"\n")
-	write(t, root, "AGENTS.md", agentsAt("The flow's text."))
+	write(t, root, "AGENTS.md", agentsDoc)
 	var out strings.Builder
 	ctx := &command.Ctx{Stdout: &out, Stderr: &out, Terminal: &command.FakeTerminal{}, Root: root, Yes: true}
 	err := run(ctx, Deps{Tag: newTag, Source: sourceDefault, Git: gitx.Run, Files: vfs.OS{}, Kit: fakeKit(t)}, nil)
@@ -74,17 +65,22 @@ func TestRunRefusesASourceWithoutATemplate(t *testing.T) {
 	}
 }
 
-func TestDiffTreeNamesAFileTheTagDropped(t *testing.T) {
+// TestThePlanNamesAFileTheTagDropped replaces
+// TestDiffTreeNamesAFileTheTagDropped: diffTree walked one named
+// directory, and the plan walks the whole template.
+func TestThePlanNamesAFileTheTagDropped(t *testing.T) {
 	root, template := t.TempDir(), t.TempDir()
+	write(t, root, ".writrun/VERSION", oldTag+"\n")
 	write(t, root, ".writrun/skills/gone/SKILL.md", "# Gone\n")
+	write(t, template, ".writrun/VERSION", newTag+"\n")
 	write(t, template, ".writrun/skills/kept/SKILL.md", "# Kept\n")
 
-	cs, err := diffTree(vfs.OS{}, root, template, ".writrun/skills")
+	r, err := plan(vfs.OS{}, root, template, oldTag, newTag)
 	if err != nil {
-		t.Fatalf("diffTree: %v", err)
+		t.Fatalf("plan: %v", err)
 	}
 	var sawRemoved, sawAdded bool
-	for _, c := range cs {
+	for _, c := range r.changes {
 		if c.verb == removed && strings.Contains(c.rel, "gone") {
 			sawRemoved = true
 		}
@@ -93,22 +89,10 @@ func TestDiffTreeNamesAFileTheTagDropped(t *testing.T) {
 		}
 	}
 	if !sawRemoved {
-		t.Errorf("a file only the repository has was not named for removal: %+v", cs)
+		t.Errorf("a file only the repository has was not named for removal: %+v", r.changes)
 	}
 	if !sawAdded {
-		t.Errorf("a file only the tag has was not named as added: %+v", cs)
-	}
-}
-
-func TestRenderSaysWhenTheSectionAlreadyMatches(t *testing.T) {
-	r := &refresh{disk: vfs.OS{}, from: oldTag, to: newTag, changes: []change{
-		{rel: ".writrun/skills/select/SKILL.md", verb: changed},
-		{rel: ".writrun/VERSION", verb: changed},
-	}}
-	var out strings.Builder
-	r.render(&out)
-	if !strings.Contains(out.String(), "already matches — left alone") {
-		t.Errorf("an unchanged section was not said to be left alone:\n%s", out.String())
+		t.Errorf("a file only the tag has was not named as added: %+v", r.changes)
 	}
 }
 
@@ -145,15 +129,24 @@ func TestADeclineRefreshesNothing(t *testing.T) {
 	}
 }
 
-func TestAPlanThatCannotBeMadeStopsTheRefresh(t *testing.T) {
+// TestATemplateWithNoPointerStillRefreshes inverts
+// TestAPlanThatCannotBeMadeStopsTheRefresh. The fenced section was what
+// a refresh rewrote, so a template carrying none stopped it; a refresh
+// no longer reads the template's AGENTS.md at all.
+func TestATemplateWithNoPointerStillRefreshes(t *testing.T) {
 	root := makeAdopted(t)
-	// The document's fence is intact, so the run reaches the plan; the
-	// template's is not, so the merge inside it cannot be made.
-	broken := makeTemplate(t)
-	write(t, broken, "AGENTS.md", "# No fence in the template.\n")
+	plain := makeTemplate(t)
+	write(t, plain, "AGENTS.md", "# No WritRun section in the template.\n")
 
-	if _, err := runUpdate(t, root, Deps{Kit: kitfetch.NewFake(broken)}); err == nil {
-		t.Fatal("a template with no fence was refreshed from")
+	out, err := runUpdate(t, root, Deps{Kit: kitfetch.NewFake(plain)})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != newTag {
+		t.Errorf("the refresh did not proceed: VERSION = %q", got)
+	}
+	if got := read(t, root, "AGENTS.md"); got != agentsDoc {
+		t.Errorf("AGENTS.md was rewritten:\n%q", got)
 	}
 }
 
@@ -163,14 +156,13 @@ func TestOnlyTheTagMovingWritesOnlyTheTag(t *testing.T) {
 	root := makeAdopted(t)
 	// Bring every kit-owned path up to newTag by hand, leaving the
 	// recorded tag behind.
-	write(t, root, "AGENTS.md", agentsAt("The flow's text, reworded."))
-	write(t, root, ".writrun/skills/select/SKILL.md", "# Select, reworded\n")
-	write(t, root, ".writrun/templates/spec.md", "# Spec\n")
-	write(t, root, ".github/workflows/writrun-check.yml", "name: writrun check\n# reworded\n")
+	template := makeTemplate(t)
+	copyInto(t, template, root)
+	write(t, root, ".writrun/VERSION", oldTag+"\n")
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "the files, already current")
 
-	out, err := runUpdate(t, root, Deps{})
+	out, err := runUpdate(t, root, Deps{Kit: kitfetch.NewFake(template)})
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
@@ -180,6 +172,35 @@ func TestOnlyTheTagMovingWritesOnlyTheTag(t *testing.T) {
 	if got := read(t, root, ".writrun/VERSION"); strings.TrimSpace(got) != oldTag {
 		t.Errorf("a run that asked nothing still wrote the tag: %q", got)
 	}
+}
+
+// copyInto writes every file the template ships into root, except the
+// paths a refresh would leave alone — the shortest way to say "already
+// at the new tag".
+func copyInto(t *testing.T, template, root string) {
+	t.Helper()
+	files, err := readTree(vfs.OS{}, template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rel, content := range files {
+		if rel == kittag.Rel {
+			continue
+		}
+		if untouchedInTest(rel) && !strings.HasSuffix(rel, "/gates.md") {
+			continue
+		}
+		write(t, root, rel, string(content))
+	}
+}
+
+func untouchedInTest(rel string) bool {
+	for _, prefix := range []string{".writrun/conventions", ".writrun/settings.json", ".writrun/gates.md", "AGENTS.md", "CLAUDE.md", "work/"} {
+		if rel == prefix || strings.HasPrefix(rel, prefix) {
+			return true
+		}
+	}
+	return strings.HasPrefix(rel, "docs/") && rel != "docs/writrun-instructions.md"
 }
 
 // fakeAt is the refresh's two trees as the fake holds them: the kit the
@@ -196,49 +217,23 @@ func fakeAt(t *testing.T) (*vfs.Fake, string, string) {
 	return disk, root, template
 }
 
-func TestApplyReportsTheDirectoryItCouldNotReplace(t *testing.T) {
+func TestApplyReportsTheFileItCouldNotWrite(t *testing.T) {
 	disk, root, template := fakeAt(t)
-	boom := errors.New("the skills folder will not go")
-	disk.Fail(root+"/.writrun/skills", boom)
+	rel := ".writrun/skills/select/SKILL.md"
+	boom := errors.New("the skill will not go")
+	disk.Fail(root+"/"+rel, boom)
 
 	r := &refresh{disk: disk, root: root, template: template, to: newTag,
-		dirs: []string{".writrun/skills"}, agentsPath: root + "/AGENTS.md"}
+		changes: []change{{rel: rel, verb: changed}}}
 	err := r.apply()
 	if err == nil {
-		t.Fatal("a refresh that cannot replace succeeded")
+		t.Fatal("a refresh that cannot write succeeded")
 	}
 	if !errors.Is(err, boom) {
 		t.Errorf("the cause did not survive: %v", err)
 	}
-	if !strings.Contains(err.Error(), ".writrun/skills") {
-		t.Errorf("the error does not name the directory: %v", err)
-	}
-}
-
-func TestApplyReportsTheDirectoryTheTagDroppedAndCouldNotRemove(t *testing.T) {
-	disk, root, _ := fakeAt(t)
-	boom := errors.New("it stays")
-	disk.Fail(root+"/.writrun/skills", boom)
-
-	// The template ships no skills/ at all, so the removal is what fails.
-	r := &refresh{disk: disk, root: root, template: "/kit/empty", to: newTag,
-		dirs: []string{".writrun/skills"}, agentsPath: root + "/AGENTS.md"}
-	if err := r.apply(); !errors.Is(err, boom) {
-		t.Errorf("removing a dropped directory: %v", err)
-	}
-}
-
-func TestApplyReportsTheWorkflowItCouldNotWrite(t *testing.T) {
-	disk, root, template := fakeAt(t)
-	rel := ".github/workflows/writrun-check.yml"
-	boom := errors.New("the workflow is held open")
-	disk.Fail(root+"/"+rel, boom)
-
-	r := &refresh{disk: disk, root: root, template: template, to: newTag,
-		changes:    []change{{rel: rel, verb: changed, src: template + "/" + rel, mode: 0o644}},
-		agentsPath: root + "/AGENTS.md"}
-	if err := r.apply(); !errors.Is(err, boom) {
-		t.Errorf("writing a workflow that refuses: %v", err)
+	if !strings.Contains(err.Error(), rel) {
+		t.Errorf("the error does not name the file: %v", err)
 	}
 }
 
@@ -249,8 +244,7 @@ func TestApplyReportsTheWorkflowItCouldNotRemove(t *testing.T) {
 	disk.Fail(root+"/"+rel, boom)
 
 	r := &refresh{disk: disk, root: root, template: template, to: newTag,
-		changes:    []change{{rel: rel, verb: removed}},
-		agentsPath: root + "/AGENTS.md"}
+		changes: []change{{rel: rel, verb: removed}}}
 	if err := r.apply(); !errors.Is(err, boom) {
 		t.Errorf("removing a workflow that refuses: %v", err)
 	}
@@ -261,8 +255,7 @@ func TestApplyReportsTheTagItCouldNotRecord(t *testing.T) {
 	boom := errors.New("VERSION is read-only")
 	disk.Fail(root+"/.writrun/VERSION", boom)
 
-	r := &refresh{disk: disk, root: root, template: template, to: newTag,
-		agentsPath: root + "/AGENTS.md"}
+	r := &refresh{disk: disk, root: root, template: template, to: newTag}
 	err := r.apply()
 	if !errors.Is(err, boom) {
 		t.Fatalf("recording the tag: %v", err)
@@ -272,27 +265,11 @@ func TestApplyReportsTheTagItCouldNotRecord(t *testing.T) {
 	}
 }
 
-func TestApplyReportsTheDocumentItCouldNotRefresh(t *testing.T) {
+func TestPlanReportsATreeItCannotWalk(t *testing.T) {
 	disk, root, template := fakeAt(t)
-	boom := errors.New("AGENTS.md is held open")
-	disk.Fail(root+"/AGENTS.md", boom)
-
-	r := &refresh{disk: disk, root: root, template: template, to: newTag,
-		agentsPath: root + "/AGENTS.md", agents: []byte("# refreshed\n")}
-	err := r.apply()
-	if !errors.Is(err, boom) {
-		t.Fatalf("refreshing the document: %v", err)
-	}
-	if !strings.Contains(err.Error(), "AGENTS.md") {
-		t.Errorf("the error does not name the document: %v", err)
-	}
-}
-
-func TestDiffTreeReportsATreeItCannotWalk(t *testing.T) {
-	disk, root, template := fakeAt(t)
-	disk.Fail(root+"/.writrun/skills", errors.New("the tree cannot be read"))
-	if _, err := diffTree(disk, root, template, ".writrun/skills"); err == nil {
-		t.Error("a tree that cannot be walked was diffed all the same")
+	disk.Fail(template+"/.writrun/skills/select/SKILL.md", errors.New("that file cannot be read"))
+	if _, err := plan(disk, root, template, oldTag, newTag); err == nil {
+		t.Error("a template that cannot be walked was planned from")
 	}
 }
 
@@ -307,15 +284,15 @@ func TestReadTreeReportsAFileItCannotRead(t *testing.T) {
 func TestCopyFileReportsTheDirectoryItCouldNotCreate(t *testing.T) {
 	disk, _, template := fakeAt(t)
 	disk.Fail("/out/nested", errors.New("nowhere to put it"))
-	if err := copyFile(disk, template+"/.github/workflows/writrun-check.yml", "/out/nested/x.yml", 0o644); err == nil {
+	if err := copyFile(disk, template+"/.github/workflows/writrun-check.yml", "/out/nested/x.yml"); err == nil {
 		t.Error("copying under a directory that cannot be made succeeded")
 	}
 }
 
-func TestCopyTreeReportsWhatItCouldNotRead(t *testing.T) {
+func TestCopyFileReportsASourceThatIsNotThere(t *testing.T) {
 	disk := vfs.NewFake()
-	if err := copyTree(disk, "/not-there", "/out"); err == nil {
-		t.Error("copying a tree that is not there succeeded")
+	if err := copyFile(disk, "/not-there", "/out/x"); err == nil {
+		t.Error("copying a file that is not there succeeded")
 	}
 }
 
@@ -327,9 +304,10 @@ func fakeRefresh(t *testing.T) (*vfs.Fake, string, string) {
 	disk := vfs.NewFake()
 	root, template := "/repo", "/kit/template"
 	disk.Seed(root+"/.writrun/VERSION", []byte(oldTag+"\n"), 0o644)
-	disk.Seed(root+"/AGENTS.md", []byte(agentsAt("The flow's text.")), 0o644)
+	disk.Seed(root+"/AGENTS.md", []byte(agentsDoc), 0o644)
 	disk.Seed(root+"/.writrun/skills/select/SKILL.md", []byte("# Select\n"), 0o644)
-	disk.Seed(template+"/AGENTS.md", []byte(agentsAt("The flow's text, reworded.")), 0o644)
+	disk.Seed(template+"/.writrun/VERSION", []byte(newTag+"\n"), 0o644)
+	disk.Seed(template+"/AGENTS.md", []byte(agentsDoc), 0o644)
 	disk.Seed(template+"/.writrun/skills/select/SKILL.md", []byte("# Select, reworded\n"), 0o644)
 	return disk, root, template
 }

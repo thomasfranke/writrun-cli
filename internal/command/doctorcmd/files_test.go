@@ -66,68 +66,84 @@ func TestAReadmeAloneIsNotAChapter(t *testing.T) {
 	only(t, f.findings(), 1, breaks, "docs/product/ — at least one real product doc")
 }
 
-func TestDamagedMarkersAreNamed(t *testing.T) {
-	cases := []struct{ name, doc string }{
-		{"no markers at all", "# AGENTS.md\n\nA project.\n"},
-		{"the closing marker cut", strings.Replace(agentsDoc, "<!-- writrun:end -->", "", 1)},
-		{"the markers reversed", "<!-- writrun:end -->\n<!-- writrun:begin\n -->\n"},
+// TestALegacyFencedSectionAdvises inverts TestDamagedMarkersAreNamed.
+// The fence was what a refresh rewrote, so damaged markers broke a
+// flow; from v0.0.04 the flow lives in `.writrun/AGENTS.md` and a
+// leftover section is a stale duplicate, which advises.
+func TestALegacyFencedSectionAdvises(t *testing.T) {
+	f := newFixture(t, "1")
+	write(t, f.root, "AGENTS.md", legacyAgents)
+	only(t, f.findings(), 1, advises, "a writrun:begin/writrun:end section is still there")
+}
+
+func TestAnAgentsFileWithNoWritRunSectionIsNotAFinding(t *testing.T) {
+	// AGENTS.md is the project's whole from v0.0.04 on. What it must
+	// say is `init`'s question at adoption, not doctor's forever.
+	f := newFixture(t, "1")
+	write(t, f.root, "AGENTS.md", "# AGENTS.md\n\nA project.\n")
+	if found := f.findings(); len(found) != 0 {
+		t.Errorf("findings = %d, want none:\n%s", len(found), texts(found))
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			f := newFixture(t, "1")
-			write(t, f.root, "AGENTS.md", c.doc)
-			only(t, f.findings(), 1, breaks, "the fenced writrun:begin/writrun:end markers are damaged")
-		})
-	}
+}
+
+func TestAMissingAgentsFileIsNamed(t *testing.T) {
+	f := newFixture(t, "1")
+	remove(t, f.root, "AGENTS.md")
+	only(t, f.findings(), 1, breaks, "the agents' entry point is missing")
 }
 
 func TestAnUnansweredGateIsNamed(t *testing.T) {
 	cases := []struct{ name, was, expect string }{
-		{"docs changes", "Thomas reviews before merge.", "who writes or reviews a change under docs/"},
-		{"a rule declared finished", "Thomas declares it.", "who declares an authored rule finished"},
-		{"spec approval", "Thomas only, via the merged PR.", "who moves a spec from draft to approved"},
-		{"a task with no spec", "Stop and ask for a spec.", "who acts on a task carrying no spec"},
+		{"docs changes", "Thomas reviews before merge.", "Writing or changing anything under docs/"},
+		{"a rule declared finished", "Thomas declares it.", "An authored rule is finished, so derivation may start"},
+		{"spec approval", "Thomas only, via the merged PR.", "Spec draft → approved"},
+		{"a task with no spec", "Stop and ask for a spec.", "Task with empty spec_ref and insufficient brief"},
+		{"derived work", "Present it in the session.", "Derived work, before the PR opens"},
+		{"a report tracked", "The agent derives; the merge assents.", "A report becomes a task (tracked)"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			f := newFixture(t, "1")
-			write(t, f.root, "AGENTS.md",
-				strings.Replace(agentsDoc, c.was, "<!-- TODO — default: someone -->", 1))
-			only(t, f.findings(), 1, breaks, "the gate for "+c.expect+" is still a placeholder")
+			write(t, f.root, ".writrun/gates.md",
+				strings.Replace(gatesDoc, c.was, "<!-- TODO — default: someone -->", 1))
+			only(t, f.findings(), 1, breaks, "the gate for "+c.expect+" is unanswered")
 		})
 	}
 }
 
-func TestAGateStatedNowhereIsNamed(t *testing.T) {
+// A gate this binary has never seen is judged by the same rule and
+// named by the words the file states it in — the whole point of reading
+// the rows rather than holding a list of gates
+// (docs/technical/engineering/coupling.md, rule 2).
+func TestAGateThisBinaryHasNeverSeenIsJudgedTheSameWay(t *testing.T) {
 	f := newFixture(t, "1")
-	write(t, f.root, "AGENTS.md",
-		strings.Replace(agentsDoc, "| Task with empty `spec_ref` and insufficient brief | Stop and ask for a spec. |\n", "", 1))
-	only(t, f.findings(), 1, breaks, "states no row for who acts on a task carrying no spec")
+	write(t, f.root, ".writrun/gates.md",
+		gatesDoc+"| Something no tag has shipped yet | <!-- TODO --> |\n")
+	only(t, f.findings(), 1, breaks, "the gate for Something no tag has shipped yet is unanswered")
 }
 
-// The skills trigger table this repository's own AGENTS.md carries
-// mentions `docs/` too. The gates are read from the Human gates section
-// where one is headed, so a neighbouring table cannot answer for them.
-func TestAnotherTableDoesNotAnswerAGate(t *testing.T) {
+func TestAMissingGatesFileIsNamed(t *testing.T) {
 	f := newFixture(t, "1")
-	doc := strings.Replace(agentsDoc,
-		"### Human gates",
-		"| Writing or editing markdown under `docs/` | The docs skill. |\n\n### Human gates", 1)
-	doc = strings.Replace(doc, "| Writing or changing anything under `docs/` | Thomas reviews before merge. |",
-		"| Writing or changing anything under `docs/` | <!-- TODO --> |", 1)
-	write(t, f.root, "AGENTS.md", doc)
-	only(t, f.findings(), 1, breaks, "the gate for who writes or reviews a change under docs/ is still a placeholder")
+	remove(t, f.root, ".writrun/gates.md")
+	only(t, f.findings(), 1, breaks, ".writrun/gates.md — the project's gate answers are missing")
 }
 
-// Not every project keeps the kit's heading. Where none is found the
-// whole document is read, so a gate answered under another title is
-// answered.
-func TestGatesAreFoundWithoutTheKitsHeading(t *testing.T) {
+func TestAGatesFileWithNoTableIsNamed(t *testing.T) {
 	f := newFixture(t, "1")
-	write(t, f.root, "AGENTS.md", strings.Replace(agentsDoc, "### Human gates", "### Who decides what", 1))
-	if found := f.findings(); len(found) != 0 {
-		t.Errorf("findings = %d, want none:\n%s", len(found), texts(found))
-	}
+	write(t, f.root, ".writrun/gates.md", "# Human gates\n\nWe decide as we go.\n")
+	only(t, f.findings(), 1, breaks, "no table of gates is readable in it")
+}
+
+// The gates are read from their own file, so a table anywhere else —
+// the skills trigger table this repository's AGENTS.md carries, for
+// one — can neither answer a gate nor invent one.
+func TestATableInAgentsDoesNotAnswerAGate(t *testing.T) {
+	f := newFixture(t, "1")
+	write(t, f.root, "AGENTS.md", agentsDoc+
+		"\n## Skills\n\n| Trigger | Skill |\n|---|---|\n| Writing markdown under `docs/` | The docs skill. |\n")
+	write(t, f.root, ".writrun/gates.md",
+		strings.Replace(gatesDoc, "Thomas reviews before merge.", "<!-- TODO -->", 1))
+	only(t, f.findings(), 1, breaks, "the gate for Writing or changing anything under docs/ is unanswered")
 }
 
 func TestAnUnreadableTagIsNamed(t *testing.T) {

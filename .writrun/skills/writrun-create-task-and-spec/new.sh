@@ -22,7 +22,7 @@
 # to none: it says something was seen, and triage decides whether
 # anything follows (docs/product/concepts/report.md).
 #
-# Exists because the schema in docs/technical/schemas.md is precise about
+# Exists because the schema in docs/technical/schemas/README.md is precise about
 # details easy to get wrong from memory: spec_ref/depends_on are always
 # lists even with one element, doc_ref is a full path+anchor resolved
 # relative to docs/, and every field is present even when null. A
@@ -43,7 +43,7 @@
 #
 # The next id is minted above the queue, the history, *and* every open pull
 # request — an id is unique across all three
-# (docs/technical/README.md#task-schema). Consulting the forge is
+# (docs/technical/schemas/task.md#task-schema). Consulting the forge is
 # best-effort by design: no `gh`, no network, or no auth mints from this
 # checkout alone, exactly as before, and says so. A narrower view is not
 # wrong, it is narrower — and a silently narrower scan is how two branches
@@ -57,7 +57,7 @@
 # substituted.
 #
 # **References are navigable, not just resolvable**
-# (docs/technical/README.md#task-schema). The front matter keeps its
+# (docs/technical/schemas/task.md#task-schema). The front matter keeps its
 # references as plain strings — it is the machine contract, and every
 # reader here is line-based — while the generated *body* carries the same
 # references as relative markdown links: a task's body links its
@@ -84,132 +84,13 @@ set -euo pipefail
 
 # --- what open pull requests already claim --------------------------------
 #
-# FORGE_VIEW is `forge` once open pull requests have answered, `local`
-# otherwise; FORGE_PATHS holds every path they touch. Never called from
-# inside a command substitution — the subshell would swallow both.
-FORGE_VIEW=local
-FORGE_PATHS=""
-
-# forge_scan — asks the forge for the paths open pull requests touch,
-# added *or* modified. Coarser than the collision check downstream, and
-# deliberately: a generator needs an upper bound, not an accusation. A
-# modified queue file's id is already on the branch this checkout reads,
-# so folding it in can only agree with what the tree said.
-#
-# The open numbers, then each pull request's file list — the same
-# question check_unique_ids.sh asks, minus the per-file `status` it needs
-# and this does not. One call per open pull request instead of one call
-# total, because the single `gh pr list --json files` this replaced was
-# cheaper and wrong: that field stops at 100 files per pull request and
-# says nothing when it does, so a larger diff hides every queue file it
-# adds past the cut. spec-0010's Outcome called the coarser question
-# "strictly safe"; the cap is the case that argument missed.
-#
-# All or nothing: a call that fails leaves the view local rather than
-# quietly narrow, since a scan that under-reports without saying so is
-# the exact failure the uniqueness rule exists to prevent.
-forge_scan() {
-  command -v gh >/dev/null 2>&1 || return 0
-  local numbers paths files n
-  # gh defaults to 30 open pull requests, and the id this misses is
-  # exactly the one worth seeing.
-  numbers=$(gh pr list --state open --limit 200 --json number \
-    --jq '.[].number' 2>/dev/null) || return 0
-  paths=""
-  for n in $numbers; do
-    # --paginate is the point: a pull request's own file list is paged
-    # too, and the queue file may sit on any page of it.
-    files=$(gh api "repos/{owner}/{repo}/pulls/${n}/files" --paginate \
-      --jq '.[].filename' 2>/dev/null) || return 0
-    paths="${paths}${files}
-"
-  done
-  FORGE_VIEW=forge
-  FORGE_PATHS="$paths"
-  return 0
-}
-
-# mint_report — what the id above was minted against, printed after the
-# file so an id claimed elsewhere is never reported as simply "created".
-mint_report() {
-  if [ "$FORGE_VIEW" = forge ]; then
-    echo "Minted above the queue, its history, and every open pull request."
-  else
-    echo "Minted from this checkout only — no forge answered, so an id an" >&2
-    echo "open pull request already claims would not have been seen." >&2
-  fi
-}
-
-next_id() {
-  # next_id <dir> <prefix>  — e.g. next_id work/tasks task
-  local dir="$1" prefix="$2" max=0 f n
-  bump() {
-    # The id is the digits after the prefix; a filename subject slug
-    # follows them (task-0004-file-naming) and is not part of identity.
-    n=$(basename "$1" .md | tr '[:upper:]' '[:lower:]' \
-      | sed -E "s/^${prefix}-0*([0-9]+).*/\1/")
-    [[ "$n" =~ ^[0-9]+$ ]] || return 0
-    (( n > max )) && max=$n
-    return 0
-  }
-
-  # Scan case-insensitively so historical uppercase IDs contribute to the
-  # next number while newly generated filenames remain lowercase.
-  # A directory that is not there is zero files, not a failure: an adopter
-  # who has never recorded a report has no work/reports/, and minting the
-  # first id is exactly the moment that is still true.
-  while IFS= read -r f; do bump "$f"; done \
-    < <(find "$dir" -maxdepth 1 -type f -iname "${prefix}-*.md" -print 2>/dev/null)
-
-  # An id is never reused, including after its file was deleted — and a
-  # deleted file is invisible to the scan above. Every id this directory
-  # ever held is recoverable from the history, so ask it too. Outside a git
-  # repository the filesystem is all there is, which is the correct answer
-  # there: nothing was ever deleted from a history that doesn't exist.
-  if git rev-parse --git-dir >/dev/null 2>&1; then
-    while IFS= read -r f; do
-      case "$f" in "$dir"/*) bump "$f" ;; esac
-    done < <(git log --diff-filter=A --name-only --pretty=format: -- "$dir" 2>/dev/null)
-  fi
-
-  # An open pull request holds numbers no branch here can see: it may be
-  # a fork's, and even from this repository it reaches this checkout only
-  # once fetched. Its paths are the third input, and the one the tree and
-  # the history cannot stand in for.
-  if [ -n "$FORGE_PATHS" ]; then
-    while IFS= read -r f; do
-      case "$f" in "$dir"/*) bump "$f" ;; esac
-    done <<EOF
-$FORGE_PATHS
-EOF
-  fi
-
-  printf "%04d" $((max + 1))
-}
-
-# slugify <title> — the filename's subject, **derived**: an extremely short
-# kebab-case echo of the title, at most three words. This is the fallback,
-# not the default — whoever creates the file chooses those words with
-# --slug, because "which task is this, among these" is a judgement about
-# the queue rather than a string operation on the title
-# (docs/technical/README.md#task-schema). Identity lives in the id, so a
-# derived slug that loses nuance costs nothing; it exists to make a
-# directory listing readable. Prints nothing when the title has no usable
-# word, and the caller then writes a bare-id filename.
-slugify() {
-  printf '%s' "$1" \
-    | tr '[:upper:]' '[:lower:]' \
-    | sed 's/[^a-z0-9]\{1,\}/-/g; s/^-*//; s/-*$//' \
-    | awk -F- '{
-        n = 0
-        for (i = 1; i <= NF && n < 3; i++) {
-          if ($i == "") continue
-          s = (n == 0 ? $i : s "-" $i)
-          n++
-        }
-        print s
-      }'
-}
+# The minting stack — ql_forge_scan, ql_next_id, ql_slugify and the
+# note that says which view answered — is queue_lib.sh's, shared with
+# the intake (scripts/stage-3-github-issues/intake_report.sh): two
+# writers mint queue ids, and two private copies of the same scan had
+# already drifted apart once. Never call ql_forge_scan from inside a
+# command substitution — the subshell would swallow its view.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/stage-2-pull-requests/queue_lib.sh"
 
 # check_slug <slug> — the shape the filename contract allows: lowercase
 # alphanumerics and single interior hyphens, no leading or trailing one.
@@ -530,7 +411,7 @@ case "$cmd" in
     # to exist, written once and never rewritten — and a default would
     # record one of the two silently, for whichever kind of change happened
     # not to say. A wrong fact nobody typed is the failure the field exists
-    # to prevent, so an unstated origin refuses (docs/technical/README.md#task-schema).
+    # to prevent, so an unstated origin refuses (docs/technical/schemas/task.md#task-schema).
     case "$origin" in
       rule|report) ;;
       "") echo "--origin is required — 'rule' for a task derived from an authored rule, 'report' for one born from a report (or --from-report, which states it)" >&2; exit 3 ;;
@@ -564,8 +445,8 @@ case "$cmd" in
       fi
       if [[ "$tracked_stage" -ge 2 && -n "$tracked_branch" && "$tracked_branch" != report/* ]]; then
         echo "'${tracked_branch}' is not a report/ branch — a task with 'origin: report' is the tracked route, and that route never rides" >&2
-        echo "Deriving a task from a report is a reporting change of its own: its pull request presents the report, the task and the spec together, and the maintainer's squash-merge is the assent that the finding deserves the work (docs/product/concepts/report.md#recording-rides-any-change--routing-to-the-queue-does-not)." >&2
-        echo "Open that change and run this again — 'git switch -c report/<short-name>'. Recording a report still rides anything; so do the fixed and declined ends." >&2
+        echo "Deriving a task from a report is a reporting change of its own: its pull request presents the report and the task, with the spec either beside them or in a reporting pull request of its own, and the maintainer's squash-merge is the assent that the finding deserves the work (docs/product/concepts/report.md#recording-rides-any-change--routing-to-the-queue-does-not)." >&2
+        echo "Open that change and run this again — 'git switch -c report/<short-name>'. Recording a report still rides anything; so do the fixed, declined and routed ends." >&2
         exit 3
       fi
     fi
@@ -587,7 +468,7 @@ case "$cmd" in
       report_status=$(sed -n 's/^status: *//p' "$report_file" | head -n1 | sed 's/[[:space:]]*$//')
       case "$report_status" in
         open|tracked) ;;
-        authored|fixed|declined)
+        authored|fixed|declined|routed)
           echo "${report_file} is '${report_status}' — a terminal report is never re-routed" >&2
           echo "Triage ended it, and a recurrence is a new report: ids are never reused and a second sighting keeps its own date (docs/product/concepts/report.md)." >&2
           exit 3 ;;
@@ -597,9 +478,10 @@ case "$cmd" in
       esac
     fi
 
-    forge_scan
-    id="task-$(next_id work/tasks task)"
-    if [[ -n "${slug_chosen:-}" ]]; then slug="$slug_given"; else slug=$(slugify "$title"); fi
+    ql_forge_scan
+
+    id="task-$(ql_next_id work/tasks task)"
+    if [[ -n "${slug_chosen:-}" ]]; then slug="$slug_given"; else slug=$(ql_slugify "$title"); fi
     file="work/tasks/${id}${slug:+-$slug}.md"
     [[ -e "$file" ]] && { echo "$file already exists" >&2; exit 3; }
 
@@ -692,12 +574,12 @@ EOF
       else
         echo "Created ${file} (${id}), appended to ${report_file}'s task_ref"
       fi
-      mint_report
+      ql_mint_note
       exit 0
     fi
 
     echo "Created ${file} (${id})"
-    mint_report
+    ql_mint_note
     ;;
 
   spec)
@@ -723,9 +605,10 @@ EOF
     # `task-001` must still record the reference the queue actually holds.
     task_id=$(sed -n 's/^id: *//p' "$task_file" | head -n1 | sed 's/[[:space:]]*$//')
 
-    forge_scan
-    id="spec-$(next_id work/specs spec)"
-    if [[ -n "${slug_chosen:-}" ]]; then slug="$slug_given"; else slug=$(slugify "$title"); fi
+    ql_forge_scan
+
+    id="spec-$(ql_next_id work/specs spec)"
+    if [[ -n "${slug_chosen:-}" ]]; then slug="$slug_given"; else slug=$(ql_slugify "$title"); fi
     file="work/specs/${id}${slug:+-$slug}.md"
     [[ -e "$file" ]] && { echo "$file already exists" >&2; exit 3; }
 
@@ -822,7 +705,7 @@ EOF
     append_body_link "$task_file" task "[${id}](../specs/$(basename "$file"))"
 
     echo "Created ${file} (${id}), appended to ${task_file}'s spec_ref"
-    mint_report
+    ql_mint_note
     ;;
 
   report)
@@ -853,9 +736,10 @@ EOF
 
     if [[ -n "${slug_chosen:-}" ]]; then check_slug "$slug_given"; fi
 
-    forge_scan
-    id="report-$(next_id work/reports report)"
-    if [[ -n "${slug_chosen:-}" ]]; then slug="$slug_given"; else slug=$(slugify "$title"); fi
+    ql_forge_scan
+
+    id="report-$(ql_next_id work/reports report)"
+    if [[ -n "${slug_chosen:-}" ]]; then slug="$slug_given"; else slug=$(ql_slugify "$title"); fi
     file="work/reports/${id}${slug:+-$slug}.md"
     [[ -e "$file" ]] && { echo "$file already exists" >&2; exit 3; }
 
@@ -905,7 +789,7 @@ EOF
       fi
     } > "$file"
     echo "Created ${file} (${id})"
-    mint_report
+    ql_mint_note
     ;;
 
   *)

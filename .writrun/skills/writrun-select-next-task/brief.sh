@@ -4,7 +4,7 @@
 #   bash .writrun/skills/writrun-select-next-task/brief.sh <task-id> \
 #     [task-dir] [spec-dir] [docs-dir]
 #
-# Step 7 of the selection algorithm (docs/technical/selection.md) says to
+# Step 7 of the selection algorithm (docs/technical/selection/algorithm.md) says to
 # read the task's body, every spec in `spec_ref`, and the section
 # `doc_ref` anchors — before writing any code. Done by hand that is four
 # to six whole-file reads to get at one section of each. This prints
