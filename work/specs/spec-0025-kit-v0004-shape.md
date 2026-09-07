@@ -1,7 +1,7 @@
 ---
 id: spec-0025
 task_ref: task-0026
-status: approved
+status: implemented
 created: 2026-09-06T20:35:04Z
 ---
 
