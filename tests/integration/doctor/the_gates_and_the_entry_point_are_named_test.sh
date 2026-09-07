@@ -20,7 +20,7 @@ check "a missing gates file is named" 1 \
 
 gates
 legacy_agents
-check "a stale fenced section is named" 1 \
+check "a stale fenced section is named" 0 \
   "a writrun:begin/writrun:end section is still there" -- "$WRITRUN" doctor
 check "a stale section breaks nothing" 0 "none breaking a flow" -- "$WRITRUN" doctor
 

@@ -105,7 +105,7 @@ make_repo() {
   cp -R "$REPO_ROOT/.writrun/skills"      "$TARGET/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$TARGET/.writrun/templates"
   cp -R "$REPO_ROOT/.writrun/conventions" "$TARGET/.writrun/conventions"
-  printf 'v0.0.03\n' > "$TARGET/.writrun/VERSION"
+  printf '%s\n' "$PINNED" > "$TARGET/.writrun/VERSION"
   printf '# Tasks\n'   > "$TARGET/work/tasks/README.md"
   printf '# Specs\n'   > "$TARGET/work/specs/README.md"
   printf '# Reports\n' > "$TARGET/work/reports/README.md"

@@ -15,7 +15,7 @@ check "the branch is named" 0 "Branch   main" -- cat "$WORK/main.out"
 check "carrying no task is said" 0 "Task     none — this branch carries no task" -- cat "$WORK/main.out"
 check "no check is named" 1 "" -- grep -q "^Checks" "$WORK/main.out"
 check "the reports are still counted" 0 "Reports  1 open" -- cat "$WORK/main.out"
-check "the kit is still named" 0 "Kit      WritRun v0.0.03" -- cat "$WORK/main.out"
+check "the kit is still named" 0 "Kit      WritRun $PINNED" -- cat "$WORK/main.out"
 check "answering is exit 0" 0 "" -- "$WRITRUN" status
 
 # A detached HEAD is the same answer, said as what it is.

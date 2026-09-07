@@ -355,6 +355,19 @@ say() {
     | LC_ALL=C cut -c1-300
 }
 
+# reached_forge — whether the cell talked to the stubbed forge at all.
+#
+# **Whether, not how many times.** How chatty a check is belongs to the
+# kit's scripts, not to this binary: WritRun v0.0.04 raised the author
+# cell's calls from 23 to 41 without changing one exit code, one path or
+# one sentence in this whole matrix. A count would have made every such
+# tag a golden to re-argue, and would have held this suite to a number
+# that is not even stable across contexts — the nested run inside the
+# release e2e reads a different one for the same behaviour.
+reached_forge() {
+  if [ -s "$GH_LOG" ]; then printf 'yes'; else printf 'no'; fi
+}
+
 # run_cell <state> <id> <command> — one cell of the matrix, answered in
 # four ways on one line.
 run_cell() {
@@ -385,7 +398,7 @@ run_cell() {
   refs=$(git_q -C "$ORIGIN" for-each-ref --format='%(refname)' | wc -l | tr -d ' ')
   printf '%s|%s|%s|exit=%s|work=%s|gh=%s|refs=%s|table=%s|%s\n' \
     "$state" "$id" "$cmd" "$code" "$(changed "$before" "$after")" \
-    "$(wc -l < "$GH_LOG" | tr -d ' ')" "$refs" "$(derived)" "$(say "$out")"
+    "$(reached_forge)" "$refs" "$(derived)" "$(say "$out")"
 }
 
 # matrix <file> — every cell, in the order the three lists fix. The id

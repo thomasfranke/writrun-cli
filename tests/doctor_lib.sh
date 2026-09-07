@@ -42,7 +42,7 @@ make_repo() {
   printf '# Tasks\n'                    > "$TARGET/work/tasks/README.md"
   printf '# Specs\n'                    > "$TARGET/work/specs/README.md"
   printf '# Reports\n'                  > "$TARGET/work/reports/README.md"
-  printf 'v0.0.03\n'                    > "$TARGET/.writrun/VERSION"
+  printf '%s\n' "$PINNED"      > "$TARGET/.writrun/VERSION"
 
   agents
   gates

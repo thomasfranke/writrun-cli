@@ -16,8 +16,10 @@ check "the branch reached the origin" 0 "" \
   -- git -C "$ORIGIN" rev-parse --verify --quiet refs/heads/task/0001-a-thing
 check "the draft pull request was opened" 0 "" \
   -- grep -q -- "pr create --draft" "$GH_LOG"
+# `bracketed` takes no separator after the tag — one bracket runs into
+# the next, which is `conventions/prs.md`'s rule and the script's.
 check "the pull request title carries the task tag" 0 "" \
-  -- grep -qF -- "[TASK-0001] $TITLE" "$GH_LOG"
+  -- grep -qF -- "[TASK-0001]$TITLE" "$GH_LOG"
 check "the task file is unchanged in the working tree" 0 "" \
   -- git diff --quiet main -- work/tasks
 

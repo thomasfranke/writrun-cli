@@ -78,12 +78,16 @@ created: 2026-01-01T00:00:00Z
 EOF
 }
 
-# make_repo [auto_push] [auto_pr] — an adopted repository on `main`, its
+# make_repo [auto_push] [auto_pr] [auto_commit] — an adopted repository on `main`, its
 # kit copied from this repository, pushed to a bare origin. The two
 # conduct flags default to the composed-and-waiting shape the confirmed
 # flow exercises.
 make_repo() {
   local auto_push="${1:-true}" auto_pr="${2:-false}"
+  # From v0.0.04 the first commit is the script's, so `auto_commit`
+  # gates the take too; it follows `auto_push` unless a case says
+  # otherwise, because the two hold one moment.
+  local auto_commit="${3:-$auto_push}"
   mkdir -p "$TARGET/.writrun" "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp -R "$REPO_ROOT/.writrun/scripts"     "$TARGET/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$TARGET/.writrun/skills"
@@ -95,7 +99,7 @@ make_repo() {
   "stage": 2,
   "stage_2": {
     "agent_coauthor": false,
-    "auto_commit": false,
+    "auto_commit": ${auto_commit},
     "auto_pr": ${auto_pr},
     "auto_push": ${auto_push},
     "pr_title_style": "bracketed"

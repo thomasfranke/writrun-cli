@@ -30,7 +30,7 @@ check "an unrecorded tag is named" 1 ".writrun/VERSION — the kit's tag is not 
   -- "$WRITRUN" doctor
 printf 'main\n' > "$TARGET/.writrun/VERSION"
 check "an unreadable tag is named" 1 "is not a readable tag" -- "$WRITRUN" doctor
-printf 'v0.0.03\n' > "$TARGET/.writrun/VERSION"
+printf '%s\n' "$PINNED" > "$TARGET/.writrun/VERSION"
 
 check "a repaired repository holds again" 0 "Stage 1 — files: all clear." -- "$WRITRUN" doctor
 

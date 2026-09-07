@@ -20,6 +20,7 @@ const templatePath = ".writrun/templates/pull_request_template.md"
 const (
 	derivedHeading = "## Derived work"
 	specHeading    = "## Spec"
+	reportHeading  = "## Report"
 )
 
 // derivedNone is the declaration a rule that derives no work carries.
@@ -172,11 +173,16 @@ func body(d Deps, root string, rows []row) string {
 	return half
 }
 
-// authoringHalf keeps `## Derived work` and drops the implementing
-// half, the way take_task.sh keeps `## Spec` and drops this one. Three
-// edits, and no more: the leading instruction comment goes, the
-// Derived-work section becomes the table, and the `## Spec` section
-// goes whole.
+// authoringHalf keeps `## Derived work` and drops every other kind's
+// section, the way take_task.sh keeps `## Spec` and drops this one.
+// Three edits, and no more: the leading instruction comment goes, the
+// Derived-work section becomes the table, and the sections belonging to
+// the other kinds — `## Spec` and `## Report` — go whole.
+//
+// The list is the headings the template marks for one kind only, so a
+// tag that adds a fourth kind adds a heading here. Nothing else does:
+// `## How to verify` and `## How to test` are asked of every kind, and
+// an authoring PR answers them like any other.
 //
 // The section's own instruction comment goes with it, and that is
 // deliberate rather than tidy: it contains the word `none`, and
@@ -199,7 +205,7 @@ func authoringHalf(tmpl, t string) (string, bool) {
 			out = append(out, derivedHeading, "", t, "")
 			i = endOfSection(lines, i)
 			filled = true
-		case specHeading:
+		case specHeading, reportHeading:
 			i = endOfSection(lines, i)
 		default:
 			out = append(out, lines[i])
