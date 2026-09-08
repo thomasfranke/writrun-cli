@@ -1,10 +1,10 @@
 ---
 id: report-0029
-status: open
+status: fixed
 task_ref: []
 doc_ref: null
 created: 2026-09-08T15:06:47Z
-triaged: null
+triaged: 2026-09-08T15:28:57Z
 ---
 
 # The screen read the lister's exit 1 as a failure, not as its answer
