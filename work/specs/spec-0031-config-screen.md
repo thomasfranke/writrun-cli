@@ -97,19 +97,18 @@ does not install anything, and `update` is still what fetches the kit.
 
 ## Proposed product changes
 
-- `docs/product/rules.md` — the overwrite rule gains the adopter's own
+- `product/rules.md` — the overwrite rule gains the adopter's own
   settings as its stated exception.
-- `docs/product/config.md` — the command's page: what it shows, what it
+- `product/config.md` — the command's page: what it shows, what it
   writes, and what it never decides.
-- `docs/product/README.md` — its row in the flow table.
-- `docs/product/screens/README.md` — the table drops `Proposed` from
+- `product/README.md` — its row in the flow table.
+- `product/screens/README.md` — the table drops `Proposed` from
   Config.
-- `docs/product/screens/config.excalidraw` — the `proposed` wording
-  goes.
+- `product/screens/` — the Config drawing's `proposed` wording goes.
 
 ## Proposed technical changes
 
-- `docs/technical/engineering/coupling.md` — the settings schema joins
+- `technical/engineering/coupling.md` — the settings schema joins
   the list of things the kit owns and this binary reads rather than
   restates.
 

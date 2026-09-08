@@ -81,15 +81,15 @@ already `writrun-cli` and are untouched.
 
 ## Proposed product changes
 
-- `docs/product/rules.md` — the `--version` rule names the product it
+- `product/rules.md` — the `--version` rule names the product it
   prints.
 
 ## Proposed technical changes
 
-- `docs/technical/decisions/runtime/0005-the-binary-is-writrun.md` —
+- `technical/decisions/runtime/0005-the-binary-is-writrun.md` —
   names the decision that supersedes it.
-- `docs/technical/decisions/runtime/` — the new decision file.
-- `docs/technical/decisions/README.md` — its index row.
+- `technical/decisions/runtime/` — the new decision file.
+- `technical/decisions/README.md` — its index row.
 
 ## Outcome
 

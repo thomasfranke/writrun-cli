@@ -80,13 +80,13 @@ monochrome stays monochrome.
 
 ## Proposed product changes
 
-- `docs/product/rules.md` — the colour rule gains the sentence that
+- `product/rules.md` — the colour rule gains the sentence that
   colour never carries meaning alone, which is what makes the other
   three conditions safe.
 
 ## Proposed technical changes
 
-- `docs/technical/layout/public-surface.md` — the palette's home, named
+- `technical/layout/public-surface.md` — the palette's home, named
   where the terminal port is named.
 
 ## Outcome

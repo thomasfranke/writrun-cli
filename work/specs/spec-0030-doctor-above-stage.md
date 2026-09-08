@@ -84,10 +84,10 @@ declared stage — the settings are
 
 ## Proposed product changes
 
-- `docs/product/adoption/doctor.md` — the flag, the header naming both
+- `product/adoption/doctor.md` — the flag, the header naming both
   stages, and the rule that the exit status answers for the declared
   stage alone.
-- `docs/product/screens/doctor.excalidraw` — a frame showing a stage
+- `product/screens/` — the doctor drawing gains a frame showing a stage
   examined above the declaration, replacing the note that says doctor
   declines the question.
 

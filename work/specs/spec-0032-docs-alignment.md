@@ -90,13 +90,13 @@ behaviour except where a filter is added for a section that has none.
 
 ## Proposed product changes
 
-- `docs/product/adoption/init.md` — the stage names, pointing at the one
+- `product/adoption/init.md` — the stage names, pointing at the one
   statement of them.
-- `docs/product/adoption/doctor.md` — the subjects, named as subjects.
-- `docs/product/queue/list.md` — all five sections, and the five
+- `product/adoption/doctor.md` — the subjects, named as subjects.
+- `product/queue/list.md` — all five sections, and the five
   filters.
-- `docs/product/README.md` — the regrouped flow table.
-- `docs/product/pull-requests/shape.md` — reached from the four
+- `product/README.md` — the regrouped flow table.
+- `product/pull-requests/shape.md` — reached from the four
   commands' pages rather than from a section heading.
 
 ## Proposed technical changes

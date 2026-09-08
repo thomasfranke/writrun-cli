@@ -122,21 +122,20 @@ stage block reads `.writrun/settings.json` and writes nothing.
 
 ## Proposed product changes
 
-- `docs/product/screens/README.md` — the entry screen gains its own
+- `product/screens/README.md` — the entry screen gains its own
   section; the existing section becomes the queue's; the table drops
   `Proposed` from Entry.
-- `docs/product/screens/entry.excalidraw` — the `proposed` wording goes,
-  the drawing stands as the reference.
-- `docs/product/screens/queue.excalidraw` — same, and `esc` is no longer
+- `product/screens/` — the Entry and Queue drawings drop the
+  `proposed` wording and stand as the reference; `esc` is no longer
   labelled a proposal.
-- `docs/product/README.md` — the flow table is regrouped to the screen's
+- `product/README.md` — the flow table is regrouped to the screen's
   groups, so one set is not grouped two ways.
-- `docs/product/rules.md` — the no-command sentence names the entry
+- `product/rules.md` — the no-command sentence names the entry
   screen rather than the queue.
 
 ## Proposed technical changes
 
-- `docs/technical/layout/tree.md` — `internal/screen` gains the entry
+- `technical/layout/tree.md` — `internal/screen` gains the entry
   screen beside the queue's rows.
 
 ## Outcome
