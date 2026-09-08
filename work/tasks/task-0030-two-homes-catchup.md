@@ -21,12 +21,14 @@ provenance: []
 **References:** [technical/engineering/coupling.md](../../docs/technical/engineering/coupling.md) · [spec-0033](../specs/spec-0033-two-homes-migration.md)
 
 WritRun `v0.0.05` moved the adopter's files out of the folder an update
-replaces: `.writrun/` is the kit's whole, and `writrun/` is the
-project's — `settings.json`, `gates.md` and `conventions/` live there
-now. This binary pins `v0.0.04` and still names the old addresses.
+replaces, and `v0.0.07` layered them: `.writrun/` is the kit's whole and
+now carries `defaults/`, while `writrun/` is the project's, one file per
+answer that either defers to a default or overrides it whole. The commit
+vocabulary became two settings the checks read. This binary pins
+`v0.0.04` and still names the old addresses.
 
 Until it follows, the pin cannot move. `writrun update` run against
-`v0.0.06` today would write the kit's shipped defaults to
+`v0.0.07` today would write the kit's shipped defaults to
 `writrun/settings.json` — the address the new kit scripts read — and
 leave this project's real answers stranded at `.writrun/settings.json`,
 which nothing reads any more. The project would silently become stage 1
@@ -39,4 +41,7 @@ again; where both addresses exist the new one wins and the old one is
 reported, never silently merged.
 
 It matters because every adopter already on `v0.0.04` meets this the
-first time they update, and the failure is silent.
+first time they update, and the failure is silent. It matters twice
+because the shape this leaves behind decides what the next tag costs:
+the aim is a `v0.0.08` that is a constant to change, not a migration to
+design.
