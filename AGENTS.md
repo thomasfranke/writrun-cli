@@ -38,10 +38,10 @@ the script itself is the defect: nothing here can fix it, and the next
 `writrun update` overwrites any patch that tried.
 
 **A kit finding is recorded here and routed upstream.** Record the
-report locally first, exactly as for any observation, then ask Thomas —
-per report, never assumed from the conduct flags, because opening an
-issue on another repository is an outward-facing act. On an explicit
-yes, open the issue on
+report locally first, exactly as for any observation, then ask the
+maintainer — per report, never assumed from the conduct flags, because
+opening an issue on another repository is an outward-facing act. On an
+explicit yes, open the issue on
 [thomasfranke/writrun](https://github.com/thomasfranke/writrun) and end
 the local report `routed`, its body naming the issue. A refused or
 unanswerable ask leaves the report `open`, where a person can route it

@@ -39,7 +39,7 @@ func adoptedFixture(t *testing.T) string {
 	write(t, root, ".writrun/VERSION", testTag+"\n")
 	write(t, root, ".writrun/settings.json", `{"stage": 1}`)
 	write(t, root, ".writrun/gates.md", strings.ReplaceAll(templateGates,
-		"<!-- TODO — default: human reviews -->", "Thomas reviews before merge."))
+		"<!-- TODO — default: human reviews -->", "The maintainer reviews before merge."))
 	return root
 }
 

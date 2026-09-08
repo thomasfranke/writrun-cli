@@ -94,9 +94,9 @@ func TestAMissingAgentsFileIsNamed(t *testing.T) {
 
 func TestAnUnansweredGateIsNamed(t *testing.T) {
 	cases := []struct{ name, was, expect string }{
-		{"docs changes", "Thomas reviews before merge.", "Writing or changing anything under docs/"},
-		{"a rule declared finished", "Thomas declares it.", "An authored rule is finished, so derivation may start"},
-		{"spec approval", "Thomas only, via the merged PR.", "Spec draft → approved"},
+		{"docs changes", "The maintainer reviews before merge.", "Writing or changing anything under docs/"},
+		{"a rule declared finished", "The maintainer declares it.", "An authored rule is finished, so derivation may start"},
+		{"spec approval", "The maintainer only, via the merged PR.", "Spec draft → approved"},
 		{"a task with no spec", "Stop and ask for a spec.", "Task with empty spec_ref and insufficient brief"},
 		{"derived work", "Present it in the session.", "Derived work, before the PR opens"},
 		{"a report tracked", "The agent derives; the merge assents.", "A report becomes a task (tracked)"},
@@ -142,7 +142,7 @@ func TestATableInAgentsDoesNotAnswerAGate(t *testing.T) {
 	write(t, f.root, "AGENTS.md", agentsDoc+
 		"\n## Skills\n\n| Trigger | Skill |\n|---|---|\n| Writing markdown under `docs/` | The docs skill. |\n")
 	write(t, f.root, ".writrun/gates.md",
-		strings.Replace(gatesDoc, "Thomas reviews before merge.", "<!-- TODO -->", 1))
+		strings.Replace(gatesDoc, "The maintainer reviews before merge.", "<!-- TODO -->", 1))
 	only(t, f.findings(), 1, breaks, "the gate for Writing or changing anything under docs/ is unanswered")
 }
 

@@ -27,7 +27,7 @@ type Frame struct {
 	// it dispatched to, empty when the user left without choosing. It
 	// is a field rather than a call so the frame keeps no dependency on
 	// the screen's engine, and so a suite can drive the routing without
-	// one (screen.md, spec-0020).
+	// one (screens/README.md, spec-0020).
 	//
 	// nil is a binary built without a screen: the no-command path then
 	// prints the help, which is what it printed before there was one.
@@ -202,7 +202,7 @@ func usage(w io.Writer) {
 // openScreen answers `writrun` with no command. The screen needs a
 // terminal at both ends and an adopted repository; without either there
 // is no screen to open, and the help is what the rule prescribes rather
-// than a fallback this invented (screen.md).
+// than a fallback this invented (screens/README.md).
 //
 // It returns the exit code to use when nothing was dispatched, and the
 // command to run when something was.

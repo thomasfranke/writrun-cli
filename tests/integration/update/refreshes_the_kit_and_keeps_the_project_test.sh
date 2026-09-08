@@ -9,7 +9,7 @@ cd "$TARGET" || exit 1
 "$WRITRUN" init --stage 1 --yes > /dev/null 2>&1 || { echo "FAIL  the fixture could not adopt"; exit 1; }
 
 # The project answers its gates, in the file that holds them.
-sed -i.bak 's#| Writing docs | <!-- TODO — default: human reviews --> |#| Writing docs | Thomas reviews before merge. |#' .writrun/gates.md
+sed -i.bak 's#| Writing docs | <!-- TODO — default: human reviews --> |#| Writing docs | The maintainer reviews before merge. |#' .writrun/gates.md
 rm -f .writrun/gates.md.bak
 cp AGENTS.md "$WORK/agents.before"
 
@@ -46,7 +46,7 @@ for f in work/tasks/task-0001-a-task.md docs/product/a-chapter.md \
 done
 
 check "AGENTS.md is the project's, byte for byte" 0 "" -- cmp "$WORK/agents.before" AGENTS.md
-check "the project's gates answer survived" 0 "Thomas reviews before merge" -- cat .writrun/gates.md
+check "the project's gates answer survived" 0 "The maintainer reviews before merge" -- cat .writrun/gates.md
 check "the kit's empty gates row did not come back" 1 "" \
   -- grep -q "TODO — default: human reviews" .writrun/gates.md
 

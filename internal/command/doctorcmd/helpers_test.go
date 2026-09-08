@@ -48,12 +48,12 @@ const gatesDoc = `# Human gates — per principle 7
 
 | Transition | Who |
 |---|---|
-| Writing or changing anything under ` + "`docs/`" + ` | Thomas reviews before merge. |
-| An authored rule is finished, so derivation may start | Thomas declares it. |
-| Spec ` + "`draft → approved`" + ` | Thomas only, via the merged PR. |
+| Writing or changing anything under ` + "`docs/`" + ` | The maintainer reviews before merge. |
+| An authored rule is finished, so derivation may start | The maintainer declares it. |
+| Spec ` + "`draft → approved`" + ` | The maintainer only, via the merged PR. |
 | Task with empty ` + "`spec_ref`" + ` and insufficient brief | Stop and ask for a spec. |
 | Derived work, before the PR opens | Present it in the session. |
-| Changing repository/forge settings (Actions permissions, rulesets) | Thomas assents in session. |
+| Changing repository/forge settings (Actions permissions, rulesets) | The maintainer assents in session. |
 | A report becomes a task (` + "`tracked`" + `) | The agent derives; the merge assents. |
 | Everything else | Agent, autonomously. |
 `

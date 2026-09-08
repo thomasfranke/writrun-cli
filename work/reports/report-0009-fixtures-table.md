@@ -21,8 +21,8 @@ table names five of eight, and the three suites they serve
 report-0006 removed the suite *enumeration* from this same file because
 a hand-kept list had already drifted twice; the fixtures table beside it
 was kept, and it has drifted the same way since. Writing anything under
-`docs/` is Thomas's gate in AGENTS.md, and task-0008 carries no spec whose
-Proposed changes would authorise the edit.
+`docs/` is the maintainer's gate in AGENTS.md, and task-0008 carries no
+spec whose Proposed changes would authorise the edit.
 
 **Fixed here, by deleting the table rather than completing it.** The
 count was already wrong again by the time this was triaged: `tests/`

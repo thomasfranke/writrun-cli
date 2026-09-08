@@ -19,5 +19,5 @@ AGENTS.md graft out of `internal/command/initcmd/`. Both specs promise
 `Proposed technical changes: none`, and
 `writrun-check-spec-deltas spec-0003,spec-0005` exits 0 only because the
 change leaves `docs/` alone; editing the table would make it exit 2,
-UNDECLARED. Writing or changing anything under `docs/` is Thomas's gate
-in `AGENTS.md`.
+UNDECLARED. Writing or changing anything under `docs/` is the
+maintainer's gate in `AGENTS.md`.
