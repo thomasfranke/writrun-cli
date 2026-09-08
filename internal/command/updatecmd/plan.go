@@ -329,10 +329,10 @@ func migrations(disk vfs.FS, root string) (moves, stranded []move) {
 		{kit.LegacyGates, kit.Gates},
 		{kit.LegacyConventions, kit.Conventions},
 	} {
-		if !present(disk, localOf(root, m.from)) {
+		if !answers(disk, localOf(root, m.from)) {
 			continue
 		}
-		if present(disk, localOf(root, m.to)) {
+		if answers(disk, localOf(root, m.to)) {
 			stranded = append(stranded, m)
 			continue
 		}
@@ -341,9 +341,30 @@ func migrations(disk vfs.FS, root string) (moves, stranded []move) {
 	return moves, stranded
 }
 
-func present(disk vfs.FS, path string) bool {
-	_, err := disk.Stat(path)
-	return err == nil
+// answers reports whether an address holds an answer. A directory
+// counts only where it holds a file: an empty `writrun/conventions/`
+// left by a half-finished move is not the project having answered, and
+// reading it as one would strand the answers it was supposed to
+// receive. The rule is per file, not per folder.
+func answers(disk vfs.FS, path string) bool {
+	info, err := disk.Stat(path)
+	if err != nil {
+		return false
+	}
+	if !info.IsDir() {
+		return true
+	}
+	found := false
+	_ = disk.WalkDir(path, func(_ string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !e.IsDir() {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 // migrate carries one address across, byte for byte. The port has no

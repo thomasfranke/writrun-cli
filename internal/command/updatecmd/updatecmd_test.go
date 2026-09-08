@@ -348,3 +348,23 @@ func TestADeclinedRefreshMovesNothing(t *testing.T) {
 		t.Errorf("a declined refresh wrote the new address: %v", err)
 	}
 }
+
+// A half-finished move leaves the folder without its files. Reading
+// that as the project having answered would strand the answers the
+// migration exists to deliver.
+func TestAnEmptyFolderAtTheNewAddressIsNoAnswer(t *testing.T) {
+	root := makeLegacyAdopted(t)
+	if err := os.MkdirAll(filepath.Join(root, "writrun", "conventions"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	if got := read(t, root, "writrun/conventions/commits.md"); !strings.Contains(got, "# Our commits") {
+		t.Errorf("the migration was blocked by an empty folder: %q", got)
+	}
+	if strings.Contains(out, "left         writrun/conventions") {
+		t.Errorf("an empty folder was reported as an answer:\n%s", out)
+	}
+}
