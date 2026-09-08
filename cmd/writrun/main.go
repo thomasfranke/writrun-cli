@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -170,9 +171,15 @@ func terminal() term.Terminal {
 // The lister's own reporting is captured rather than streamed: it is
 // the screen's content, not a message to print behind it. A lister that
 // fails is reported and no screen opens.
+//
+// Exit 1 is not such a failure. The lister's last statement is
+// `[ -n "$available" ]`, so its status answers "is anything available",
+// and 1 is the answer "no" — the reading listcmd and takecmd both make
+// of it. Treating it as a failure closed the screen on the one state
+// its own footer was written for (internal/screen/model.go).
 func openScreen(ctx *command.Ctx) (string, string, error) {
 	var out, errb bytes.Buffer
-	if err := kit.Run(ctx.Root, &out, &errb, nil, listerScript); err != nil {
+	if err := kit.Run(ctx.Root, &out, &errb, nil, listerScript); err != nil && exitCode(err) != 1 {
 		if msg := strings.TrimSpace(errb.String()); msg != "" {
 			return "", "", fmt.Errorf("%s", msg)
 		}
@@ -183,6 +190,17 @@ func openScreen(ctx *command.Ctx) (string, string, error) {
 		return "", "", err
 	}
 	return action.Command, action.Arg, nil
+}
+
+// exitCode reads the script's own verdict off the error the runner
+// returned; -1 says the runner failed before the script spoke, which is
+// not a verdict to map.
+func exitCode(err error) int {
+	var verdict interface{ ExitCode() int }
+	if errors.As(err, &verdict) && verdict.ExitCode() > 0 {
+		return verdict.ExitCode()
+	}
+	return -1
 }
 
 // listerScript is the selection skill's lister, named here as listcmd
