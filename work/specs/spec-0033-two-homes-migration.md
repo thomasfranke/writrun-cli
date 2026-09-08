@@ -31,27 +31,38 @@ paths it recognises are this spec's to repoint, not to redesign.
 ## Steps
 
 1. Repoint `kit.Settings` and `kit.Gates` in `internal/kit/kit.go` to
-   `writrun/settings.json` and `writrun/gates.md`. Task-0027 put every
-   kit path in that one file, so this is the whole of the renaming and
-   no second copy can drift behind it.
-2. Point `kitpaths.Untouchable` at `writrun` — the home entire, not
+   `writrun/settings.json` and `writrun/gates.md`.
+2. Repoint the four call sites that build an adopter path from segments
+   rather than reading the constant, all in `initcmd`:
+   `plan.go`'s settings writer, `checks.go`'s two readers, and
+   `conventions.go`'s `commits.md` reader. **They are live duplicates of
+   `kit.Settings` and `kit.Gates`** — task-0027 consolidated the paths
+   the binary runs as scripts, and `filepath.Join(root, ".writrun", …)`
+   escaped its grep. Repointing the constant alone would compile and
+   leave `init` writing to the old address, which is the exact failure
+   `internal/kit`'s own doc warns about.
+3. Leave the four `.writrun` references that are not the adopter's:
+   `wrepo`'s adoption probe, `kitpaths.RemoveDirs`, `updatecmd`'s
+   refresh roots, and `conventions.go`'s `check_observance.sh`. The
+   kit's home does not move.
+4. Point `kitpaths.Untouchable` at `writrun` — the home entire, not
    three paths inside it, because no folder is part of both homes — and
    **empty `kitpaths.Seeded`**. A refresh writes nothing into the
    project's home, so the gates skeleton becomes `init`'s alone.
    **This is the load-bearing edit:** while `Untouchable` names the old
    addresses, a refresh treats the adopter's new files as the kit's and
    writes over them.
-3. Implement the move, in `update`, before the refresh writes anything:
+5. Implement the move, in `update`, before the refresh writes anything:
    where `.writrun/settings.json`, `.writrun/gates.md` or
    `.writrun/conventions/` exist and the matching `writrun/` path does
    not, move them, preserving content byte for byte.
-4. Where both addresses hold a file, keep the new one, leave the old one
+6. Where both addresses hold a file, keep the new one, leave the old one
    on disk, and name it in the report. Nothing is merged.
-5. Show the move in `update`'s plan, before its confirmation — a
+7. Show the move in `update`'s plan, before its confirmation — a
    migration is a change to the repository, so it is shown and asked
    for like every other ([rules](../../docs/product/rules.md)).
-6. Move the pin to `v0.0.06`.
-7. Repoint the prose that names the old addresses: the findings in
+8. Move the pin to `v0.0.06`.
+9. Repoint the prose that names the old addresses: the findings in
    `doctorcmd` and `initcmd`, `amendcmd`'s comment, and `init`'s plan
    line.
 
