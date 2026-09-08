@@ -216,8 +216,6 @@ so the row was a second copy of a rule every project already receives.
 
 ## Proposed technical changes
 
-- `technical/engineering/coupling.md` — the two homes and the layered
-  default as the boundary the binary reads.
 - `technical/layout/tree.md` — `writrun/` in the tree.
 
 ## Outcome

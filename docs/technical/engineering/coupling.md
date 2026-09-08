@@ -1,9 +1,10 @@
 # Coupling to the kit
 
 `writrun` operates a `.writrun/` directory it did not write and cannot
-change. Every fact about that directory stated in Go is a fact a WritRun
-tag can invalidate, and the binary pins one tag at a time. Three rules
-decide which of those facts may exist.
+change, beside a `writrun/` directory that is the project's and that the
+binary never writes on the kit's behalf. Every fact about either stated
+in Go is a fact a WritRun tag can invalidate, and the binary pins one
+tag at a time. Four rules decide which of those facts may exist.
 
 ## 1. A kit path enters Go only where the binary calls it
 
@@ -15,8 +16,8 @@ that owns the act, and every command references that name.
 | `.writrun/scripts/**`, `.writrun/skills/**/*.sh` | `internal/kit`, beside the runner that executes them | the commands that run them — the scripts are the execution authority ([0002](../decisions/architecture/0002-scripts-are-the-authority.md)) |
 | `.writrun/templates/pull_request_template.md` | `internal/kit` | the body `take` and `author` compose |
 | `.writrun/VERSION` | `internal/kittag` | `init` and `update` write it; everything else reads it |
-| `.writrun/settings.json` | `internal/kit` | the stage and the conduct flags |
-| `.writrun/gates.md` | `internal/kit` | `doctor`'s stage-1 gates |
+| `writrun/settings.json` | `internal/kit` | the stage, the conduct flags and the commit vocabulary |
+| `writrun/gates.md` | `internal/kit` | `doctor`'s stage-1 gates |
 | `work/tasks/`, `work/specs/`, `work/reports/` | `internal/queue` | the queue readers |
 
 A path re-declared in a second package is the same defect as a path
@@ -40,14 +41,39 @@ than holding a second copy that a tag can contradict in silence.
 
 | The shape | The file that states it | Not |
 |---|---|---|
-| which human gates a project owes | the rows of `.writrun/gates.md` | a list of gates in Go |
+| which human gates a project owes | the rows of `writrun/gates.md`, or of the default it defers to | a list of gates in Go |
 | which files a refresh may write | the fetched template's tree | a list of directories in Go |
 | what a spec, task or report carries | `internal/queue`, one reader | a parser per command |
 
 > A WritRun tag that adds a human gate needs no Go change for `doctor`
 > to check it.
 
-## 3. `AGENTS.md` is the exception, and it is the only one
+## 3. Two homes, and a deferring file is resolved, never opened
+
+`.writrun/` is the kit's whole and a refresh replaces every file in it.
+`writrun/` is the project's whole and no refresh writes into it. No
+folder is part of both.
+
+- A path under `writrun/` is never written by a refresh, and never
+  seeded by one: writing the project's home is adoption's act.
+- A file under `writrun/` either **defers** — a first line of
+  `/// writrun:default`, and there only — or is the project's answer,
+  whole. Nothing merges.
+- A deferring file is read through the kit's own resolver, which is what
+  makes the default reach a project that never customized. Go computes
+  no default's address: an address in Go freezes at the tag that wrote
+  it, which is the drift the split exists to prevent.
+- A value is read from `writrun/settings.json`, never from a
+  convention's prose. A convention explains a vocabulary; it never
+  carries a second copy for a check to disagree with.
+
+> A WritRun tag that corrects a default reaches every project that
+> defers, and needs no Go change to do it.
+
+> A path the adopter owns is named in `internal/kit` and nowhere else,
+> so the next tag that moves one is a constant, not a migration.
+
+## 4. `AGENTS.md` is the exception, and it is the only one
 
 `init` grafts WritRun's section into a file the project already owns,
 and `uninstall` cuts it back out. No kit file describes that edit,
