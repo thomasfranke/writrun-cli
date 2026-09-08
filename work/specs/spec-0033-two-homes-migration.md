@@ -34,10 +34,13 @@ paths it recognises are this spec's to repoint, not to redesign.
    `writrun/settings.json` and `writrun/gates.md`. Task-0027 put every
    kit path in that one file, so this is the whole of the renaming and
    no second copy can drift behind it.
-2. Repoint `kitpaths.Untouchable` and `kitpaths.Seeded` to the new
-   addresses, and add `writrun/conventions`. **This is the load-bearing
-   edit:** while `Untouchable` names the old addresses, a refresh treats
-   the adopter's new files as the kit's and writes over them.
+2. Point `kitpaths.Untouchable` at `writrun` — the home entire, not
+   three paths inside it, because no folder is part of both homes — and
+   **empty `kitpaths.Seeded`**. A refresh writes nothing into the
+   project's home, so the gates skeleton becomes `init`'s alone.
+   **This is the load-bearing edit:** while `Untouchable` names the old
+   addresses, a refresh treats the adopter's new files as the kit's and
+   writes over them.
 3. Implement the move, in `update`, before the refresh writes anything:
    where `.writrun/settings.json`, `.writrun/gates.md` or
    `.writrun/conventions/` exist and the matching `writrun/` path does
@@ -58,6 +61,11 @@ paths it recognises are this spec's to repoint, not to redesign.
   from `writrun/`.
 - When a refresh runs, the system shall not write any path under
   `writrun/`.
+- When a refresh runs and `writrun/gates.md` is absent, the system shall
+  not create it — seeding the project's home is adoption's act, not a
+  refresh's.
+- When a refresh runs, the system shall replace every file under
+  `.writrun/` entire, without preserving a hand edit.
 - When `update` runs where an adopter file sits at its old address and
   the new address is free, the system shall move it and shall preserve
   its content byte for byte.
@@ -92,12 +100,21 @@ paths it recognises are this spec's to repoint, not to redesign.
   written — a half-migrated repository must not also be half-refreshed.
 - **`doctor` run between the move and the refresh.** It reads the new
   addresses, which is where the files now are.
+- **A repository with no `writrun/gates.md` at all.** The refresh leaves
+  it missing and `doctor` names it, which is already `doctor`'s job. A
+  refresh that filled the gap would be writing the project's answers
+  into the project's home, which the two homes forbid.
+- **A hand-edited kit file.** It is overwritten, by design. Nothing
+  detects or preserves it: the rule is that a kit change worth having
+  is a report routed upstream, not an edit held locally.
 
 ## Tests required
 
-- Unit, `internal/kitpaths`: the three new paths are untouchable; the
-  three old ones are not; a fixture asserting `writrun/settings.json`
+- Unit, `internal/kitpaths`: `writrun/` is untouchable whole; the old
+  addresses are not; a fixture asserting `writrun/settings.json`
   survives a refresh that ships one.
+- Unit, `internal/kitpaths`: nothing is seeded, so a refresh with
+  `writrun/gates.md` absent leaves it absent.
 - Unit, `internal/command/updatecmd`: the move happens where the new
   address is free; both-present keeps the new file and reports the old;
   an already-migrated layout moves nothing; a declined confirmation
