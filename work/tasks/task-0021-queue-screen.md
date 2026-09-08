@@ -4,7 +4,7 @@ status: done
 blocked_reason: null
 taken_by: thomasfranke
 spec_ref: [spec-0020]
-doc_ref: product/screen.md
+doc_ref: product/screens/README.md
 origin: rule
 priority: medium
 depends_on: []
@@ -18,7 +18,7 @@ provenance: []
 
 # Navigate the queue with writrun and no command
 
-**References:** [product/screen.md](../../docs/product/screen.md) · [spec-0020](../specs/spec-0020-queue-screen.md)
+**References:** [product/screens/README.md](../../docs/product/screens/README.md) · [spec-0020](../specs/spec-0020-queue-screen.md)
 
 `writrun` with no command prints what `--help` prints. `product/screen.md`
 says it should open the queue as a screen navigated by keys, and reserves
