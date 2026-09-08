@@ -44,4 +44,4 @@ comment but the `writrun:` markers, and `finish` composes no body. What
 reaches the forge carrying it is a body a human copied out of the
 template by hand.
 
-Closed without opening a report upstream, by Thomas's decision.
+Closed without opening a report upstream, by the maintainer's decision.

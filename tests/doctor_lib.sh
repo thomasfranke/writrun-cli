@@ -96,18 +96,18 @@ EOF
 # gates [who] — .writrun/gates.md with every row answered. Passing a
 # placeholder leaves the docs row unanswered.
 gates() {
-  local who="${1:-Thomas reviews before merge.}"
+  local who="${1:-The maintainer reviews before merge.}"
   cat > "$TARGET/.writrun/gates.md" <<EOF
 # Human gates — per principle 7
 
 | Transition | Who |
 |---|---|
 | Writing or changing anything under \`docs/\` | $who |
-| An authored rule is finished, so derivation may start | Thomas declares it. |
-| Spec \`draft → approved\` | Thomas only, via the merged PR. |
+| An authored rule is finished, so derivation may start | The maintainer declares it. |
+| Spec \`draft → approved\` | The maintainer only, via the merged PR. |
 | Task with empty \`spec_ref\` and insufficient brief | Stop and ask for a spec. |
 | Derived work, before the PR opens | Present it in the session. |
-| Changing repository/forge settings | Thomas assents in session. |
+| Changing repository/forge settings | The maintainer assents in session. |
 | A report becomes a task (\`tracked\`) | The agent derives; the merge assents. |
 | Everything else | Agent, autonomously. |
 EOF

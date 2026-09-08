@@ -11,14 +11,14 @@ becomes an issue upstream ([`AGENTS.md`](../AGENTS.md)).
 
 | Transition | Who |
 |---|---|
-| Writing or changing anything under `docs/` | Thomas writes or reviews before merge. |
-| An authored rule is finished, so derivation may start | Thomas declares it. |
-| Spec `draft → approved` | Thomas only, recorded via the approved PR. |
+| Writing or changing anything under `docs/` | The maintainer writes or reviews before merge. |
+| An authored rule is finished, so derivation may start | The maintainer declares it. |
+| Spec `draft → approved` | The maintainer only, recorded via the approved PR. |
 | Task with empty `spec_ref` and insufficient brief | Stop and ask for a spec. |
 | Derived work, before the PR opens | Present it in the session before the PR opens. |
-| Changing repository/forge settings (Actions permissions, rulesets, merge methods) | Thomas assents in session, per set of changes. |
+| Changing repository/forge settings (Actions permissions, rulesets, merge methods) | The maintainer assents in session, per set of changes. |
 | A report becomes a task (`tracked`) | The agent derives; the merge of that `report/` branch assents. |
-| A report is routed to the WritRun repository | Thomas says yes, per report, before the issue opens. |
+| A report is routed to the WritRun repository | The maintainer says yes, per report, before the issue opens. |
 | Everything else | Agent, autonomously. |
 
 **The forge row is not optional the way its answer is.** Repository

@@ -27,7 +27,7 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	root := makeAdopted(t)
 
 	// The project answers its own gates, in the file that holds them.
-	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | Thomas reviews before merge. |\n")
+	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | The maintainer reviews before merge. |\n")
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "our answers")
 
@@ -77,7 +77,7 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	if got := read(t, root, ".github/workflows/tests.yml"); got != "name: the project's own\n" {
 		t.Errorf("a workflow the project wrote was touched: %q", got)
 	}
-	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "Thomas reviews before merge.") {
+	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "The maintainer reviews before merge.") {
 		t.Errorf("the project's gate answers did not survive: %q", got)
 	}
 

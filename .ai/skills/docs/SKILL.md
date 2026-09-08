@@ -19,9 +19,9 @@ handed over.
   `docs/`.
 - A report in `work/reports/` records a finding about this binary. A
   finding whose subject is a kit script or a methodology rule is
-  recorded here too, and ends `routed`: Thomas says yes per finding, the
-  issue opens on the WritRun repository, and the local report names it
-  (`AGENTS.md`, human gates).
+  recorded here too, and ends `routed`: the maintainer says yes per
+  finding, the issue opens on the WritRun repository, and the local
+  report names it (`AGENTS.md`, human gates).
 - The subject is what a finding judges, not the file it names: `finish`
   reversing a ledger entry is this binary's, and `record_provenance.sh`
   contradicting itself is not.
