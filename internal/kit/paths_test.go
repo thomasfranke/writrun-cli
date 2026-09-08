@@ -29,7 +29,7 @@ func writeFile(path, content string) error {
 //
 // Anywhere else, a path is referenced. The spec named the first four;
 // the fifth is the inventory, whose whole subject is naming paths the
-// binary never calls — `.writrun/conventions`, `docs`, `work`.
+// binary never calls — `writrun/conventions`, `docs`, `work`.
 var declaring = map[string]bool{
 	"internal/kit":      true,
 	"internal/queue":    true,

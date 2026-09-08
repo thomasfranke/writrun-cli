@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
@@ -113,103 +114,48 @@ func rankVocabulary(counts map[string]int) []string {
 	return words
 }
 
-// applyVocabulary writes the extracted vocabulary onto both halves of
-// the copied kit's statement — the prose lists in
-// conventions/commits.md and the TYPES/SCOPES lines in
-// check_observance.sh — because conventions/commits.md's own rule is
-// "change one and change the other". An empty vocabulary changes
-// nothing: the shipped defaults stand. Scopes stay shipped when the
-// project's history never used one — scopes are optional, so absence
-// is no vote against the shipped list.
+// applyVocabulary writes the extracted vocabulary where the checks read
+// it: `stage_2.commit_types` and `stage_2.commit_scopes` in the
+// adopter's settings. An empty vocabulary changes nothing — the shipped
+// defaults stand. Scopes stay shipped when the project's history never
+// used one, because scopes are optional and absence is no vote against
+// the shipped list.
+//
+// It used to write both halves of a statement kept in two places: the
+// prose lists in `conventions/commits.md` and the TYPES/SCOPES lines in
+// `check_observance.sh`. The second was a kit file, and a refresh
+// replaces every file in the kit's home — so an extracted vocabulary
+// survived until the first update and then silently reverted, while the
+// prose half went on claiming it. From WritRun v0.0.07 the value has one
+// home and the convention only explains it
+// (docs/technical/engineering/coupling.md, rule 3).
 func applyVocabulary(disk vfs.FS, root string, v vocabulary) error {
 	if len(v.Types) == 0 {
 		return nil
 	}
-	commitsPath := filepath.Join(root, ".writrun", "conventions", "commits.md")
-	if err := rewriteFile(disk, commitsPath, func(s string) (string, error) {
-		s = replaceBullet(s, "- **Types**", "- **Types**: "+backtickList(v.Types)+".")
-		if len(v.Scopes) > 0 {
-			s = replaceBullet(s, "- **Scopes**", "- **Scopes** (optional — omit when a change genuinely spans the repository): "+backtickList(v.Scopes)+".")
+	return rewriteFile(disk, filepath.Join(root, filepath.FromSlash(kit.Settings)), func(s string) (string, error) {
+		out, err := replaceSetting(s, "commit_types", strings.Join(v.Types, " "))
+		if err != nil {
+			return "", err
 		}
-		return rewriteExample(s, v), nil
-	}); err != nil {
-		return err
-	}
-	observancePath := filepath.Join(root, ".writrun", "scripts", "stage-2-pull-requests", "check_observance.sh")
-	return rewriteFile(disk, observancePath, func(s string) (string, error) {
-		s = replaceLinePrefix(s, `TYPES="`, `TYPES="`+strings.Join(v.Types, " ")+`"`)
 		if len(v.Scopes) > 0 {
-			s = replaceLinePrefix(s, `SCOPES="`, `SCOPES="`+strings.Join(v.Scopes, " ")+`"`)
+			if out, err = replaceSetting(out, "commit_scopes", strings.Join(v.Scopes, " ")); err != nil {
+				return "", err
+			}
 		}
-		return s, nil
+		return out, nil
 	})
 }
 
-// exampleBulletRE is the `- Example:` bullet of conventions/commits.md:
-// a backticked Conventional subject demonstrating the two lists above
-// it.
-var exampleBulletRE = regexp.MustCompile("(?m)^(- Example: `)([a-z]+)(?:\\(([a-z0-9-]+)\\))?(!?: [^`]+`.*)$")
-
-// rewriteExample respells the example's type and scope in the extracted
-// vocabulary, keeping its summary — the prose is the kit's to teach
-// with, the vocabulary is the project's. Left as shipped, the example
-// would exhibit a subject the hook installed by the same run refuses.
-// The scope follows the same rule as the bullet above it: shipped
-// scopes stand where the project's history never used one.
-func rewriteExample(content string, v vocabulary) string {
-	return exampleBulletRE.ReplaceAllStringFunc(content, func(bullet string) string {
-		m := exampleBulletRE.FindStringSubmatch(bullet)
-		scope := m[3]
-		if len(v.Scopes) > 0 {
-			scope = v.Scopes[0]
-		}
-		if scope != "" {
-			scope = "(" + scope + ")"
-		}
-		return m[1] + v.Types[0] + scope + m[4]
-	})
-}
-
-func backtickList(words []string) string {
-	quoted := make([]string, len(words))
-	for i, w := range words {
-		quoted[i] = "`" + w + "`"
+// replaceSetting rewrites one string-valued key in the settings file.
+// A miss is an error rather than a silent no-op: the run would otherwise
+// report a vocabulary the file does not record.
+func replaceSetting(s, key, value string) (string, error) {
+	re := regexp.MustCompile(`"` + key + `":\s*"[^"]*"`)
+	if !re.MatchString(s) {
+		return "", fmt.Errorf("no %q key in %s to write the extracted vocabulary into", key, kit.Settings)
 	}
-	return strings.Join(quoted, ", ")
-}
-
-// replaceBullet swaps one markdown bullet — the line starting with
-// prefix and every indented continuation line under it — for the one
-// replacement line.
-func replaceBullet(content, prefix, replacement string) string {
-	lines := strings.Split(content, "\n")
-	out := make([]string, 0, len(lines))
-	i := 0
-	for i < len(lines) {
-		if !strings.HasPrefix(lines[i], prefix) {
-			out = append(out, lines[i])
-			i++
-			continue
-		}
-		out = append(out, replacement)
-		i++
-		for i < len(lines) && strings.HasPrefix(lines[i], "  ") {
-			i++
-		}
-	}
-	return strings.Join(out, "\n")
-}
-
-// replaceLinePrefix swaps every line starting with prefix for the
-// replacement line.
-func replaceLinePrefix(content, prefix, replacement string) string {
-	lines := strings.Split(content, "\n")
-	for i, l := range lines {
-		if strings.HasPrefix(l, prefix) {
-			lines[i] = replacement
-		}
-	}
-	return strings.Join(lines, "\n")
+	return re.ReplaceAllString(s, `"`+key+`": "`+value+`"`), nil
 }
 
 // rewriteFile applies fn to a file's content in place, keeping its

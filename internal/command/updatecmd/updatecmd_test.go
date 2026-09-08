@@ -1,6 +1,8 @@
 package updatecmd
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -27,7 +29,7 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	root := makeAdopted(t)
 
 	// The project answers its own gates, in the file that holds them.
-	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | The maintainer reviews before merge. |\n")
+	write(t, root, "writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | The maintainer reviews before merge. |\n")
 	gitT(t, root, "add", "-A")
 	gitT(t, root, "commit", "-q", "-m", "our answers")
 
@@ -62,10 +64,10 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	}
 
 	// What the project owns, byte for byte.
-	if got := read(t, root, ".writrun/conventions/commits.md"); got != "# Our commits\n" {
+	if got := read(t, root, "writrun/conventions/commits.md"); got != "# Our commits\n" {
 		t.Errorf("the conventions were touched: %q", got)
 	}
-	if got := read(t, root, ".writrun/settings.json"); !strings.Contains(got, `"stage": 3`) {
+	if got := read(t, root, "writrun/settings.json"); !strings.Contains(got, `"stage": 3`) {
 		t.Errorf("the settings were touched: %q", got)
 	}
 	if got := read(t, root, "docs/product/a-chapter.md"); got != "# Our own chapter\n" {
@@ -77,7 +79,7 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	if got := read(t, root, ".github/workflows/tests.yml"); got != "name: the project's own\n" {
 		t.Errorf("a workflow the project wrote was touched: %q", got)
 	}
-	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "The maintainer reviews before merge.") {
+	if got := read(t, root, "writrun/gates.md"); !strings.Contains(got, "The maintainer reviews before merge.") {
 		t.Errorf("the project's gate answers did not survive: %q", got)
 	}
 
@@ -87,20 +89,22 @@ func TestRefreshMovesTheKitAndLeavesTheProject(t *testing.T) {
 	}
 }
 
-// TestTheSeedArrivesOnceAndIsNeverRewritten covers the one file a
-// refresh writes only where the repository lacks it.
-func TestTheSeedArrivesOnceAndIsNeverRewritten(t *testing.T) {
+// TestARefreshWritesNothingIntoTheProjectsHome covers the rule that
+// replaced seeding. A project that never wrote its own gates is
+// answered by the kit's default, so there is nothing for a refresh to
+// put there — and a file the project did write is left whole.
+func TestARefreshWritesNothingIntoTheProjectsHome(t *testing.T) {
 	root := makeAdopted(t)
 	// makeAdopted predates gates.md, the way a v0.0.03 adoption does.
 	out, err := runUpdate(t, root, Deps{})
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
-	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "Transition") {
-		t.Fatalf("the seed did not arrive: %q", got)
+	if _, err := os.Stat(filepath.Join(root, "writrun", "gates.md")); !os.IsNotExist(err) {
+		t.Fatalf("the refresh wrote into the project's home: %v", err)
 	}
 
-	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | Ours. |\n")
+	write(t, root, "writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | Ours. |\n")
 	write(t, root, ".writrun/VERSION", oldTag+"\n")
 	// One kit file put back a tag, so the second plan has something to
 	// render: an empty plan stands down before it names anything.
@@ -112,11 +116,8 @@ func TestTheSeedArrivesOnceAndIsNeverRewritten(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the second update: %v\n%s", err, out)
 	}
-	if got := read(t, root, ".writrun/gates.md"); !strings.Contains(got, "Ours.") {
+	if got := read(t, root, "writrun/gates.md"); !strings.Contains(got, "Ours.") {
 		t.Errorf("the second refresh overwrote the answers: %q", got)
-	}
-	if !strings.Contains(out, "yours; this tag ships one and it is left alone") {
-		t.Errorf("the plan does not say the seed is kept:\n%s", out)
 	}
 }
 
@@ -224,7 +225,7 @@ func TestRenderNamesWhatItWillNotTouch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update: %v\n%s", err, out)
 	}
-	for _, want := range []string{oldTag + " → " + newTag, "untouched", ".writrun/conventions", "work", "AGENTS.md"} {
+	for _, want := range []string{oldTag + " → " + newTag, "untouched", "writrun", "work", "AGENTS.md"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the plan does not name %q:\n%s", want, out)
 		}

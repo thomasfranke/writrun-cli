@@ -195,7 +195,7 @@ func copyInto(t *testing.T, template, root string) {
 }
 
 func untouchedInTest(rel string) bool {
-	for _, prefix := range []string{".writrun/conventions", ".writrun/settings.json", ".writrun/gates.md", "AGENTS.md", "CLAUDE.md", "work/"} {
+	for _, prefix := range []string{"writrun/conventions", "writrun/settings.json", "writrun/gates.md", "AGENTS.md", "CLAUDE.md", "work/"} {
 		if rel == prefix || strings.HasPrefix(rel, prefix) {
 			return true
 		}

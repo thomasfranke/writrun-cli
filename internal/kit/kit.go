@@ -18,10 +18,13 @@
 package kit
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Runner is one script invocation: the type every consumer names, so
@@ -101,6 +104,12 @@ const (
 	ListTasks = ".writrun/skills/writrun-select-next-task/list_tasks.sh"
 	// Brief is one task's whole brief, for an agent to work from.
 	Brief = ".writrun/skills/writrun-select-next-task/brief.sh"
+	// ResolveDoc answers what text is in force at an address in the
+	// project's home: the project's own file, or the kit's default where
+	// that file defers. Nothing here computes a default's address —
+	// an address in Go freezes at the tag that wrote it
+	// (docs/technical/engineering/coupling.md, rule 3).
+	ResolveDoc = ".writrun/scripts/stage-1-tasks-and-specs/resolve_doc.sh"
 )
 
 // The kit's files this binary reads or composes from, as opposed to
@@ -108,8 +117,54 @@ const (
 const (
 	// PullRequestTemplate is the body `take` and `author` compose.
 	PullRequestTemplate = ".writrun/templates/pull_request_template.md"
-	// Settings is the adopter's file: the stage and the conduct flags.
-	Settings = ".writrun/settings.json"
-	// Gates is the adopter's answers, one row per transition.
-	Gates = ".writrun/gates.md"
 )
+
+// The adopter's files. They live in the project's home, which no
+// refresh writes into, and every one of them is named here and nowhere
+// else — so a tag that moves one is a constant to change rather than a
+// hunt (docs/technical/engineering/coupling.md, rule 3).
+const (
+	// Settings is the adopter's file: the stage, the conduct flags and
+	// the commit vocabulary.
+	Settings = "writrun/settings.json"
+	// Gates is the adopter's answers, one row per transition — or the
+	// marker saying the kit's default answers them.
+	Gates = "writrun/gates.md"
+	// Conventions is the folder holding the project's taste, each file
+	// deferring or answering whole.
+	Conventions = "writrun/conventions"
+	// Home is the project's home entire. A refresh never writes into it.
+	Home = "writrun"
+)
+
+// The addresses the adopter's files used before WritRun v0.0.05 moved
+// them out of the kit's home. `update` migrates a repository off them
+// once and names them nowhere else.
+const (
+	LegacySettings    = ".writrun/settings.json"
+	LegacyGates       = ".writrun/gates.md"
+	LegacyConventions = ".writrun/conventions"
+)
+
+// Resolve answers which file is in force at an address in the project's
+// home: the project's own file, or the kit's default where that file
+// defers. The path it returns is relative to the repository root.
+//
+// The kit's own resolver decides. This function passes the address it
+// was given and reads back a path — it never inspects the file for the
+// marker, and never joins a default's address, because both are shapes
+// a tag can change (docs/technical/engineering/coupling.md, rule 3).
+func Resolve(run Runner, root, path string) (string, error) {
+	var out, errb bytes.Buffer
+	if err := run(root, &out, &errb, nil, ResolveDoc, path); err != nil {
+		if msg := strings.TrimSpace(errb.String()); msg != "" {
+			return "", fmt.Errorf("resolving %s: %s", path, msg)
+		}
+		return "", fmt.Errorf("resolving %s: %w", path, err)
+	}
+	answer := strings.TrimSpace(out.String())
+	if answer == "" {
+		return "", fmt.Errorf("resolving %s: the resolver named no file", path)
+	}
+	return answer, nil
+}

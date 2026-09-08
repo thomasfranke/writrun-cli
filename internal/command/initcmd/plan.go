@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
@@ -218,7 +219,7 @@ func (a *adoption) apply() error {
 	// The chosen stage lands in the copied settings by targeted
 	// replacement — the rest of the file stays byte-for-byte the
 	// shipped default, which is the adopter's to edit next.
-	if err := rewriteFile(a.disk, filepath.Join(a.root, ".writrun", "settings.json"), func(s string) (string, error) {
+	if err := rewriteFile(a.disk, filepath.Join(a.root, filepath.FromSlash(kit.Settings)), func(s string) (string, error) {
 		// A miss here is silent: ReplaceAllString hands back the input
 		// unchanged, and the run would report a stage the file does not
 		// record.

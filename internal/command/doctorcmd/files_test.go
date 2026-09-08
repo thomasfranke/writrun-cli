@@ -104,7 +104,7 @@ func TestAnUnansweredGateIsNamed(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			f := newFixture(t, "1")
-			write(t, f.root, ".writrun/gates.md",
+			write(t, f.root, "writrun/gates.md",
 				strings.Replace(gatesDoc, c.was, "<!-- TODO — default: someone -->", 1))
 			only(t, f.findings(), 1, breaks, "the gate for "+c.expect+" is unanswered")
 		})
@@ -117,20 +117,20 @@ func TestAnUnansweredGateIsNamed(t *testing.T) {
 // (docs/technical/engineering/coupling.md, rule 2).
 func TestAGateThisBinaryHasNeverSeenIsJudgedTheSameWay(t *testing.T) {
 	f := newFixture(t, "1")
-	write(t, f.root, ".writrun/gates.md",
+	write(t, f.root, "writrun/gates.md",
 		gatesDoc+"| Something no tag has shipped yet | <!-- TODO --> |\n")
 	only(t, f.findings(), 1, breaks, "the gate for Something no tag has shipped yet is unanswered")
 }
 
 func TestAMissingGatesFileIsNamed(t *testing.T) {
 	f := newFixture(t, "1")
-	remove(t, f.root, ".writrun/gates.md")
-	only(t, f.findings(), 1, breaks, ".writrun/gates.md — the project's gate answers are missing")
+	remove(t, f.root, "writrun/gates.md")
+	only(t, f.findings(), 1, breaks, "writrun/gates.md — the project's gate answers are missing")
 }
 
 func TestAGatesFileWithNoTableIsNamed(t *testing.T) {
 	f := newFixture(t, "1")
-	write(t, f.root, ".writrun/gates.md", "# Human gates\n\nWe decide as we go.\n")
+	write(t, f.root, "writrun/gates.md", "# Human gates\n\nWe decide as we go.\n")
 	only(t, f.findings(), 1, breaks, "no table of gates is readable in it")
 }
 
@@ -141,7 +141,7 @@ func TestATableInAgentsDoesNotAnswerAGate(t *testing.T) {
 	f := newFixture(t, "1")
 	write(t, f.root, "AGENTS.md", agentsDoc+
 		"\n## Skills\n\n| Trigger | Skill |\n|---|---|\n| Writing markdown under `docs/` | The docs skill. |\n")
-	write(t, f.root, ".writrun/gates.md",
+	write(t, f.root, "writrun/gates.md",
 		strings.Replace(gatesDoc, "The maintainer reviews before merge.", "<!-- TODO -->", 1))
 	only(t, f.findings(), 1, breaks, "the gate for Writing or changing anything under docs/ is unanswered")
 }

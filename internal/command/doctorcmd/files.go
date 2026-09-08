@@ -56,7 +56,7 @@ func stage1(root string, d Deps) []finding {
 	}
 
 	found = append(found, agents(d.Files, root)...)
-	found = append(found, gates(d.Files, root)...)
+	found = append(found, gates(d, root)...)
 	found = append(found, kitVersion(d.Files, root)...)
 	found = append(found, script(root, d, frontMatterScript,
 		"the queue's front matter is not canonical; every fault it named is below")...)
@@ -93,8 +93,21 @@ const gatesFile = kit.Gates
 // The transition each row names is the finding's own words, so a gate
 // this binary has never seen is judged by the same rule and named by
 // the file that states it.
-func gates(disk vfs.FS, root string) []finding {
-	raw, err := disk.ReadFile(filepath.Join(root, filepath.FromSlash(gatesFile)))
+func gates(d Deps, root string) []finding {
+	// The address is the project's; which file answers it is the kit's
+	// resolver's to say. A project that never wrote its own gates defers
+	// to the kit's default, which answers every gate the cautious way —
+	// so reading the address directly would report a stub as a file with
+	// no table in it (coupling.md, rule 3).
+	inForce, err := kit.Resolve(d.Scripts, root, gatesFile)
+	if err != nil {
+		// A check that could not be made is not a failed check: the
+		// level is the one the forge's unreachable reads already use, so
+		// a resolver this kit does not ship never fails a run.
+		return []finding{{stage: 1, level: unread,
+			text: gatesFile + " — which file answers it could not be read", detail: err.Error()}}
+	}
+	raw, err := d.Files.ReadFile(filepath.Join(root, filepath.FromSlash(inForce)))
 	if err != nil {
 		return []finding{{stage: 1, level: breaks,
 			text: gatesFile + " — the project's gate answers are missing; every gate the kit states is unanswered"}}

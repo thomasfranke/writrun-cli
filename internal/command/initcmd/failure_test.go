@@ -273,8 +273,8 @@ func fakeTemplate(t *testing.T) (*vfs.Fake, string, string) {
 	root, template := "/repo", "/kit/template"
 	disk.Seed(template+"/AGENTS.md", []byte(templateAgents), 0o644)
 	disk.Seed(template+"/WRITRUN.md", []byte("# This project uses WritRun\n"), 0o644)
-	disk.Seed(template+"/.writrun/settings.json", []byte(templateSettings), 0o644)
-	disk.Seed(template+"/.writrun/conventions/commits.md", []byte(templateCommits), 0o644)
+	disk.Seed(template+"/writrun/settings.json", []byte(templateSettings), 0o644)
+	disk.Seed(template+"/writrun/conventions/commits.md", []byte(templateCommits), 0o644)
 	disk.SeedDir(root)
 	return disk, root, template
 }
@@ -301,7 +301,7 @@ func TestApplyReportsTheCopyItCouldNotMake(t *testing.T) {
 
 func TestApplyReportsTheTagItCouldNotRecord(t *testing.T) {
 	disk, root, template := fakeTemplate(t)
-	disk.Seed(root+"/.writrun/settings.json", []byte(templateSettings), 0o644)
+	disk.Seed(root+"/writrun/settings.json", []byte(templateSettings), 0o644)
 	boom := errors.New("VERSION will not be written")
 	disk.Fail(root+"/.writrun/VERSION", boom)
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
@@ -64,15 +65,10 @@ This project tracks its work with WritRun. Before touching ` + "`work/`" + `,
 read and follow [` + "`.writrun/AGENTS.md`" + `](.writrun/AGENTS.md).
 `
 
-// templateGates is the gates file the kit ships: every answer a TODO,
-// which is what the adoption copies and the project answers next.
-const templateGates = `# Human gates
-
-| Transition | Who |
-|---|---|
-| Writing or changing anything under ` + "`docs/`" + ` | <!-- TODO — default: human reviews --> |
-| Everything else | Agent, autonomously. |
-`
+// templateGates is the gates file the kit seeds into the project's
+// home: the stub that defers to the kit's own default, which answers
+// every gate the cautious way.
+const templateGates = "/// writrun:default\n# Human gates\n\nWritRun's default of the same name is in force.\n"
 
 const templateCommits = "# Commits\n\n" +
 	"- **Types**: `docs`, `feat`, `fix`, `refactor`, `chore`.\n" +
@@ -90,7 +86,9 @@ exit 0
 const templateSettings = `{
   "stage": 1,
   "stage_2": {
-    "auto_commit": false
+    "auto_commit": false,
+    "commit_scopes": "about product",
+    "commit_types": "docs feat fix refactor chore"
   }
 }
 `
@@ -101,9 +99,10 @@ func writeTemplate(t *testing.T, dir string) {
 	t.Helper()
 	write(t, dir, "AGENTS.md", templateAgents)
 	write(t, dir, "WRITRUN.md", "# This project uses WritRun\n")
-	write(t, dir, ".writrun/settings.json", templateSettings)
+	write(t, dir, kit.Settings, templateSettings)
+	write(t, dir, kit.Gates, templateGates)
 	write(t, dir, ".writrun/VERSION", testTag+"\n")
-	write(t, dir, ".writrun/conventions/commits.md", templateCommits)
+	write(t, dir, kit.Conventions+"/commits.md", templateCommits)
 	write(t, dir, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
 	if err := os.Chmod(filepath.Join(dir, ".writrun/scripts/stage-2-pull-requests/check_observance.sh"), 0o755); err != nil {
 		t.Fatal(err)

@@ -97,7 +97,7 @@ func TestInitStageIsArrowSelectedWithoutTheFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init = %v\n%s", err, out)
 	}
-	if !strings.Contains(read(t, target, ".writrun/settings.json"), `"stage": 2`) {
+	if !strings.Contains(read(t, target, "writrun/settings.json"), `"stage": 2`) {
 		t.Error("the selected stage did not land in the settings")
 	}
 	if len(term.Asked) == 0 || !strings.Contains(term.Asked[0], "stage") {
