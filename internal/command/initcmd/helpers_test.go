@@ -142,7 +142,7 @@ func makeSource(t *testing.T) string {
 	t.Helper()
 	src := t.TempDir()
 	gitT(t, src, "init", "-q")
-	writeTemplate(t, filepath.Join(src, "template"))
+	writeTemplate(t, filepath.Join(src, "kit"))
 	gitT(t, src, "add", ".")
 	gitT(t, src, "commit", "-q", "-m", "the kit")
 	gitT(t, src, "tag", testTag)

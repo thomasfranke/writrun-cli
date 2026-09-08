@@ -36,7 +36,7 @@ func (f *Fake) Fail(tag string, cause error) {
 }
 
 // FailNoTemplate makes tag fail the way a clone carrying no
-// `template/` does — a repository, but not a WritRun one, answered
+// `kit/` does — a repository, but not a WritRun one, answered
 // without a clone.
 func (f *Fake) FailNoTemplate(tag string) {
 	f.fails[tag] = errNoTemplate

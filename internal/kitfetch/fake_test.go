@@ -48,13 +48,13 @@ func TestTheFakeRefusesTheTagItWasToldFails(t *testing.T) {
 
 func TestTheFakeAnswersARepositoryThatIsNotAWritRunOne(t *testing.T) {
 	// The real fetch reaches this refusal by cloning and finding no
-	// template/; the fake reaches it by being told, and both say it in
+	// kit/; the fake reaches it by being told, and both say it in
 	// the same words.
 	f := NewFake("/kit/template")
 	f.FailNoTemplate(tag)
 	_, err := f.Fetch(tag, "the source")
 	if err == nil {
-		t.Fatal("a source with no template/ was accepted")
+		t.Fatal("a source with no kit/ was accepted")
 	}
 	if err.Error() != errNoTemplate(tag, "the source").Error() {
 		t.Errorf("the fake's refusal is not the real one: %v", err)

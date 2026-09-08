@@ -94,7 +94,7 @@ func plan(disk vfs.FS, root, template, tag, source string, stage int, hookAt str
 	// Without it there is no AGENTS.md decision to make, and the plan
 	// would promise a skeleton it cannot write — its zero value.
 	if !sawAgents {
-		return nil, fmt.Errorf("%s carries no template/AGENTS.md at %s — not a WritRun repository", source, tag)
+		return nil, fmt.Errorf("%s carries no kit/AGENTS.md at %s — not a WritRun repository", source, tag)
 	}
 
 	a.vocab = extractVocabulary(disk, root, git)

@@ -11,8 +11,12 @@ assumes. Reports; it never repairs.
   ([requirements](../../technical/runtime/requirements.md)).
 - **Stage 1 — files:** an About file, at least one real product
   chapter, a technical doc, the `docs/` / `work/` split, `AGENTS.md`
-  present, every row of `.writrun/gates.md` answered, the kit's version
-  recorded, the queue readable, the settings canonical. The gates are
+  present, every gate answered, the kit's version recorded, the queue
+  readable, the settings canonical.
+- **A gate the kit answers is answered.** The gates are read at the
+  project's address, and a project that has not written its own is
+  answered by the kit's default — so deferring is a complete answer,
+  not a missing one. The gates are
   the rows that file states — a gate a newer tag adds is named without
   this binary knowing it
   ([coupling](../../technical/engineering/coupling.md)).

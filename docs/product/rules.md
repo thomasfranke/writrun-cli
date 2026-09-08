@@ -24,8 +24,9 @@ already defines; it never decides in the methodology's place.
 - **No command is an agent.** `work` launches one; `writrun` itself
   never reasons about a task's content.
 - **No command overwrites the project's own files.** Whatever the
-  methodology declares the adopter's — conventions, existing docs, an
-  existing `AGENTS.md` — is grafted or left alone, never replaced.
+  methodology declares the adopter's — everything under `writrun/`,
+  existing docs, an existing `AGENTS.md` — is grafted or left alone,
+  never replaced by the kit's copy of it.
 
 ## How a command reports
 

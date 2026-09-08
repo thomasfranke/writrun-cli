@@ -59,7 +59,7 @@ func TestRunRefusesASourceWithoutATemplate(t *testing.T) {
 	kit := fakeKit(t)
 	kit.FailNoTemplate(newTag)
 	if _, err := runUpdate(t, root, Deps{Kit: kit}); err == nil {
-		t.Fatal("a source with no template/ was refreshed from")
+		t.Fatal("a source with no kit/ was refreshed from")
 	} else if !strings.Contains(err.Error(), "not a WritRun repository") {
 		t.Errorf("the refusal does not say what the source is: %v", err)
 	}

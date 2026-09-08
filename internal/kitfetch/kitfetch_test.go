@@ -29,7 +29,7 @@ func makeRepo(t *testing.T, withTemplate bool) string {
 	gitT(t, src, "init", "-q")
 	rel := "README.md"
 	if withTemplate {
-		rel = "template/AGENTS.md"
+		rel = "kit/AGENTS.md"
 	}
 	path := filepath.Join(src, rel)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -61,7 +61,7 @@ func TestFetchReturnsTheTemplateAndCleansUp(t *testing.T) {
 func TestACloneWithNoTemplateIsNotAWritRunRepository(t *testing.T) {
 	_, err := Fetch(vfs.OS{}, tag, makeRepo(t, false), gitx.Run)
 	if err == nil {
-		t.Fatal("a repository with no template/ was accepted")
+		t.Fatal("a repository with no kit/ was accepted")
 	}
 	if !strings.Contains(err.Error(), "not a WritRun repository") {
 		t.Errorf("the refusal does not say what is wrong: %v", err)
