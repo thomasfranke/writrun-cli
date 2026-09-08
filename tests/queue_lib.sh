@@ -215,9 +215,9 @@ build_state() {
   cp -R "$REPO_ROOT/.writrun/scripts"     "$t/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$t/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$t/.writrun/templates"
-  cp -R "$REPO_ROOT/.writrun/conventions" "$t/.writrun/conventions"
+  cp -R "$REPO_ROOT/writrun/conventions" "$t/writrun/conventions"
   cp "$REPO_ROOT/.writrun/VERSION"        "$t/.writrun/VERSION"
-  cat > "$t/.writrun/settings.json" <<'EOF'
+  cat > "$t/writrun/settings.json" <<'EOF'
 {
   "stage": 2,
   "stage_1": {
@@ -387,7 +387,7 @@ run_cell() {
       # author takes the whole title, where amend takes only the summary
       # and composes the bracket itself. The observance check the door
       # runs judges what is passed, so this one is written in the style
-      # .writrun/settings.json declares.
+      # writrun/settings.json declares.
       author) "$WRITRUN" author --range main...HEAD --title "[Docs][Product] The rule is written" --yes ;;
       status) "$WRITRUN" status ;;
       screen) "$WRITRUN" ;;

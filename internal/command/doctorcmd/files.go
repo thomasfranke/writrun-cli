@@ -30,7 +30,7 @@ func stage0(d Deps) []finding {
 
 // stage1 is the files: the three documents the methodology requires of
 // the adopter, the docs/ and work/ split, the gates answered in
-// `.writrun/gates.md`, the kit's tag recorded, and the two checks whose
+// `writrun/gates.md`, the kit's tag recorded, and the two checks whose
 // verdict is the repository's own. `init` asks its own
 // stage-1 questions in its own words; why those are not shared — and
 // which mechanics underneath them are — is written at
@@ -61,7 +61,7 @@ func stage1(root string, d Deps) []finding {
 	found = append(found, script(root, d, frontMatterScript,
 		"the queue's front matter is not canonical; every fault it named is below")...)
 	found = append(found, script(root, d, settingsScript,
-		".writrun/settings.json does not hold the shape the line-based readers can see")...)
+		kit.Settings+" does not hold the shape the line-based readers can see")...)
 	return found
 }
 

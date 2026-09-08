@@ -24,7 +24,7 @@ check "the check's own words are carried" 0 "MALFORMED: work/tasks/task-0001-bro
   -- cat "$WORK/front.out"
 rm -f "$TARGET/work/tasks/task-0001-broken.md"
 
-printf '{"stage": 1, "deep": {"deeper": {"x": 1}}}\n' > "$TARGET/.writrun/settings.json"
+printf '{"stage": 1, "deep": {"deeper": {"x": 1}}}\n' > "$TARGET/writrun/settings.json"
 "$WRITRUN" doctor > "$WORK/settings.out" 2>&1
 check "a refusing settings check breaks the run" 1 "" -- "$WRITRUN" doctor
 check "a settings file the readers cannot see is named" 0 \

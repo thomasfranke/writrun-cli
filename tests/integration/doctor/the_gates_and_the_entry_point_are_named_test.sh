@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 . "$(dirname "$0")/../../doctor_lib.sh"
 
-# Stage 1 reads two files: `.writrun/gates.md`, whose every row a project
+# Stage 1 reads two files: `writrun/gates.md`, whose every row a project
 # must answer, and AGENTS.md, whose absence is what breaks a flow
 # (spec-0025, step 7).
 make_repo 1
@@ -14,9 +14,9 @@ check "a gate left as a placeholder is named" 1 \
 check "a placeholder breaks a flow" 1 "breaking a flow" -- "$WRITRUN" doctor
 
 gates
-rm -f "$TARGET/.writrun/gates.md"
+rm -f "$TARGET/writrun/gates.md"
 check "a missing gates file is named" 1 \
-  ".writrun/gates.md — the project's gate answers are missing" -- "$WRITRUN" doctor
+  "writrun/gates.md — the project's gate answers are missing" -- "$WRITRUN" doctor
 
 gates
 legacy_agents

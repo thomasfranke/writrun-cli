@@ -140,9 +140,9 @@ make_repo() {
   cp -R "$REPO_ROOT/.writrun/scripts"     "$TARGET/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$TARGET/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$TARGET/.writrun/templates"
-  cp -R "$REPO_ROOT/.writrun/conventions" "$TARGET/.writrun/conventions"
+  cp -R "$REPO_ROOT/writrun/conventions" "$TARGET/writrun/conventions"
 
-  cat > "$TARGET/.writrun/settings.json" <<'EOF'
+  cat > "$TARGET/writrun/settings.json" <<'EOF'
 {
   "stage": 2,
   "stage_1": {
@@ -190,8 +190,8 @@ EOF
 # still starts from a clean tree.
 ledger_on() {
   sed 's/"provenance_ledger": false/"provenance_ledger": true/' \
-    "$TARGET/.writrun/settings.json" > "$TARGET/settings.tmp"
-  mv "$TARGET/settings.tmp" "$TARGET/.writrun/settings.json"
+    "$TARGET/writrun/settings.json" > "$TARGET/settings.tmp"
+  mv "$TARGET/settings.tmp" "$TARGET/writrun/settings.json"
   git_q -C "$TARGET" commit -q -am "the project keeps a ledger"
   git_q -C "$TARGET" push -q origin main
 }

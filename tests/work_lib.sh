@@ -104,13 +104,13 @@ make_repo() {
   cp -R "$REPO_ROOT/.writrun/scripts"     "$TARGET/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$TARGET/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$TARGET/.writrun/templates"
-  cp -R "$REPO_ROOT/.writrun/conventions" "$TARGET/.writrun/conventions"
+  cp -R "$REPO_ROOT/writrun/conventions" "$TARGET/writrun/conventions"
   printf '%s\n' "$PINNED" > "$TARGET/.writrun/VERSION"
   printf '# Tasks\n'   > "$TARGET/work/tasks/README.md"
   printf '# Specs\n'   > "$TARGET/work/specs/README.md"
   printf '# Reports\n' > "$TARGET/work/reports/README.md"
 
-  cat > "$TARGET/.writrun/settings.json" <<'EOF'
+  cat > "$TARGET/writrun/settings.json" <<'EOF'
 {
   "stage": 2,
   "stage_2": {

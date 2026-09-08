@@ -143,7 +143,7 @@ func (a *adoption) render(w io.Writer) {
 		fmt.Fprintln(w, line)
 	}
 	fmt.Fprintf(w, "  hook         %s validates the Conventional subject; it never writes one\n", a.hookDisplay())
-	fmt.Fprintf(w, "  settings     .writrun/settings.json records stage %d\n", a.stage)
+	fmt.Fprintf(w, "  settings     %s records stage %d\n", kit.Settings, a.stage)
 	fmt.Fprintf(w, "  version      .writrun/VERSION records %s\n", a.tag)
 	fmt.Fprintln(w)
 }

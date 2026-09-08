@@ -12,6 +12,6 @@ cd "$TARGET" || exit 1
 check "the arrow-selected stage adopts" 0 "" \
   -- "$WRITRUN" init --yes
 check "the selected stage landed in the settings" 0 '"stage": 2' \
-  -- cat .writrun/settings.json
+  -- cat writrun/settings.json
 
 finish

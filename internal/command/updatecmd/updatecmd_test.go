@@ -1,11 +1,14 @@
 package updatecmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -229,5 +232,119 @@ func TestRenderNamesWhatItWillNotTouch(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("the plan does not name %q:\n%s", want, out)
 		}
+	}
+}
+
+// makeLegacyAdopted is a repository adopted before WritRun v0.0.05:
+// its answers still sit inside the kit's home, where the kit's own
+// scripts no longer look.
+func makeLegacyAdopted(t *testing.T) string {
+	t.Helper()
+	root := makeAdopted(t)
+	for _, rel := range []string{"writrun/settings.json", "writrun/conventions"} {
+		if err := os.RemoveAll(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(t, root, ".writrun/settings.json", "{\n  \"stage\": 3\n}\n")
+	write(t, root, ".writrun/gates.md", "# Human gates\n\n| Transition | Who |\n|---|---|\n| Writing docs | Ours. |\n")
+	write(t, root, ".writrun/conventions/commits.md", "# Our commits\n")
+	gitT(t, root, "add", "-A")
+	gitT(t, root, "commit", "-q", "-m", "adopted before the two homes")
+	return root
+}
+
+func TestTheMigrationCarriesTheAnswersAcrossOnce(t *testing.T) {
+	root := makeLegacyAdopted(t)
+	out, err := runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	for rel, want := range map[string]string{
+		"writrun/settings.json":          `"stage": 3`,
+		"writrun/gates.md":               "Ours.",
+		"writrun/conventions/commits.md": "# Our commits",
+	} {
+		if got := read(t, root, rel); !strings.Contains(got, want) {
+			t.Errorf("%s does not carry the answer: %q", rel, got)
+		}
+	}
+	for _, rel := range []string{".writrun/settings.json", ".writrun/gates.md", ".writrun/conventions"} {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); !os.IsNotExist(err) {
+			t.Errorf("%s survived the migration: %v", rel, err)
+		}
+	}
+	if !strings.Contains(out, "move") {
+		t.Errorf("the plan did not name the migration:\n%s", out)
+	}
+}
+
+// The content is the adopter's, and a migration that reformatted it
+// would be editing an answer it was only carrying.
+func TestTheMigrationPreservesTheContentByteForByte(t *testing.T) {
+	root := makeLegacyAdopted(t)
+	before := read(t, root, ".writrun/settings.json")
+	if out, err := runUpdate(t, root, Deps{}); err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	if got := read(t, root, "writrun/settings.json"); got != before {
+		t.Errorf("the migration rewrote the answer:\ngot  %q\nwant %q", got, before)
+	}
+}
+
+// Two answers about one setting are the adopter's to reconcile. A merge
+// would pick for them, and a silent overwrite would pick worse.
+func TestBothAddressesKeepsTheNewOneAndNamesTheOld(t *testing.T) {
+	root := makeLegacyAdopted(t)
+	write(t, root, "writrun/settings.json", "{\n  \"stage\": 1\n}\n")
+	gitT(t, root, "add", "-A")
+	gitT(t, root, "commit", "-q", "-m", "both addresses answer")
+
+	out, err := runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	if got := read(t, root, "writrun/settings.json"); !strings.Contains(got, `"stage": 1`) {
+		t.Errorf("the new address did not win: %q", got)
+	}
+	if got := read(t, root, ".writrun/settings.json"); !strings.Contains(got, `"stage": 3`) {
+		t.Errorf("the old address was touched: %q", got)
+	}
+	if !strings.Contains(out, "left") || !strings.Contains(out, "nothing is merged") {
+		t.Errorf("the plan did not name what it left behind:\n%s", out)
+	}
+}
+
+func TestAnAlreadyMigratedLayoutMovesNothing(t *testing.T) {
+	root := makeAdopted(t)
+	out, err := runUpdate(t, root, Deps{})
+	if err != nil {
+		t.Fatalf("update: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "move ") {
+		t.Errorf("the plan named a migration a migrated repository does not owe:\n%s", out)
+	}
+}
+
+// The migration is a change to the repository, so it waits for the same
+// yes every other change does.
+func TestADeclinedRefreshMovesNothing(t *testing.T) {
+	root := makeLegacyAdopted(t)
+	var out bytes.Buffer
+	ctx := &command.Ctx{
+		Stdout:   &out,
+		Stderr:   &out,
+		Terminal: &command.FakeTerminal{In: true, Out: true, ConfirmAnswer: false},
+		Root:     root,
+		Adopted:  true,
+	}
+	if err := run(ctx, Deps{Tag: newTag, Source: sourceDefault, Git: gitx.Run, Files: vfs.OS{}, Kit: fakeKit(t)}, nil); err == nil {
+		t.Fatal("the declined run reported no refusal")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".writrun", "settings.json")); err != nil {
+		t.Errorf("a declined refresh moved the answer anyway: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "writrun", "settings.json")); !os.IsNotExist(err) {
+		t.Errorf("a declined refresh wrote the new address: %v", err)
 	}
 }

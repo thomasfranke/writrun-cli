@@ -86,13 +86,25 @@ func Seeds(rel string) bool {
 // and the kit's namespaced files in the two `.github` folders. A
 // workflow the project wrote is neither.
 func Removable(rel string) bool {
-	if Untouched(rel) {
+	if Untouched(rel) || legacyAdopter(rel) {
 		return false
 	}
 	if strings.HasPrefix(rel, ".writrun/") {
 		return true
 	}
 	return Namespaced(rel)
+}
+
+// legacyAdopter reports whether rel is an adopter answer still at the
+// address WritRun v0.0.05 moved it out of. It sits inside the kit's
+// home, so the ordinary rule would read it as a file the tag stopped
+// shipping and remove it — deleting the answers a refresh exists to
+// carry across. Where the migration moved one, it is already gone; where
+// it did not, because the new address answers too, the old file is the
+// adopter's to reconcile and stays for them to look at.
+func legacyAdopter(rel string) bool {
+	return rel == kit.LegacySettings || rel == kit.LegacyGates ||
+		rel == kit.LegacyConventions || strings.HasPrefix(rel, kit.LegacyConventions+"/")
 }
 
 // Namespaced reports whether rel is one of the kit's files recognised

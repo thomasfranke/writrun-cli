@@ -25,7 +25,7 @@ make_source() {
   (
     cd "$src" || exit 1
     git_q init -q
-    mkdir -p template/.writrun/conventions \
+    mkdir -p template/writrun/conventions \
              template/.writrun/scripts/stage-2-pull-requests \
              template/.writrun/skills/writrun-select-next-task \
              template/.writrun/templates \
@@ -55,7 +55,7 @@ This file is WritRun's: `writ update` replaces it whole.
 The flow's text.
 EOF
 
-    cat > template/.writrun/gates.md <<'EOF'
+    cat > template/writrun/gates.md <<'EOF'
 # Human gates
 
 This file is the project's: `writ update` never touches it.
@@ -66,7 +66,7 @@ This file is the project's: `writ update` never touches it.
 | Everything else | Agent, autonomously. |
 EOF
 
-    cat > template/.writrun/settings.json <<'EOF'
+    cat > template/writrun/settings.json <<'EOF'
 {
   "stage": 1,
   "stage_2": {
@@ -75,7 +75,7 @@ EOF
 }
 EOF
 
-    cat > template/.writrun/conventions/commits.md <<'EOF'
+    cat > template/writrun/conventions/commits.md <<'EOF'
 # Commits
 
 - **Types**: `docs`, `feat`, `fix`, `refactor`, `chore`.

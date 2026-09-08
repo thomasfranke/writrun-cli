@@ -103,7 +103,7 @@ func declaredStage(root string, d Deps) (stage int, unreadable []finding) {
 		return 1, []finding{{
 			stage: 1,
 			level: breaks,
-			text:  fmt.Sprintf(".writrun/settings.json — the declared stage reads as %q; 1, 2 or 3 is expected, and stage 1 was assumed", strings.TrimSpace(said.String())),
+			text:  fmt.Sprintf("%s — the declared stage reads as %q; 1, 2 or 3 is expected, and stage 1 was assumed", kit.Settings, strings.TrimSpace(said.String())),
 		}}
 	}
 	return n, nil

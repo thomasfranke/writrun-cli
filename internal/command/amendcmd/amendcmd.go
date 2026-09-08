@@ -54,7 +54,7 @@ import (
 )
 
 // settingScript is the adopted repository's own reader for
-// `.writrun/settings.json` — the declared title style is read there and
+// `writrun/settings.json` — the declared title style is read there and
 // never parsed here.
 const settingScript = kit.ReadSetting
 

@@ -21,7 +21,7 @@ TARGET="$WORK/target"
 
 # make_repo [stage] — an adopted repository nothing in stages 0–3 has a
 # finding about: the three documents, the docs/ and work/ split, an
-# an AGENTS.md pointing at the flow, every gate in `.writrun/gates.md`
+# an AGENTS.md pointing at the flow, every gate in `writrun/gates.md`
 # answered, the kit's tag recorded, canonical settings, and one commit so
 # a case can ask git whether anything changed.
 make_repo() {
@@ -93,11 +93,11 @@ The flow's text.
 EOF
 }
 
-# gates [who] — .writrun/gates.md with every row answered. Passing a
+# gates [who] — writrun/gates.md with every row answered. Passing a
 # placeholder leaves the docs row unanswered.
 gates() {
   local who="${1:-The maintainer reviews before merge.}"
-  cat > "$TARGET/.writrun/gates.md" <<EOF
+  cat > "$TARGET/writrun/gates.md" <<EOF
 # Human gates — per principle 7
 
 | Transition | Who |
@@ -113,10 +113,10 @@ gates() {
 EOF
 }
 
-# settings <stage> — .writrun/settings.json in the shape check_settings.sh
+# settings <stage> — writrun/settings.json in the shape check_settings.sh
 # holds the file to.
 settings() {
-  cat > "$TARGET/.writrun/settings.json" <<EOF
+  cat > "$TARGET/writrun/settings.json" <<EOF
 {
   "stage": $1,
   "stage_1": {
