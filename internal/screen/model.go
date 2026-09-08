@@ -21,7 +21,7 @@ type Action struct {
 }
 
 // keys are the rule's, and the rule is the whole table
-// (docs/product/screen.md).
+// (docs/product/screens/README.md).
 const (
 	keyTake   = "enter"
 	keyWork   = "w"

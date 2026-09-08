@@ -3,7 +3,7 @@
 
 # `writrun` with no command opens the queue as a screen, and prints what
 # --help prints in the two cases where a screen cannot exist: no
-# terminal, and no adopted repository (docs/product/screen.md,
+# terminal, and no adopted repository (docs/product/screens/README.md,
 # spec-0020). The suite has no terminal, so both cases it can reach are
 # the fallbacks — and the fallback is the rule's own answer, not a
 # degraded one.

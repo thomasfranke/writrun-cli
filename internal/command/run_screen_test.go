@@ -21,7 +21,7 @@ type strTerm struct{ FakeTerminal }
 
 // The screen is opened only with a terminal at both ends and inside an
 // adopted repository. Every other no-command run prints the help, which
-// is what screen.md prescribes rather than a fallback invented here.
+// is what screens/README.md prescribes rather than a fallback invented here.
 func TestTheScreenOpensOnlyWhereTheRuleSaysItCan(t *testing.T) {
 	for _, tc := range []struct {
 		name           string

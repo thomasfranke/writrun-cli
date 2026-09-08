@@ -1,5 +1,5 @@
 // Package screen is the queue as a key-navigated screen — what
-// `writrun` with no command opens (docs/product/screen.md, spec-0020).
+// `writrun` with no command opens (docs/product/screens/README.md, spec-0020).
 //
 // The screen reads and dispatches; it decides nothing. The rows are the
 // selection skill's own lister's output, parsed only far enough to know
