@@ -10,6 +10,12 @@ One writer is the whole point. An entry that is wrong is wrong in the
 subject that produced it, and that is where it is fixed, on the next
 tag. Nothing here is back-filled: the file starts at the first tag cut
 after it shipped.
+## v0.0.2 — 2026-09-09
+
+### fix
+
+- fix: installing expect no longer depends on every apt repository (#127)
+
 ## v0.0.1 — 2026-09-09
 
 ### docs
