@@ -187,11 +187,12 @@ its questions.
 
 No forge act followed — the draft was still a draft — but a confirmation
 that answers itself is the failure to fear, not the one that happened.
-The session is reverted and `screens/README.md` now states why: the
-screen is gone before the command asks anything, and does not come back.
-The session is still the right shape and it is a task of its own: one
-Bubble Tea program for the whole session, releasing and restoring the
-terminal around each command, which is design rather than adjustment.
+The session is reverted, and `screens/README.md` was made to say why:
+the screen is gone before the command asks anything, and does not come
+back. *That rule stood for a day and is superseded — see the reversal
+below.* The session is still the right shape: one Bubble Tea program for
+the whole session, releasing and restoring the terminal around each
+command, which is design rather than adjustment.
 
 **None of the three UI defects in this task was found by a test**, and
 that is a property of the suite rather than of these three. Every case
@@ -215,6 +216,39 @@ one line, so the entry screen rendered a single command above its
 footer. Zero is now read as unknown and means no limit; a terminal that
 *did* say, and said something too short to hold the chrome, still keeps
 its line. Both models carry a unit case for the distinction.
+
+**The screen is a session now, and that is a reversal.** This Outcome
+argued the opposite above — that the screen must be gone before a
+command asks anything, and that reading the next thing is another
+`writrun`. That was the right conclusion from the wrong options: the
+loop it rejected opened a *second* Bubble Tea program while the first
+still held the keyboard, and `finish`'s confirmation answered itself
+with the `enter` that had chosen `finish`. The fault was two programs,
+not the returning.
+
+There is one program now. The entry screen and the queue are its two
+states, and a command runs through `tea.Exec`, which pauses it and
+releases the terminal before the command asks anything. Two readers
+never exist at once because there is only ever one. The maintainer
+reported the closing three times — `work`, `take`, `config` — and it
+was one behaviour, not three.
+
+Two things this turned up. A command's output would be carried off by
+the returning screen, so the reader says when they are done with it.
+And the obvious way to wait for that — a buffered reader — reads ahead
+and drops whatever it took past the newline, which is keys typed for
+the screen: the same swallowing, one layer down. It reads one byte at a
+time instead.
+
+It is not provable at the model level, and the reason has the shape of
+the bug: releasing the terminal means cancelling the read already in
+flight, which a terminal allows and an `io.Reader` does not — a case
+with a fake reader races itself. The pty tier proves it, and was held
+against the old behaviour first: with the command ending the program it
+fails naming that the screen never came back.
+
+`screens/README.md` carries the rule as it now stands, replacing the one
+that said the screen does not come back.
 
 **`make ui` reported a refusal as a broken target.** Choosing `take`
 with nothing available dispatches a command that exits 1 having already

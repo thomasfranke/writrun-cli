@@ -171,14 +171,14 @@ func terminal() term.Terminal {
 // queue one keystroke in — read by the selection skill's own lister,
 // the same authority `writrun list` wraps, so the two cannot become two
 // answers about one queue.
-func openScreen(ctx *command.Ctx) (string, string, error) {
-	action, err := screen.Open(entryScreen(ctx), func() (string, error) {
-		return listing(ctx)
-	}, os.Stdin, os.Stdout)
-	if err != nil {
-		return "", "", err
-	}
-	return action.Command, action.Arg, nil
+func openScreen(ctx *command.Ctx, run func(name, arg string)) error {
+	return screen.Open(
+		entryScreen(ctx),
+		func() (string, error) { return listing(ctx) },
+		func(a screen.Action) { run(a.Command, a.Arg) },
+		os.Stdin,
+		os.Stdout,
+	)
 }
 
 // listing is the lister's output, captured rather than streamed: it is

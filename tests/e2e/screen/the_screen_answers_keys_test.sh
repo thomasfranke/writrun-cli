@@ -95,6 +95,41 @@ expect {
   eof     { puts "\nFAIL: esc did not return to the entry screen (the screen left first)"; exit 15 }
 }
 
+# The session: a command runs and the screen comes back.
+#
+# This is the whole of what a session is, and the only tier that can
+# show it. `tea.Exec` releases the terminal so the command can read it,
+# and releasing means cancelling the read the program already has in
+# flight — which is possible on a terminal and not on an `io.Reader`, so
+# a case with a fake reader would race itself rather than test this.
+#
+# `status` because it only reads. It is also the command that was
+# reported as locking the CLI, which is the same defect from the other
+# side: it ran, printed, and left nothing to come back to.
+send -- "\033\[B"
+send -- "\033\[B"
+send -- "\033\[B"
+expect {
+  "status — " {}
+  timeout     { puts "\nFAIL: down three times did not reach status"; exit 17 }
+  eof         { puts "\nFAIL: down three times did not reach status (the screen left first)"; exit 17 }
+}
+send -- "\r"
+# status reads the queue and asks the forge, so it is given room.
+set timeout 90
+expect {
+  "enter to return" {}
+  timeout           { puts "\nFAIL: the command never offered the way back"; exit 18 }
+  eof               { puts "\nFAIL: the command closed the CLI instead of returning"; exit 18 }
+}
+set timeout 15
+send -- "\r"
+expect {
+  "enter run" {}
+  timeout     { puts "\nFAIL: the screen did not come back after the command"; exit 19 }
+  eof         { puts "\nFAIL: the screen did not come back after the command (it left)"; exit 19 }
+}
+
 # q leaves, and leaving is not a failure.
 send -- "q"
 expect {

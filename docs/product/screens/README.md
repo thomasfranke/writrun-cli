@@ -32,13 +32,17 @@ a command. Which key does what is drawn in
 - Dispatches [`take`](../pull-requests/take.md),
   [`work`](../queue/work.md) and [`status`](../queue/status.md), and
   nothing else.
-- A key leaves the screen and runs the command it names — its checks,
-  its questions, its confirmation, unchanged ([rules](../rules.md)).
-- **The screen is gone before the command asks anything, and does not
-  come back.** A command asks through a terminal program of its own, and
-  two of those in one process do not share a keyboard: a screen still
-  holding the input is a question that answers itself. Reading the next
-  thing is another `writrun`.
+- A key runs the command it names — its checks, its questions, its
+  confirmation, unchanged ([rules](../rules.md)).
+- **A command owns the keyboard alone, and the screen comes back when
+  it is done.** A command asks through a terminal program of its own,
+  and two of those in one process do not share a keyboard: a screen
+  still holding the input is a question that answers itself. So the
+  screen is paused and the terminal released — not closed — and reading
+  the next thing is a keypress rather than another `writrun`.
+- **A command's output is read before the screen returns.** The screen
+  takes the whole terminal, so coming straight back would take the
+  answer with it; the reader says when they are done with it.
 - The screen offers no action a command does not already provide.
 - The screen reads only; every change goes through the dispatched
   command.

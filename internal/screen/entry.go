@@ -58,6 +58,10 @@ type entryModel struct {
 	// queue says the reader chose the row that opens the queue rather
 	// than a command to run.
 	queue bool
+	// left says the reader asked to go, rather than choosing anything.
+	// Alone the screen simply ends; inside a session the difference
+	// between leaving and choosing nothing is the session's to act on.
+	left bool
 }
 
 // entryRow is one rendered line. A row with no command is a heading, a
@@ -152,6 +156,7 @@ func (m entryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case keyQuit, "ctrl+c", "esc":
+			m.left = true
 			return m, tea.Quit
 		}
 	}

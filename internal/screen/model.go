@@ -6,15 +6,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Action is what the screen resolved to when it closed: the command to
-// run and the argument it carries. A zero Action is `q` — the screen
-// left and nothing runs.
+// Action is what a key chose: the command to run and the argument it
+// carries. A zero Action is nothing chosen.
 //
-// The screen closes *before* the command runs, so the command owns the
-// terminal it asks its questions on. That is why this is a value handed
-// back rather than a call made from inside the model: a huh form
-// rendering underneath a live Bubble Tea program is two programs
-// holding one terminal.
+// It is a value rather than a call because a model decides and does not
+// act — the session is what runs it, on a terminal it released first,
+// so the command owns the keyboard alone while it asks its questions
+// (session.go).
 type Action struct {
 	Command string
 	Arg     string
@@ -46,6 +44,8 @@ type model struct {
 	// screen and is going back to it, which is not an action and not a
 	// departure.
 	back bool
+	// left says the reader asked to go. See entryModel.left.
+	left bool
 }
 
 func newModel(rows []Row) model {
@@ -95,6 +95,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.back = true
 			return m, tea.Quit
 		case keyQuit, "ctrl+c":
+			m.left = true
 			return m, tea.Quit
 		}
 	}
