@@ -256,6 +256,11 @@ func TestTheDeclarationPicksHowACommandRuns(t *testing.T) {
 	if !strings.Contains(s.View(), "running doctor") {
 		t.Errorf("the spinner does not say what it waits for:\n%s", s.View())
 	}
+	// And the command has not started yet: it starts on the first tick,
+	// one frame after the screen said it would.
+	if s.pending == nil {
+		t.Error("the command started before the screen could say so")
+	}
 
 	// `take` asks, so it takes the terminal and the screen stays put.
 	s2, _ := step(newTestSession(t, nil), down, enter)
@@ -317,5 +322,55 @@ func TestKeysAreIgnoredWhileACommandRuns(t *testing.T) {
 	out, cmd := step(s, quit)
 	if cmd != nil || out.where != atRunning {
 		t.Error("a key interrupted a running command")
+	}
+}
+
+// The screen says what it is running before it runs it.
+//
+// Starting the command in the same breath as the announcement is a
+// race, and a fast command wins it: it answers before the frame naming
+// it is ever painted, and the screen goes from still to answered with
+// nothing said in between. CI is quicker than the machine this was
+// written on and found exactly that. So the command waits one frame.
+func TestTheCommandStartsAfterTheScreenSaysSo(t *testing.T) {
+	ran := make(chan Action, 1)
+	s := newSession(sample(), func() (string, error) { return listing, nil },
+		func(a Action, _ io.Writer) { ran <- a },
+		strings.NewReader(""), &strings.Builder{})
+
+	s.where, s.running, s.frame = atRunning, "doctor", 0
+	a := Action{Command: "doctor"}
+	s.pending = &a
+
+	if len(ran) != 0 {
+		t.Fatal("the command ran before any frame")
+	}
+	if !strings.Contains(s.View(), "running doctor") {
+		t.Fatalf("the frame does not name the command:\n%s", s.View())
+	}
+
+	out, cmd := s.Update(tickMsg{})
+	if out.(session).pending != nil {
+		t.Error("the first tick did not start the command")
+	}
+	if cmd == nil {
+		t.Fatal("the first tick asked for nothing")
+	}
+	// The batch is a message carrying its commands, so reaching the
+	// capture means running what it carries.
+	batch, ok := cmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("the first tick answered %T, want a batch of the tick and the command", cmd())
+	}
+	for _, c := range batch {
+		c()
+	}
+	select {
+	case got := <-ran:
+		if got != a {
+			t.Errorf("ran %+v, want %+v", got, a)
+		}
+	default:
+		t.Error("the command never ran")
 	}
 }

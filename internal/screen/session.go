@@ -66,9 +66,11 @@ type session struct {
 	err error
 
 	// running is what the spinner is spinning for, and frame is where
-	// it has got to.
+	// it has got to. pending is the command it will start on the first
+	// tick — see exec for why it does not start sooner.
 	running string
 	frame   int
+	pending *Action
 
 	// cameFromQueue says which screen the pager will hand back to.
 	cameFromQueue bool
@@ -241,6 +243,16 @@ func (s session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if s.where != atRunning {
 			return s, nil
 		}
+		// The first tick is where a captured command starts, one frame
+		// after the screen said it would. A command started in the same
+		// breath can answer before that frame is ever painted — a fast
+		// one did, on a machine quicker than the one this was written
+		// on — and then the screen never says what it is doing, which
+		// is the whole reason the frame exists.
+		if a := s.pending; a != nil {
+			s.pending = nil
+			return s, tea.Batch(tick(), s.capture(*a))
+		}
 		s.frame = (s.frame + 1) % len(spinnerFrames)
 		return s, tick()
 	}
@@ -336,7 +348,8 @@ func (s *session) exec(a Action) tea.Cmd {
 		s.where = atRunning
 		s.running = a.Command
 		s.frame = 0
-		return tea.Batch(tick(), s.capture(a))
+		s.pending = &a
+		return tick()
 	}
 	d := dispatch{run: s.run, action: a, in: s.in, out: s.out}
 	return tea.Exec(d, func(error) tea.Msg { return ranMsg{} })
