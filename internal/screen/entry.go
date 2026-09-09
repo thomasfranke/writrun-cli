@@ -39,6 +39,10 @@ type Group struct {
 type Command struct {
 	Name    string
 	Summary string
+	// AsksNothing is the command's own declaration, carried here so the
+	// session can tell which of its two ways to run it: captured and
+	// paged, or handed the terminal to ask its questions on.
+	AsksNothing bool
 }
 
 // listCommand is the one row that opens a screen instead of running a
@@ -70,6 +74,9 @@ type entryRow struct {
 	text    string
 	command string
 	summary string
+	// asksNothing is the command's own declaration, carried from the
+	// table so the session can route it without a second list.
+	asksNothing bool
 }
 
 func newEntry(e Entry) entryModel {
@@ -93,9 +100,10 @@ func newEntry(e Entry) entryModel {
 		push(" " + strings.ToUpper(g.Name))
 		for _, c := range g.Rows {
 			rows = append(rows, entryRow{
-				text:    "   " + pad(c.Name, width) + "  " + c.Summary,
-				command: c.Name,
-				summary: c.Summary,
+				text:        "   " + pad(c.Name, width) + "  " + c.Summary,
+				command:     c.Name,
+				summary:     c.Summary,
+				asksNothing: c.AsksNothing,
 			})
 		}
 	}

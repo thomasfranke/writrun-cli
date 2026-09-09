@@ -46,9 +46,10 @@ type Deps struct {
 // New returns the doctor command wired with its dependencies.
 func New(d Deps) command.Command {
 	return command.Command{
-		Name:    "doctor",
-		Summary: "what the methodology assumes, checked",
-		Need:    command.NeedAdopted,
+		Name:        "doctor",
+		Summary:     "what the methodology assumes, checked",
+		Need:        command.NeedAdopted,
+		AsksNothing: true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

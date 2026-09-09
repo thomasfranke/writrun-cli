@@ -204,7 +204,7 @@ func TestOpenCrossesIntoTheQueueAndBack(t *testing.T) {
 
 // neverRun is the Runner for a case that chooses no command.
 func neverRun(t *testing.T) Runner {
-	return func(a Action) {
+	return func(a Action, _ io.Writer) {
 		t.Helper()
 		t.Errorf("a command ran in a case that chose none: %+v", a)
 	}

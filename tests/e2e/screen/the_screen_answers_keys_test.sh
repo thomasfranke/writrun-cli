@@ -95,17 +95,14 @@ expect {
   eof     { puts "\nFAIL: esc did not return to the entry screen (the screen left first)"; exit 15 }
 }
 
-# The session: a command runs and the screen comes back.
+# The session, first way: a command that asks nothing is captured, and
+# its answer becomes a screen.
 #
-# This is the whole of what a session is, and the only tier that can
-# show it. `tea.Exec` releases the terminal so the command can read it,
-# and releasing means cancelling the read the program already has in
-# flight — which is possible on a terminal and not on an `io.Reader`, so
-# a case with a fake reader would race itself rather than test this.
-#
-# `status` because it only reads. It is also the command that was
-# reported as locking the CLI, which is the same defect from the other
-# side: it ran, printed, and left nothing to come back to.
+# The program never gives up the terminal for it, which is what buys
+# both the spinner while it waits and the scrolling afterwards. `status`
+# because it only reads — and because it is the command that was
+# reported as locking the CLI, which is this same path before it
+# existed.
 send -- "\033\[B"
 send -- "\033\[B"
 send -- "\033\[B"
@@ -115,19 +112,9 @@ expect {
   eof         { puts "\nFAIL: down three times did not reach status (the screen left first)"; exit 17 }
 }
 send -- "\r"
-# A command is a screen like the others: it takes the whole terminal
-# rather than printing into the scrollback under the one it came from.
-# `tea.Exec` gives the terminal back on the normal buffer, so this is
-# asked for by hand and has to be asked for again here.
-expect {
-  -ex "\033\[?1049h" {}
-  timeout            { puts "\nFAIL: the command printed inline instead of taking the screen"; exit 20 }
-  eof                { puts "\nFAIL: the command closed the CLI instead of taking the screen"; exit 20 }
-}
-# What is running, before it runs. Expected here, ahead of the command's
-# own words, because that ordering is the whole point: a command that
-# reaches the forge takes seconds, and an empty terminal in the meantime
-# is indistinguishable from a hung one.
+# The spinner, before the answer. A command that reaches the forge takes
+# seconds, and a still screen in the meantime is indistinguishable from
+# a hung one.
 expect {
   "running status" {}
   timeout          { puts "\nFAIL: the screen never said what it was running"; exit 21 }
@@ -136,26 +123,25 @@ expect {
 # status reads the queue and asks the forge, so it is given room.
 set timeout 90
 expect {
-  "enter to return" {}
-  timeout           { puts "\nFAIL: the command never offered the way back"; exit 18 }
-  eof               { puts "\nFAIL: the command closed the CLI instead of returning"; exit 18 }
+  "esc back" {}
+  timeout    { puts "\nFAIL: the command's answer never became a screen"; exit 18 }
+  eof        { puts "\nFAIL: the command closed the CLI instead of answering"; exit 18 }
 }
 set timeout 15
-send -- "\r"
+send -- "\033"
 expect {
   "enter run" {}
-  timeout     { puts "\nFAIL: the screen did not come back after the command"; exit 19 }
-  eof         { puts "\nFAIL: the screen did not come back after the command (it left)"; exit 19 }
+  timeout     { puts "\nFAIL: the screen did not come back from the answer"; exit 19 }
+  eof         { puts "\nFAIL: the screen did not come back from the answer (it left)"; exit 19 }
 }
 
-# A command that asks a question, cancelled — the other half of the
-# session, and the half that broke.
+# The session, second way: a command that asks keeps the terminal, and
+# is cancelled here rather than answered.
 #
-# `status` only prints, so it leaves the terminal in canonical mode and
-# the return key arrives as `\n`. A command that asks puts the terminal
-# in raw mode to do it, and there Enter is `\r` with nothing to
-# translate it. Waiting on `\n` alone left `report` with a way back that
-# could not hear, which reads exactly like having none.
+# There is no capturing a question: it would wait on a reader who
+# cannot see it. So this half runs on the released terminal, takes the
+# alternate screen by hand, and hands it back when the reader has read
+# it.
 #
 # It is cancelled, never completed: a case that filed a report would be
 # writing into the queue it is testing against.
@@ -170,6 +156,16 @@ expect {
   eof         { puts "\nFAIL: down four times did not reach report (the screen left)"; exit 22 }
 }
 send -- "\r"
+expect {
+  -ex "\033\[?1049h" {}
+  timeout            { puts "\nFAIL: the asking command printed inline instead of taking the screen"; exit 20 }
+  eof                { puts "\nFAIL: the asking command closed the CLI"; exit 20 }
+}
+expect {
+  "running report" {}
+  timeout          { puts "\nFAIL: the screen never said it was running report"; exit 27 }
+  eof              { puts "\nFAIL: the screen never said it was running report (it left)"; exit 27 }
+}
 expect {
   "What did you notice" {}
   timeout               { puts "\nFAIL: report never asked its first question"; exit 23 }

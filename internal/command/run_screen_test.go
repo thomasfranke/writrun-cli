@@ -2,13 +2,15 @@ package command
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"strings"
 	"testing"
 )
 
 // tty returns a frame whose terminal is interactive at both ends and
 // whose screen behaves as the test says.
-func tty(t *testing.T, adopted bool, screen func(*Ctx, func(string, string)) error) (Frame, *strTerm) {
+func tty(t *testing.T, adopted bool, screen func(*Ctx, func(string, string, io.Writer)) error) (Frame, *strTerm) {
 	t.Helper()
 	f, _, _ := frame(t, nil, adopted, nil)
 	term := &strTerm{FakeTerminal{In: true, Out: true}}
@@ -40,7 +42,7 @@ func TestTheScreenOpensOnlyWhereTheRuleSaysItCan(t *testing.T) {
 			f, out, _ := frame(t, nil, tc.adopted, nil)
 			f.Terminal = &strTerm{FakeTerminal{In: tc.in, Out: tc.out}}
 			if tc.wired {
-				f.Screen = func(*Ctx, func(string, string)) error {
+				f.Screen = func(*Ctx, func(string, string, io.Writer)) error {
 					opened = true
 					return nil
 				}
@@ -89,10 +91,10 @@ func TestASessionRunsEveryCommandChosenInIt(t *testing.T) {
 	}
 	f, _, _ := frame(t, []Command{note("status"), note("doctor")}, true, nil)
 	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
-	f.Screen = func(_ *Ctx, run func(string, string)) error {
-		run("status", "")
-		run("doctor", "")
-		run("status", "")
+	f.Screen = func(_ *Ctx, run func(string, string, io.Writer)) error {
+		run("status", "", nil)
+		run("doctor", "", nil)
+		run("status", "", nil)
 		return nil
 	}
 	if code := Run(f, nil); code != 0 {
@@ -118,9 +120,9 @@ func TestARefusalInsideTheSessionDoesNotEndIt(t *testing.T) {
 	}
 	f, _, errb := frame(t, cmds, true, nil)
 	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
-	f.Screen = func(_ *Ctx, run func(string, string)) error {
-		run("take", "task-0021")
-		run("status", "")
+	f.Screen = func(_ *Ctx, run func(string, string, io.Writer)) error {
+		run("take", "task-0021", nil)
+		run("status", "", nil)
 		return nil
 	}
 	if code := Run(f, nil); code != 0 {
@@ -135,9 +137,9 @@ func TestARefusalInsideTheSessionDoesNotEndIt(t *testing.T) {
 }
 
 // chooses answers with one command and then leaves.
-func chooses(name, arg string) func(*Ctx, func(string, string)) error {
-	return func(_ *Ctx, run func(string, string)) error {
-		run(name, arg)
+func chooses(name, arg string) func(*Ctx, func(string, string, io.Writer)) error {
+	return func(_ *Ctx, run func(string, string, io.Writer)) error {
+		run(name, arg, nil)
 		return nil
 	}
 }
@@ -149,7 +151,7 @@ func TestLeavingTheScreenRunsNothing(t *testing.T) {
 		Run: func(*Ctx, []string) error { ran = true; return nil }}
 	f, _, _ := frame(t, []Command{cmd}, true, nil)
 	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
-	f.Screen = func(*Ctx, func(string, string)) error { return nil }
+	f.Screen = func(*Ctx, func(string, string, io.Writer)) error { return nil }
 	if code := Run(f, nil); code != 0 {
 		t.Errorf("exit = %d, want 0", code)
 	}
@@ -161,7 +163,7 @@ func TestLeavingTheScreenRunsNothing(t *testing.T) {
 // A screen that cannot open says so and exits 1 — it does not fall back
 // to the help, which would read as "no screen was ever meant to open".
 func TestAScreenThatFailsIsReported(t *testing.T) {
-	f, _ := tty(t, true, func(*Ctx, func(string, string)) error {
+	f, _ := tty(t, true, func(*Ctx, func(string, string, io.Writer)) error {
 		return errors.New("the lister refused")
 	})
 	var errb strings.Builder
@@ -177,12 +179,45 @@ func TestAScreenThatFailsIsReported(t *testing.T) {
 // The screen is handed the repository it will read, already resolved.
 func TestTheScreenIsGivenTheAdoptedRoot(t *testing.T) {
 	var root string
-	f, _ := tty(t, true, func(ctx *Ctx, _ func(string, string)) error {
+	f, _ := tty(t, true, func(ctx *Ctx, _ func(string, string, io.Writer)) error {
 		root = ctx.Root
 		return nil
 	})
 	Run(f, nil)
 	if root != "/repo" {
 		t.Errorf("root = %q, want the resolved /repo", root)
+	}
+}
+
+// A captured command writes where the screen said, not to the frame's
+// own streams — that is what lets the screen page an answer instead of
+// giving up the terminal for it. Both streams go to the one place: a
+// reader reads one account, in the order it was written.
+func TestACapturedCommandWritesWhereTheScreenSaid(t *testing.T) {
+	cmd := Command{
+		Name: "status", Summary: "status", Need: NeedAdopted, AsksNothing: true,
+		Run: func(ctx *Ctx, _ []string) error {
+			fmt.Fprintln(ctx.Stdout, "the answer")
+			fmt.Fprintln(ctx.Stderr, "and a warning")
+			return nil
+		},
+	}
+	f, out, errb := frame(t, []Command{cmd}, true, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	var captured strings.Builder
+	f.Screen = func(_ *Ctx, run func(string, string, io.Writer)) error {
+		run("status", "", &captured)
+		return nil
+	}
+	if code := Run(f, nil); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	for _, want := range []string{"the answer", "and a warning"} {
+		if !strings.Contains(captured.String(), want) {
+			t.Errorf("%q did not reach the screen; it captured %q", want, captured.String())
+		}
+	}
+	if strings.Contains(out.String(), "the answer") || strings.Contains(errb.String(), "and a warning") {
+		t.Error("a captured command also wrote to the terminal the screen is drawing on")
 	}
 }

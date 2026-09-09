@@ -3,6 +3,9 @@ package screen
 import (
 	"fmt"
 	"io"
+	"strings"
+	"sync"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -12,10 +15,15 @@ import (
 // knows a command's behaviour, only its name
 // (docs/technical/engineering/coupling.md).
 //
+// out is where the command writes. A nil out hands it the process's own
+// streams — the terminal, released, which is what a command that asks
+// questions needs. A non-nil out captures instead, which only a command
+// that declares it asks nothing may be given.
+//
 // It answers nothing, because the command already has: whatever it
-// found, it printed on the terminal this released for it, and a second
-// account of the same thing is one the reader has to reconcile.
-type Runner func(Action)
+// found, it wrote, and a second account of the same thing is one the
+// reader has to reconcile.
+type Runner func(a Action, out io.Writer)
 
 // session is the whole screen: the entry screen and the queue as two
 // states of one program rather than two programs taking turns.
@@ -36,9 +44,11 @@ type Runner func(Action)
 // the command asks anything. Two readers never exist at once, because
 // there is only ever one program.
 type session struct {
-	entry   entryModel
-	queue   model
-	inQueue bool
+	entry entryModel
+	queue model
+	pager pager
+	// where says which of the screens is showing.
+	where where
 
 	// listing reads the queue when the reader opens it, and again after
 	// a command, because a command is the thing that changes it.
@@ -54,10 +64,54 @@ type session struct {
 	// place of the rows rather than ending the session: a queue that
 	// cannot be read is not a reason to close the door.
 	err error
+
+	// running is what the spinner is spinning for, and frame is where
+	// it has got to.
+	running string
+	frame   int
+
+	// cameFromQueue says which screen the pager will hand back to.
+	cameFromQueue bool
+	// height is the window's, kept so a pager built mid-session is born
+	// the right size rather than waiting for the next resize.
+	height int
 }
 
-// ranMsg says a command finished and the screen is coming back.
+// where is the screen the reader is looking at.
+type where int
+
+const (
+	atEntry where = iota
+	atQueue
+	atRunning
+	atPager
+)
+
+// ranMsg says a command that owned the terminal finished.
 type ranMsg struct{}
+
+// wroteMsg carries a captured command's whole output back to the
+// program that never gave up the terminal for it.
+type wroteMsg struct {
+	command string
+	output  string
+}
+
+// tickMsg turns the spinner. It exists only while a captured command is
+// running: nothing else animates, so nothing else has a clock.
+type tickMsg struct{}
+
+// spinner is the frames and the pace. A captured command is the only
+// thing this screen waits on, and waiting with no sign of life is
+// indistinguishable from hanging — which is what the maintainer saw
+// before there was one.
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+const spinnerPace = 90 * time.Millisecond
+
+func tick() tea.Cmd {
+	return tea.Tick(spinnerPace, func(time.Time) tea.Msg { return tickMsg{} })
+}
 
 // dispatch is one command, run while the program is paused.
 //
@@ -109,7 +163,7 @@ func (d dispatch) Run() error {
 	// interleaving with its output. The same reason a screen cannot
 	// stay open behind a question.
 	fmt.Fprintf(d.out, "  running %s…\n\n", d.action.Command)
-	d.run(d.action)
+	d.run(d.action, nil)
 	fmt.Fprint(d.out, "\n— enter to return to the screen —")
 	waitForLine(d.in)
 	fmt.Fprint(d.out, altOff)
@@ -162,19 +216,67 @@ func (s session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.entry = e.(entryModel)
 		q, _ := s.queue.Update(msg)
 		s.queue = q.(model)
+		pg, _ := s.pager.Update(msg)
+		s.pager = pg.(pager)
+		s.height = s.pager.height
 		return s, nil
 	case ranMsg:
-		// The command's own words have been read already. What is left
-		// is the queue, which the command may have changed.
-		if s.inQueue {
+		// A command that owned the terminal has been read there already,
+		// and the screen it was chosen from is still the one showing —
+		// this path never left it. What is left is the queue, which the
+		// command may have changed.
+		if s.where == atQueue {
 			s.loadQueue()
 		}
 		return s, nil
+	case wroteMsg:
+		// A captured command answers into a screen of its own.
+		s.where = atPager
+		s.running = ""
+		s.pager = newPager(msg.command, msg.output)
+		s.pager.height = s.height
+		s.pager.clamp()
+		return s, nil
+	case tickMsg:
+		if s.where != atRunning {
+			return s, nil
+		}
+		s.frame = (s.frame + 1) % len(spinnerFrames)
+		return s, tick()
 	}
-	if s.inQueue {
+	switch s.where {
+	case atRunning:
+		// Nothing answers a key here. The command is not the screen's
+		// to interrupt: it is already writing, and a half-run command
+		// abandoned is a worse answer than a slow one.
+		return s, nil
+	case atPager:
+		return s.updatePager(msg)
+	case atQueue:
 		return s.updateQueue(msg)
 	}
 	return s.updateEntry(msg)
+}
+
+func (s session) updatePager(msg tea.Msg) (tea.Model, tea.Cmd) {
+	p, _ := s.pager.Update(msg)
+	s.pager = p.(pager)
+	switch {
+	case s.pager.left:
+		return s, tea.Quit
+	case s.pager.back:
+		s.pager.back = false
+		// Back to where the command was chosen, and the queue re-read
+		// where that is what is behind it.
+		if s.cameFromQueue {
+			s.where = atQueue
+			s.loadQueue()
+		} else {
+			s.where = atEntry
+		}
+		return s, nil
+	}
+	return s, nil
 }
 
 // updateEntry delegates to the entry screen and then reads what it
@@ -190,7 +292,7 @@ func (s session) updateEntry(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, tea.Quit
 	case s.entry.queue:
 		s.entry.queue = false
-		s.inQueue = true
+		s.where = atQueue
 		s.loadQueue()
 		return s, nil
 	case s.entry.action != (Action{}):
@@ -210,7 +312,7 @@ func (s session) updateQueue(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, tea.Quit
 	case s.queue.back:
 		s.queue.back = false
-		s.inQueue = false
+		s.where = atEntry
 		return s, nil
 	case s.queue.action != (Action{}):
 		a := s.queue.action
@@ -220,9 +322,69 @@ func (s session) updateQueue(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
+// exec runs a command one of two ways, and the command's own
+// declaration picks which.
+//
+// A command that asks nothing is captured: the program keeps the
+// terminal, so it can spin while it waits and page the answer
+// afterwards. A command that asks is handed the terminal through
+// `tea.Exec`, because a captured question waits on a reader who cannot
+// see it — and because two programs must never hold one keyboard.
 func (s *session) exec(a Action) tea.Cmd {
+	s.cameFromQueue = s.where == atQueue
+	if s.asksNothing(a.Command) {
+		s.where = atRunning
+		s.running = a.Command
+		s.frame = 0
+		return tea.Batch(tick(), s.capture(a))
+	}
 	d := dispatch{run: s.run, action: a, in: s.in, out: s.out}
 	return tea.Exec(d, func(error) tea.Msg { return ranMsg{} })
+}
+
+// capture runs the command off the update loop and answers with
+// everything it wrote.
+//
+// The buffer is guarded because the command may write from more than
+// one goroutine of its own — a script runner streaming stdout and
+// stderr is two — and a torn line is a line the reader cannot trust.
+func (s *session) capture(a Action) tea.Cmd {
+	run, name := s.run, a.Command
+	return func() tea.Msg {
+		w := &safeBuffer{}
+		run(a, w)
+		return wroteMsg{command: name, output: w.String()}
+	}
+}
+
+type safeBuffer struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *safeBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *safeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// asksNothing reads the declaration off the row that names the command,
+// so the table is asked rather than copied. A command the entry screen
+// does not list — `take` and `work` reached from the queue do appear —
+// is treated as asking, which is the safe answer.
+func (s session) asksNothing(name string) bool {
+	for _, r := range s.entry.rows {
+		if r.command == name {
+			return r.asksNothing
+		}
+	}
+	return false
 }
 
 // loadQueue reads the queue and keeps the reader's place where it can.
@@ -246,7 +408,13 @@ func (s *session) loadQueue() {
 }
 
 func (s session) View() string {
-	if s.inQueue {
+	switch s.where {
+	case atRunning:
+		return fmt.Sprintf("\n  %s running %s…\n",
+			spinnerFrames[s.frame], s.running)
+	case atPager:
+		return s.pager.View()
+	case atQueue:
 		if s.err != nil {
 			return fmt.Sprintf(" the queue could not be read: %v\n\n esc back · q quit\n", s.err)
 		}

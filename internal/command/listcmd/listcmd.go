@@ -33,9 +33,10 @@ type Deps struct {
 // New returns the list command wired with its dependencies.
 func New(d Deps) command.Command {
 	return command.Command{
-		Name:    "list",
-		Summary: "the queue: available, held back, untriaged",
-		Need:    command.NeedAdopted,
+		Name:        "list",
+		Summary:     "the queue: available, held back, untriaged",
+		Need:        command.NeedAdopted,
+		AsksNothing: true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

@@ -265,6 +265,32 @@ bites.
 `screens/README.md` carries the rules as they now stand, replacing the
 one that said the screen does not come back.
 
+**A command's answer is a screen now, where the command allows it.**
+The alternate buffer keeps no scrollback, so a long answer scrolled off
+with no way back to it, and the wait before it could not animate — the
+command owned the terminal, and a spinner would have been a second
+writer interleaving with its output.
+
+Both follow from giving up the terminal, so the fix is not to. A
+command that declares it asks nothing has its output captured and shown
+in a pager: the program never leaves, so it can spin while it waits and
+scroll afterwards. A command that asks keeps the terminal exactly as
+before, because a captured question waits on a reader who cannot see
+it.
+
+The declaration is the command's own — `AsksNothing` on
+`command.Command`, false by default, so a command added without a
+thought keeps the terminal to itself. That is only ever slower to read;
+the other mistake is a question asked into the dark. A case reads the
+source and fails any package that both calls `Ask*` and claims to ask
+nothing, so the claim is checked rather than trusted.
+
+Two things this turned up. Restructuring the session's states dropped
+the rule that a command chosen in the queue comes back to the queue
+re-read, and the case that held it said so. And the capture buffer is
+guarded: a script runner streams stdout and stderr from two goroutines,
+and a torn line is a line the reader cannot trust.
+
 **A question named no way out of itself.** `report` was reported as
 having no way back, and it was not the session: huh spells its footer
 from the field's own bindings and leaves the form's `ctrl+c` unnamed,

@@ -2,6 +2,7 @@ package screen
 
 import (
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ func newTestSession(t *testing.T, read func() (string, error)) session {
 	if read == nil {
 		read = func() (string, error) { return listing, nil }
 	}
-	return newSession(sample(), read, func(Action) {}, strings.NewReader(""), &strings.Builder{})
+	return newSession(sample(), read, func(Action, io.Writer) {}, strings.NewReader(""), &strings.Builder{})
 }
 
 func step(s session, msgs ...tea.Msg) (session, tea.Cmd) {
@@ -42,7 +43,7 @@ func TestTheQueueOpensAndCloses(t *testing.T) {
 		reads++
 		return listing, nil
 	}), enter)
-	if !s.inQueue {
+	if s.where != atQueue {
 		t.Fatal("enter on list did not open the queue")
 	}
 	if reads != 1 {
@@ -56,7 +57,7 @@ func TestTheQueueOpensAndCloses(t *testing.T) {
 	}
 
 	s, cmd = step(s, esc)
-	if s.inQueue {
+	if s.where == atQueue {
 		t.Error("esc did not return to the entry screen")
 	}
 	if cmd != nil {
@@ -212,7 +213,7 @@ func TestTheDispatchRunsTheCommandThenWaits(t *testing.T) {
 	var got Action
 	var out strings.Builder
 	d := dispatch{
-		run:    func(a Action) { got = a },
+		run:    func(a Action, _ io.Writer) { got = a },
 		action: Action{Command: "take", Arg: "task-0021"},
 		in:     strings.NewReader("\n"),
 		out:    &out,
@@ -225,5 +226,96 @@ func TestTheDispatchRunsTheCommandThenWaits(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "enter to return") {
 		t.Errorf("the way back was not offered: %q", out.String())
+	}
+}
+
+// A command's own declaration picks how it is run.
+//
+// One that asks nothing is captured — the program keeps the terminal,
+// which is what buys the spinner and the scrolling. One that asks is
+// handed the terminal, because a captured question waits on a reader
+// who cannot see it.
+func TestTheDeclarationPicksHowACommandRuns(t *testing.T) {
+	// `doctor` declares it asks nothing (entry_test.go's sample).
+	s := newTestSession(t, nil)
+	s.entry.cursor = 0
+	for s.entry.selected() != "doctor" {
+		s.entry.move(1)
+		if s.entry.cursor < 0 {
+			t.Fatal("doctor is not in the sample")
+		}
+	}
+	out, cmd := s.Update(enter)
+	s = out.(session)
+	if s.where != atRunning {
+		t.Errorf("where = %v, want the spinner while a captured command runs", s.where)
+	}
+	if cmd == nil {
+		t.Error("nothing was asked for")
+	}
+	if !strings.Contains(s.View(), "running doctor") {
+		t.Errorf("the spinner does not say what it waits for:\n%s", s.View())
+	}
+
+	// `take` asks, so it takes the terminal and the screen stays put.
+	s2, _ := step(newTestSession(t, nil), down, enter)
+	if s2.where == atRunning {
+		t.Error("a command that asks was captured")
+	}
+}
+
+// The answer becomes a screen, and going back from it lands where the
+// command was chosen.
+func TestTheAnswerBecomesAScreenAndHandsBack(t *testing.T) {
+	s, _ := step(newTestSession(t, nil), tea.WindowSizeMsg{Width: 80, Height: 24})
+	s, _ = step(s, wroteMsg{command: "doctor", output: "all clear\n"})
+	if s.where != atPager {
+		t.Fatalf("where = %v, want the answer's own screen", s.where)
+	}
+	if !strings.Contains(s.View(), "all clear") {
+		t.Errorf("the answer is not what the screen shows:\n%s", s.View())
+	}
+
+	s, cmd := step(s, esc)
+	if s.where != atEntry {
+		t.Errorf("where = %v, want the screen it was chosen from", s.where)
+	}
+	if cmd != nil {
+		t.Error("leaving the answer ended the session")
+	}
+}
+
+// The spinner turns while it waits, and stops when there is nothing to
+// wait for: a clock with no reason to tick is a program that never
+// sleeps.
+func TestTheSpinnerTurnsOnlyWhileSomethingRuns(t *testing.T) {
+	s := newTestSession(t, nil)
+	s.where = atRunning
+	s.running = "doctor"
+	before := s.frame
+	s, cmd := step(s, tickMsg{})
+	if s.frame == before {
+		t.Error("the spinner did not turn")
+	}
+	if cmd == nil {
+		t.Error("the spinner stopped while the command was still running")
+	}
+
+	idle := newTestSession(t, nil)
+	if _, cmd := step(idle, tickMsg{}); cmd != nil {
+		t.Error("the spinner kept ticking with nothing to wait for")
+	}
+}
+
+// A key pressed while a command runs does nothing: the command is
+// already writing, and a half-run command abandoned is a worse answer
+// than a slow one.
+func TestKeysAreIgnoredWhileACommandRuns(t *testing.T) {
+	s := newTestSession(t, nil)
+	s.where = atRunning
+	s.running = "doctor"
+	out, cmd := step(s, quit)
+	if cmd != nil || out.where != atRunning {
+		t.Error("a key interrupted a running command")
 	}
 }

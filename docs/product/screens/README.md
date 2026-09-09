@@ -40,12 +40,18 @@ a command. Which key does what is drawn in
   still holding the input is a question that answers itself. So the
   screen is paused and the terminal released — not closed — and reading
   the next thing is a keypress rather than another `writrun`.
-- **A command takes the whole terminal too, and its output is read
-  before the screen returns.** A command is a screen like the others —
-  it replaces what is on the terminal and gives it back untouched,
-  rather than printing into the scrollback beneath the screen that
-  dispatched it. Coming straight back would take the answer with it, so
-  the reader says when they are done with it.
+- **A command that asks nothing answers into a screen.** Its output is
+  captured and shown scrollable, with the screen saying what is running
+  while it waits. The screen never gives up the terminal for such a
+  command, which is what lets it do either.
+- **A command that asks keeps the terminal to itself.** There is no
+  capturing a question: it would wait on a reader who cannot see it. It
+  takes the whole terminal, as a screen does, and hands it back when the
+  reader says they have read it.
+- **Which of the two is the command's own declaration**, and the safe
+  answer is the second. A command whose declaration is missing keeps the
+  terminal, which is only slower to read; the other mistake asks a
+  question into the dark.
 - The screen offers no action a command does not already provide.
 - The screen reads only; every change goes through the dispatched
   command.

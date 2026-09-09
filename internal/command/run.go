@@ -35,7 +35,7 @@ type Frame struct {
 	//
 	// nil is a binary built without a screen: the no-command path then
 	// prints the help, which is what it printed before there was one.
-	Screen func(ctx *Ctx, run func(name, arg string)) error
+	Screen func(ctx *Ctx, run func(name, arg string, out io.Writer)) error
 }
 
 const docsAddress = "https://github.com/thomasfranke/writrun-cli/tree/main/docs"
@@ -252,12 +252,20 @@ func openScreen(f Frame, noColor, yes bool) int {
 	// handed back to say, and an exit code is not one either. The one a
 	// command answers belongs to `writrun <command>`, where it is a
 	// script's to read; in a session there is no script to read it.
-	err = f.Screen(ctx, func(name, arg string) {
+	err = f.Screen(ctx, func(name, arg string, out io.Writer) {
 		var rest []string
 		if arg != "" {
 			rest = []string{arg}
 		}
-		dispatch(f, noColor, yes, name, rest)
+		g := f
+		// A captured command writes where the screen can page it, and
+		// both streams go to the one place: a reader reads one account,
+		// in the order it was written, not a report with its warnings
+		// filed somewhere else.
+		if out != nil {
+			g.Stdout, g.Stderr = out, out
+		}
+		dispatch(g, noColor, yes, name, rest)
 	})
 	if err != nil {
 		fmt.Fprintf(f.Stderr, "writrun: %v\n", err)

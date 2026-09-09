@@ -6,6 +6,10 @@
 | integration | the compiled binary against fixture repositories, `gh` and the agent stubbed | `tests/integration/` | one directory per subject, one file per behaviour |
 | e2e | a whole flow — adopt, take, finish — against a local WritRun clone and a bare origin | `tests/e2e/` | the forge is the one fake |
 
+[`tests/README.md`](../../../tests/README.md) is the suite's own index:
+where each tier is on disk, why the unit tier is not under `tests/`, and
+what each tier can prove that the others cannot.
+
 ## Coverage
 
 - **Coverage gates the pipeline**, over `internal/`, on two floors: the

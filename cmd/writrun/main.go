@@ -171,11 +171,11 @@ func terminal() term.Terminal {
 // queue one keystroke in — read by the selection skill's own lister,
 // the same authority `writrun list` wraps, so the two cannot become two
 // answers about one queue.
-func openScreen(ctx *command.Ctx, run func(name, arg string)) error {
+func openScreen(ctx *command.Ctx, run func(name, arg string, out io.Writer)) error {
 	return screen.Open(
 		entryScreen(ctx),
 		func() (string, error) { return listing(ctx) },
-		func(a screen.Action) { run(a.Command, a.Arg) },
+		func(a screen.Action, out io.Writer) { run(a.Command, a.Arg, out) },
 		os.Stdin,
 		os.Stdout,
 	)
@@ -221,15 +221,17 @@ var entryGroups = []struct {
 // here writes a second description of a command.
 func entryScreen(ctx *command.Ctx) screen.Entry {
 	summaries := map[string]string{}
+	asks := map[string]bool{}
 	for _, c := range commands() {
 		summaries[c.Name] = c.Summary
+		asks[c.Name] = c.AsksNothing
 	}
 	e := screen.Entry{Header: header(ctx)}
 	for _, g := range entryGroups {
 		group := screen.Group{Name: g.name}
 		for _, n := range g.names {
 			if s, there := summaries[n]; there {
-				group.Rows = append(group.Rows, screen.Command{Name: n, Summary: s})
+				group.Rows = append(group.Rows, screen.Command{Name: n, Summary: s, AsksNothing: asks[n]})
 			}
 		}
 		if len(group.Rows) > 0 {

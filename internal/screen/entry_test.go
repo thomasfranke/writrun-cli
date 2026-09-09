@@ -15,11 +15,14 @@ func sample() Entry {
 		Stage:  []string{"STAGE 3", "  commit ask · push auto · pull request ask"},
 		Groups: []Group{
 			{Name: "tasks", Rows: []Command{
-				{"list", "the queue: available, held back, untriaged"},
-				{"take", "begin a task: branch pushed, draft PR opened"},
+				// `list` opens the queue rather than running, and
+				// `take` asks before it acts — so the sample carries one
+				// row of each kind the session routes differently.
+				{Name: "list", Summary: "the queue: available, held back, untriaged"},
+				{Name: "take", Summary: "begin a task: branch pushed, draft PR opened"},
 			}},
 			{Name: "adoption", Rows: []Command{
-				{"doctor", "what the methodology assumes, checked"},
+				{Name: "doctor", Summary: "what the methodology assumes, checked", AsksNothing: true},
 			}},
 		},
 	}
@@ -61,7 +64,7 @@ func TestOnlyCommandRowsAreSelectable(t *testing.T) {
 // edited, and one the caller withholds does not.
 func TestTheRowsAreTheGivenCommands(t *testing.T) {
 	e := sample()
-	e.Groups[0].Rows = append(e.Groups[0].Rows, Command{"finish", "complete a task: deltas checked, PR ready"})
+	e.Groups[0].Rows = append(e.Groups[0].Rows, Command{Name: "finish", Summary: "complete a task: deltas checked, PR ready"})
 	view := newEntry(e).View()
 	if !strings.Contains(view, "finish") {
 		t.Error("a command the caller listed is missing from the screen")
