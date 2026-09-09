@@ -38,5 +38,13 @@ jobs:
         with:
           version: ${{ env.GORELEASER }}
           install-only: true
+      # Two cases stand a terminal up through expect and skip by name
+      # without it. Skipping is safe but proves nothing, and main's
+      # verdict should not be quieter than a pull request's — tests.yml
+      # installs it for the same reason.
+      - name: expect
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends expect
       - name: Run tests
         run: make tests

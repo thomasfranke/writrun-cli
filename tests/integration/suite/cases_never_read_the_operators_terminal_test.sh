@@ -15,6 +15,15 @@
 # This drives the runner rather than reading it: a grep for `/dev/null`
 # would pass on a line that had been commented out.
 
+# expect stands the terminal up. Where it is absent the case says so by
+# name rather than failing: a runner without it is not a broken suite,
+# and `release readiness` is such a runner
+# (tests/e2e/screen/ skips the same way).
+if ! command -v expect >/dev/null 2>&1; then
+  echo "ok    a case gets /dev/null (skipped: expect is not installed)"
+  finish
+fi
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/tests/probe/keyboard"
