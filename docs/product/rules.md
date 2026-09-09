@@ -23,10 +23,13 @@ already defines; it never decides in the methodology's place.
   the repository's own, in the order the methodology fixed.
 - **No command is an agent.** `work` launches one; `writrun` itself
   never reasons about a task's content.
-- **No command overwrites the project's own files.** Whatever the
-  methodology declares the adopter's — everything under `writrun/`,
-  existing docs, an existing `AGENTS.md` — is grafted or left alone,
-  never replaced by the kit's copy of it.
+- **No command overwrites the project's own files with the kit's.**
+  Whatever the methodology declares the adopter's — everything under
+  `writrun/`, existing docs, an existing `AGENTS.md` — is grafted or
+  left alone, never replaced by a copy the kit ships.
+  [`config`](config.md) is not an exception to this and never was: it
+  writes the adopter's own answer at the adopter's asking, and hands
+  the result to the kit's checker before keeping it.
 
 ## How a command reports
 

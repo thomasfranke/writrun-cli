@@ -6,10 +6,10 @@ against. The rules a drawing cannot carry are stated below them.
 
 | | |
 |---|---|
-| [Queue](queue.excalidraw) | The lister's sections, navigated by keys. What `writrun` with no command opens today. |
-| [Entry](entry.excalidraw) | What the entry screen lists, and how it reaches the rest. Proposed. |
+| [Queue](queue.excalidraw) | The lister's sections, navigated by keys. One keystroke in from the entry screen. |
+| [Entry](entry.excalidraw) | What the entry screen lists, and how it reaches the rest. |
 | [doctor](doctor.excalidraw) | [`doctor`](../adoption/doctor.md)'s report, grouped by stage, at every level a finding carries. |
-| [Config](config.excalidraw) | The ten keys of `.writrun/settings.json`. Proposed. |
+| [Config](config.excalidraw) | [`config`](../config.md)'s keys, and what judges a change. |
 
 ## `writrun` with no command
 

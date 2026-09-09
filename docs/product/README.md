@@ -24,6 +24,7 @@ grouped two ways is two answers about one tool:
 | Adoption | [`init`](adoption/init.md) | Installing the kit into an existing repository. |
 | | [`update`](adoption/update.md) | Refreshing the kit to a newer WritRun tag. |
 | | [`doctor`](adoption/doctor.md) | Whether the repository still satisfies what the methodology assumes. |
+| | [`config`](config.md) | Reading the adopter's settings, and changing one. |
 | | [`uninstall`](adoption/uninstall.md) | Removing the kit; the project's record stays. |
 
 `take`, `author`, `finish` and `amend` end in a pull request and share

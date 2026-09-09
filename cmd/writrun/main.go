@@ -17,6 +17,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/command/amendcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/authorcmd"
+	"github.com/thomasfranke/writrun-cli/internal/command/configcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/doctorcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/finishcmd"
 	"github.com/thomasfranke/writrun-cli/internal/command/initcmd"
@@ -143,6 +144,7 @@ func commands() []command.Command {
 			Getenv:  os.Getenv,
 		}),
 		reportcmd.New(reportcmd.Deps{Scripts: kit.Run, Files: disk}),
+		configcmd.New(configcmd.Deps{Scripts: kit.Run, Files: disk}),
 	}
 }
 
@@ -211,7 +213,7 @@ var entryGroups = []struct {
 	{"tasks", []string{"list", "take", "work", "status", "finish"}},
 	{"authoring", []string{"author", "amend"}},
 	{"reports", []string{"report"}},
-	{"adoption", []string{"doctor", "update", "uninstall"}},
+	{"adoption", []string{"doctor", "config", "update", "uninstall"}},
 }
 
 // entryScreen fills the screen from the command table and the facts the
