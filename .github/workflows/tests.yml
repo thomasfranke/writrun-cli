@@ -49,8 +49,17 @@ jobs:
       # a skip is not a pass, so CI installs it rather than accepting one.
       - name: expect
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends expect
+          # Installed without `apt-get update` first: the runner's lists
+          # already carry expect, and update fails on third-party repos
+          # the image ships — a Chrome index hash mismatch took main red
+          # on the release commit. Whether expect installs is not that
+          # repository's business.
+          #
+          # Where the lists really are too old, update and retry — and
+          # update's own failure is tolerated there for the same reason.
+          sudo apt-get install -y -qq --no-install-recommends expect \
+            || { sudo apt-get update -qq || true
+                 sudo apt-get install -y -qq --no-install-recommends expect; }
 
       - name: gofmt
         run: |
