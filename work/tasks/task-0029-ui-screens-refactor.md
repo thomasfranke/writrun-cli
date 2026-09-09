@@ -1,8 +1,8 @@
 ---
 id: task-0029
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0027, spec-0028, spec-0029, spec-0030, spec-0031, spec-0032]
 doc_ref: product/screens/README.md
 origin: rule
