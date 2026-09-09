@@ -256,3 +256,15 @@ func TestAnUnknownKeyIsIgnored(t *testing.T) {
 		t.Error("an unknown key moved the selection")
 	}
 }
+
+// The queue answers an unknown height the same way the entry screen does.
+func TestTheQueueTreatsAnUnknownHeightAsNoLimit(t *testing.T) {
+	out, _ := newModel(rowsOf(t)).Update(tea.WindowSizeMsg{Width: 80, Height: 0})
+	m := out.(model)
+	if m.height != 0 {
+		t.Errorf("height = %d, want 0 for a terminal that did not say", m.height)
+	}
+	if !strings.Contains(m.View(), "task-0020") {
+		t.Error("an unknown height hid rows")
+	}
+}

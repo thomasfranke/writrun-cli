@@ -126,3 +126,22 @@ func TestEscOnTheQueueGoesBack(t *testing.T) {
 		t.Errorf("esc dispatched %v — going back runs nothing", q.action)
 	}
 }
+
+// A terminal that never said how tall it is gets every row, not one.
+//
+// The pty tier found this: expect spawns without a size, bubbletea
+// reports height 0, and a floor of one line left the entry screen
+// showing a single command with its footer — a screen that looked
+// broken on any terminal that answers late or not at all.
+func TestAnUnknownHeightIsNoLimitRatherThanOneLine(t *testing.T) {
+	out, _ := newEntry(sample()).Update(tea.WindowSizeMsg{Width: 80, Height: 0})
+	m := out.(entryModel)
+	if m.height != 0 {
+		t.Errorf("height = %d, want 0 for a terminal that did not say", m.height)
+	}
+	for _, name := range []string{"list", "take", "doctor"} {
+		if !strings.Contains(m.View(), name) {
+			t.Errorf("%q is missing: an unknown height hid rows", name)
+		}
+	}
+}

@@ -122,8 +122,16 @@ func (m entryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// Four lines are the separator, the detail's two, and the
 		// footer; one more is the blank above them.
-		m.height = msg.Height - 5
-		if m.height < 1 {
+		// A height of zero is a terminal that has not said how tall it
+		// is, not a terminal with no room: it gets no limit, and the
+		// rows all render. A terminal that did say, and said something
+		// too short to hold the chrome, still gets a line to read.
+		switch {
+		case msg.Height == 0:
+			m.height = 0
+		case msg.Height > 5:
+			m.height = msg.Height - 5
+		default:
 			m.height = 1
 		}
 		m.scroll()

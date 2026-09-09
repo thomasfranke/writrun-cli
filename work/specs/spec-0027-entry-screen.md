@@ -105,6 +105,15 @@ stage block reads `.writrun/settings.json` and writes nothing.
   the drawing and the table cannot drift apart unnoticed.
 - Integration, `tests/integration/screen/`: the two no-screen cases
   still print what `--help` prints.
+- Unit, `internal/palette`: a palette that was told not to paint hands
+  every role's text back unchanged, and one that may paint wraps the
+  text without replacing it.
+- e2e, `tests/e2e/screen/`: a real pty, driven through `expect` — the
+  alternate screen is asked for, the groups and footer are drawn, the
+  cursor moves with the detail line following, `enter` on `list` opens
+  the queue, `esc` returns to the entry screen, and `q` leaves with
+  zero. This is the only tier that sees the terminal rather than the
+  model, and it reads the queue without touching it.
 
 ## Definition of Done
 
@@ -187,9 +196,41 @@ terminal around each command, which is design rather than adjustment.
 **None of the three UI defects in this task was found by a test**, and
 that is a property of the suite rather than of these three. Every case
 here drives the model — keys in, actions out — and a model answers
-correctly while the terminal underneath it does not. There is no tier
-that drives a real terminal, and the pty harness this branch used
-delivered keys unreliably enough to prove nothing either way.
+correctly while the terminal underneath it does not.
+
+That gap is now closed. `tests/e2e/screen/` opens a real pty through
+`expect` and reads what a person would see: the alternate screen is
+asked for, the groups and footer are drawn, the cursor moves and the
+detail line follows, `enter` on `list` opens the queue, `esc` returns
+rather than leaving, and `q` leaves with nothing. It was held against
+each defect before being trusted: with the alternate screen removed it
+fails naming that, and with `esc` dispatching instead of returning it
+fails naming that. It reads only — a case that took a task would be
+working the queue it tests against — and CI installs `expect` rather
+than accepting the named skip, because a skip is not a pass.
+
+The tier earned its place on the first run. Bubble Tea reports height 0
+to a terminal that has not sized itself, and both models floored that at
+one line, so the entry screen rendered a single command above its
+footer. Zero is now read as unknown and means no limit; a terminal that
+*did* say, and said something too short to hold the chrome, still keeps
+its line. Both models carry a unit case for the distinction.
+
+**`make ui` reported a refusal as a broken target.** Choosing `take`
+with nothing available dispatches a command that exits 1 having already
+explained itself, and make added `*** [ui] Error 1` underneath — which
+was read as the door being broken rather than the queue being empty.
+The target now lets exit 1 through and fails on anything else, so a
+refusal reads as the answer it is and a crash still stops the run.
+
+**The palette had no cases at all**, and its coverage came from the
+screens that use it — so the promise its own doc makes, that a palette
+told not to paint hands the text straight back, was held by nobody. It
+has cases now, and writing them turned up the trap that makes a test of
+this kind worthless: a test binary writes to a pipe, lipgloss sees no
+terminal and renders plain, and the case passes with the guard deleted.
+It names a colour profile so that it cannot. Both were held against a
+deleted guard before being trusted.
 
 **Two divergences the drawing carried and the plan did not name**, both
 found by the maintainer rather than by a test. The screens ran inline,
