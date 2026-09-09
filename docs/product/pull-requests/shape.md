@@ -3,7 +3,9 @@
 [`author`](author.md), [`take`](take.md), [`finish`](finish.md) and
 [`amend`](amend.md) end a flow in a pull request. The rules below hold
 for all four. What each command checks, writes and opens is on its own
-page.
+page, and each of those pages links here — the four are grouped by what
+a person is acting on ([product](../README.md)), and what they have in
+common is this shape rather than a place in the table.
 
 ## The shape, rule by rule
 

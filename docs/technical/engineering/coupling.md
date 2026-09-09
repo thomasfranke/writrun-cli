@@ -44,6 +44,7 @@ than holding a second copy that a tag can contradict in silence.
 | which human gates a project owes | the rows of `writrun/gates.md`, or of the default it defers to | a list of gates in Go |
 | which files a refresh may write | the fetched template's tree | a list of directories in Go |
 | what a spec, task or report carries | `internal/queue`, one reader | a parser per command |
+| which settings exist, and which values are legal | `writrun/settings.json`, which the kit's checker holds complete, and the checker's own refusal | a key list or a vocabulary in Go |
 
 > A WritRun tag that adds a human gate needs no Go change for `doctor`
 > to check it.

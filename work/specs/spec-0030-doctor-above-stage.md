@@ -1,7 +1,7 @@
 ---
 id: spec-0030
 task_ref: task-0029
-status: approved
+status: implemented
 created: 2026-09-08T15:04:02Z
 ---
 
@@ -97,4 +97,16 @@ declared stage — the settings are
 
 ## Outcome
 
-_(fill after execution)_
+Built as planned, as `--at <stage>`.
+
+The one decision worth naming is the split the plan asked for and the
+code makes explicit: `--at` moves how far the examination reaches, and
+the declaration alone decides the exit status. Without that split,
+asking what stage 3 would cost would be a way to fail your own build.
+`at()` grew a variadic form for it — one stage renders a group, the
+declaration's whole range answers for the verdict.
+
+The header names both numbers whenever they differ, and says which is
+which: "what stage 2 costs, not what this repository owes". A
+hypothetical report that reads like the real verdict is worse than no
+flag at all.

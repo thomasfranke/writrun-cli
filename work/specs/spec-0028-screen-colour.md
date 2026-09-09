@@ -1,7 +1,7 @@
 ---
 id: spec-0028
 task_ref: task-0029
-status: approved
+status: implemented
 created: 2026-09-08T15:04:00Z
 ---
 
@@ -91,4 +91,16 @@ monochrome stays monochrome.
 
 ## Outcome
 
-_(fill after execution)_
+Built as planned. `internal/palette` is the one place a colour means
+something, and `Ctx.Color` — computed since the beginning and read by
+nobody — is what decides whether it paints.
+
+Two shapes carry the rule the plan asked for. The zero value paints
+nothing, so **no caller branches** on whether colour is on, which is
+what keeps the two renderings word-for-word identical. And the roles are
+named for what the reader is looking at — Heading, Declared, Dim,
+Breaks, Advises, Unread — so a hue can change without touching a
+caller.
+
+`doctor`'s levels are painted after their width is set, not before: the
+column a reader without colour reads is the same column either way.

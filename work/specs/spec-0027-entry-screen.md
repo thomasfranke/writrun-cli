@@ -1,7 +1,7 @@
 ---
 id: spec-0027
 task_ref: task-0029
-status: approved
+status: implemented
 created: 2026-09-08T15:03:49Z
 ---
 
@@ -140,4 +140,41 @@ stage block reads `.writrun/settings.json` and writes nothing.
 
 ## Outcome
 
-_(fill after execution)_
+Built as planned. The entry screen lists every command that can run
+inside an adoption, grouped as the drawing groups them, with the queue
+one `enter` in and `esc` back.
+
+**The summaries were the load-bearing step.** All twelve now fit the
+row, the longest having been 88 characters, and `cmd/writrun` carries a
+test that fails when one outgrows it. That test earned itself inside
+this same task: `config`, written hours later under
+[spec-0031](spec-0031-config-screen.md), arrived two characters over and
+the guard named it. It lives beside the command table rather than in
+`internal/command`, because a test there would have to invent a table
+and would then be guarding its own invention.
+
+**The queue enters by callback, not by path.** `screen.Open` takes a
+function that returns the lister's output, so the screen package still
+knows no script path.
+
+**Two divergences the drawing carried and the plan did not name**, both
+found by the maintainer rather than by a test. The screens ran inline,
+so each left its last frame in the scrollback and the next drew beneath
+it — they now take the alternate buffer, which is what the drawing's
+full window always showed and what leaves a clean terminal for the
+command a key dispatches. And the drawing's hues are a canvas's: the
+binary paints with the terminal's indexed palette instead, so a value
+chosen for one background is not imposed on another. `screens/README.md`
+now states which of the two the drawing decides — where colour goes,
+never which colour — because it was silent and the choice was made in
+code alone.
+
+The lesson is narrower than "check the drawing": layout, keys and
+wording were checked against it, and *screen behaviour* was not.
+
+**One test the plan asked for does not exist, and the file says why.**
+Driving both screens through `Open` hangs: two Bubble Tea programs in
+one process share one reader, and the first consumes what the second
+would read. A live terminal blocks for the next key; a `strings.Reader`
+does not. The transition is covered at the model level instead — `enter`
+on `list` raises the queue, `esc` raises back, and neither dispatches.

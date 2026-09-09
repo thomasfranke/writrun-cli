@@ -32,7 +32,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "config",
-		Summary: "the adopter's settings: shown, and one changed",
+		Summary: "the adopter's settings, and one changed",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

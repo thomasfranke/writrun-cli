@@ -1,7 +1,7 @@
 ---
 id: spec-0029
 task_ref: task-0029
-status: approved
+status: implemented
 created: 2026-09-08T15:04:01Z
 ---
 
@@ -93,4 +93,14 @@ already `writrun-cli` and are untouched.
 
 ## Outcome
 
-_(fill after execution)_
+Built as planned. `--version` and `--help` name `writrun-cli`, the
+command a person types is unchanged, and
+[0014](../../docs/technical/decisions/runtime/0014-the-product-is-writrun-cli.md)
+records why 0005 cedes — it rejected a second name when that name was
+`writ`, and the case here runs the other way: `writrun` and `WritRun`
+differ by capitalisation alone, so a screen naming both reads as one
+thing twice. 0005 names its successor, as 0012 does for 0006.
+
+One thing the plan did not say: the name needed a home. It is
+`command.Product`, exported, because the screen's header needed it too
+and a second copy of a name is a second name.

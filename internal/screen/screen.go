@@ -56,7 +56,13 @@ func Open(e Entry, queue func() (string, error), in io.Reader, w io.Writer) (Act
 	}
 }
 
+// run gives each screen the alternate buffer. A screen owns the display
+// while it is open and gives it back untouched when it closes: the
+// entry screen and the queue replace one another rather than stacking,
+// and the command a key dispatches starts on a terminal the screen left
+// as it found it. Inline, each screen would leave its last frame in the
+// scrollback and the next would draw beneath it.
 func run(m tea.Model, in io.Reader, w io.Writer) (tea.Model, error) {
-	p := tea.NewProgram(m, tea.WithInput(in), tea.WithOutput(w))
+	p := tea.NewProgram(m, tea.WithInput(in), tea.WithOutput(w), tea.WithAltScreen())
 	return p.Run()
 }

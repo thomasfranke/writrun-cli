@@ -4,6 +4,12 @@
 wording these files are the reference the implementation is checked
 against. The rules a drawing cannot carry are stated below them.
 
+**A drawing decides where colour goes, never which colour.** Its hues
+are a canvas's, chosen to read beside the other frames; the terminal's
+are the reader's, and the binary paints with the indexed palette their
+theme defines so a value chosen for one background is not imposed on
+another ([rules](../rules.md)).
+
 | | |
 |---|---|
 | [Queue](queue.excalidraw) | The lister's sections, navigated by keys. One keystroke in from the entry screen. |

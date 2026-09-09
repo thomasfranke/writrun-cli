@@ -18,7 +18,7 @@
 | `internal/kittag/` | Where `.writrun/VERSION` is, what it says, and how two tags order or match. |
 | `internal/requirements/` | What the wrapped scripts need on the PATH, listed once. |
 | `internal/chapter/` | Whether a docs folder holds a real chapter beyond its README. |
-| `internal/screen/` | The queue as a key-navigated screen — what `writrun` with no command opens. |
+| `internal/screen/` | The two key-navigated screens: the entry screen `writrun` opens, and the queue one keystroke in. |
 | `scripts/` | This project's own machinery (the release path), not the methodology's. |
 | `Makefile` | Thin aliases over `scripts/` and the suite — every target in [Makefile](makefile.md). |
 | `tests/` | The suite — see [Testing](../testing/README.md). |

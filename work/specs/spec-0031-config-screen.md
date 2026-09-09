@@ -1,7 +1,7 @@
 ---
 id: spec-0031
 task_ref: task-0029
-status: approved
+status: implemented
 created: 2026-09-08T15:04:03Z
 ---
 
@@ -114,4 +114,25 @@ does not install anything, and `update` is still what fetches the kit.
 
 ## Outcome
 
-_(fill after execution)_
+Built as planned, as a command rather than a screen. The interaction
+rules already answer this shape — a value is arrow-free free text, the
+change is shown before the question, `--yes` answers it — and a second
+TUI would have been a second way to ask one thing.
+
+**The key list comes from the settings file**, which is the answer the
+plan left open. The kit's checker requires every documented key present,
+always, in its documented home — so a canonical file *is* the key list,
+and a tag that documents a key adds it here the moment the checker
+demands it. Reading the file's shape is allowed for the same reason: the
+line shape is a checked contract, and `check_settings.sh` exists to
+enforce it.
+
+The refusal path is the one that matters and it is proved: a rejected
+value restores the file byte for byte and the checker's own words reach
+the user, verified against the real script on this repository's own
+settings.
+
+`rules.md` gained no exception. Its sentence was too broad — it forbade
+the adopter changing their own answer — and now says what it always
+meant: no command overwrites the project's own files *with the kit's*.
+`config` is not an exception to that and never was.
