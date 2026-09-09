@@ -35,6 +35,9 @@ make_repo() {
            "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp "$REPO_ROOT/$READER" "$TARGET/$READER"
   cp "$REPO_ROOT/$RESOLVER" "$TARGET/$RESOLVER"
+  # The defaults are what a deferring file resolves to, so a fixture
+  # without them is a repository the resolver cannot answer for.
+  cp -R "$REPO_ROOT/.writrun/defaults" "$TARGET/.writrun/defaults"
   cp "$REPO_ROOT/$SETTINGS_CHECK" "$TARGET/$SETTINGS_CHECK"
   cp "$REPO_ROOT/$FRONT_MATTER" "$TARGET/$FRONT_MATTER"
 
@@ -134,6 +137,8 @@ settings() {
     "auto_commit": false,
     "auto_pr": false,
     "auto_push": true,
+    "commit_scopes": "about product technical",
+    "commit_types": "docs feat fix refactor chore",
     "pr_title_style": "bracketed"
   }
 }

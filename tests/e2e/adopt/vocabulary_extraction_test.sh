@@ -51,11 +51,14 @@ check "the settings carry the project's scopes" 0 "" \
 check "no shipped type survives the rewrite" 1 "" \
   -- grep -qF '"commit_types": "docs' "$SETTINGS"
 
-# The vocabulary has one home. A kit file carrying a second copy is what
-# the next refresh would revert, leaving the two halves disagreeing.
-check "the kit's own door is left as shipped" 0 "" \
-  -- grep -qxF 'TYPES="docs feat fix refactor chore"' \
-     ".writrun/scripts/stage-2-pull-requests/check_observance.sh"
+# The vocabulary has one home, and the door is not it. A kit file
+# carrying a second copy is what the next refresh would revert, leaving
+# the two halves disagreeing — so the door must carry none at all.
+DOOR=".writrun/scripts/stage-2-pull-requests/check_observance.sh"
+check "the door declares no vocabulary of its own" 1 "" \
+  -- grep -qE '^(TYPES|SCOPES)="' "$DOOR"
+check "the door reads the vocabulary from the settings" 0 "" \
+  -- grep -qF 'stage_2.commit_types' "$DOOR"
 
 # The end of it: the installed hook accepts what the kit now declares
 # and refuses what it does not.

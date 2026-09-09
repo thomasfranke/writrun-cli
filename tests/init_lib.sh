@@ -70,7 +70,9 @@ EOF
 {
   "stage": 1,
   "stage_2": {
-    "auto_commit": false
+    "auto_commit": false,
+    "commit_scopes": "about product technical",
+    "commit_types": "docs feat fix refactor chore"
   }
 }
 EOF
@@ -92,6 +94,18 @@ SCOPES="about product technical"
 exit 0
 EOF
     chmod +x kit/.writrun/scripts/stage-2-pull-requests/check_observance.sh
+
+    # The kit's reader, in the smallest form that keeps its contract:
+    # a dotted key in, that key's value out. The hook reads the commit
+    # vocabulary through it, so a fixture without one installs a hook
+    # that stands down rather than one that judges.
+    cat > kit/.writrun/scripts/stage-2-pull-requests/read_setting.sh <<'EOF'
+#!/usr/bin/env bash
+set -eu
+key="${1##*.}"
+sed -n "s/^ *\"$key\": \"\(.*\)\",\{0,1\}$/\1/p" writrun/settings.json | head -n1
+EOF
+    chmod +x kit/.writrun/scripts/stage-2-pull-requests/read_setting.sh
 
     printf '# Select next task\n' > kit/.writrun/skills/writrun-select-next-task/SKILL.md
     printf 'echo listing\n' > kit/.writrun/skills/writrun-select-next-task/list_tasks.sh

@@ -16,15 +16,19 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
-// Script is the commit-msg hook init installs. The vocabulary is
-// read from the kit's check_observance.sh at commit time, not baked in
-// here, so editing those two lines is the whole customization — the
-// hook and the door can never disagree (conventions/commits.md).
+// Script is the commit-msg hook init installs. The vocabulary is read
+// at commit time through the kit's own reader, not baked in here, so
+// the hook and the door read one statement and can never disagree
+// (conventions/commits.md).
+//
+// It read the door script's own TYPES/SCOPES lines until WritRun
+// v0.0.07 moved the vocabulary into the adopter's settings, where a
+// refresh cannot revert it (spec-0033).
 const Script = `#!/usr/bin/env bash
 # commit-msg — installed by writrun init. Validates the Conventional
-# subject against the TYPES/SCOPES lines of the kit's
-# check_observance.sh. It validates; it never writes a message
-# (docs/product/adoption/init.md).
+# subject against the commit vocabulary the adopter's settings declare,
+# read through the kit's own reader. It validates; it never writes a
+# message (docs/product/adoption/init.md).
 
 subject=$(awk '!/^#/ && NF { print; exit }' "$1")
 
@@ -35,14 +39,14 @@ case "$subject" in
 esac
 
 top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-observance="$top/.writrun/scripts/stage-2-pull-requests/check_observance.sh"
+reader="$top/.writrun/scripts/stage-2-pull-requests/read_setting.sh"
 # A hook outliving the kit blocks nothing — validating against a
 # vocabulary that is gone would refuse every commit for a fault that is
 # the hook's own.
-[ -f "$observance" ] || exit 0
+[ -f "$reader" ] || exit 0
 
-TYPES=$(sed -n 's/^TYPES="\(.*\)"$/\1/p' "$observance" | head -n1)
-SCOPES=$(sed -n 's/^SCOPES="\(.*\)"$/\1/p' "$observance" | head -n1)
+TYPES=$(cd "$top" && bash "$reader" stage_2.commit_types 2>/dev/null)
+SCOPES=$(cd "$top" && bash "$reader" stage_2.commit_scopes 2>/dev/null)
 [ -n "$TYPES" ] || exit 0
 
 type=$(printf '%s' "$subject" | sed -nE 's/^([a-z]+)(\([a-z0-9-]+\))?!?: .+$/\1/p')

@@ -168,3 +168,13 @@ func makeTarget(t *testing.T, subjects ...string) string {
 	}
 	return target
 }
+
+// templateReader is the kit's settings reader, in the smallest form
+// that keeps its contract: a dotted key in, that key's value out. The
+// commit-msg hook reads the vocabulary through it, so a fixture without
+// one installs a hook that stands down rather than one that judges.
+const templateReader = `#!/usr/bin/env bash
+set -eu
+key="${1##*.}"
+sed -n "s/^ *\"$key\": \"\(.*\)\",\{0,1\}$/\1/p" writrun/settings.json | head -n1
+`
