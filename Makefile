@@ -43,13 +43,15 @@ cover:
 	@bash scripts/coverage.sh $(filter-out cover,$(MAKECMDGOALS))
 
 # WRITRUN_BIN_DIR lets the CLI cases share one compiled binary
-# (tests/cli_lib.sh) instead of relinking per case file.
+# (tests/cli_lib.sh) instead of relinking per case file. Every case
+# reads from /dev/null for the reason tests/run.sh gives: a suite that
+# inherits a person's terminal has cases that ask it questions.
 test-integration:
 	@fail=0; WRITRUN_BIN_DIR=$$(mktemp -d); export WRITRUN_BIN_DIR; \
 	trap 'rm -rf "$$WRITRUN_BIN_DIR"' EXIT; \
 	for f in tests/integration/*/*_test.sh; do \
 	  [ -e "$$f" ] || continue; \
-	  bash "$$f" || fail=1; \
+	  bash "$$f" </dev/null || fail=1; \
 	done; \
 	exit $$fail
 
@@ -71,7 +73,7 @@ test-%:
 	trap 'rm -rf "$$WRITRUN_BIN_DIR"' EXIT; \
 	for f in tests/$*/*_test.sh tests/$*/*/*_test.sh tests/*/$*/*_test.sh; do \
 	  [ -e "$$f" ] || continue; found=1; \
-	  bash "$$f" || fail=1; \
+	  bash "$$f" </dev/null || fail=1; \
 	done; \
 	if [ "$$found" -eq 0 ]; then echo "no such suite: $*"; exit 3; fi; \
 	exit $$fail

@@ -34,7 +34,17 @@ for tier in "$TESTS_DIR"/*/; do
     printf '%s/%s\n' "$tname" "$(basename "$dir")"
     for case_file in "$dir"*_test.sh; do
       [ -e "$case_file" ] || continue
-      if bash "$case_file"; then
+      # Every case reads from /dev/null, never from whoever ran the
+      # suite.
+      #
+      # A case that asks a question stands a terminal up itself, through
+      # WRITRUN_TTY_IN; a case checking what happens *without* one is
+      # asserting about this stdin. Inherited from a person's terminal,
+      # that case asks its question for real and waits — and where the
+      # suite runs nested inside the release rehearsal, it waits inside
+      # a captured output nobody can see. That is a release that never
+      # ends and never says why.
+      if bash "$case_file" </dev/null; then
         pass=$((pass + 1))
       else
         fail=$((fail + 1))

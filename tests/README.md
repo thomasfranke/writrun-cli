@@ -27,6 +27,20 @@ touch, which opens the internal API that
 to keep shut. The cost is real and one-directional, so the tests stay
 where the language puts them and this table says where that is.
 
+## A case never reads the terminal that ran the suite
+
+Every case is given `/dev/null` on stdin, by `tests/run.sh` and by the
+Makefile's own loops. A case that needs a terminal stands one up itself
+through `WRITRUN_TTY_IN`; a case checking what a command does *without*
+one is then asserting about a stdin the suite owns, rather than about
+whoever happened to run it.
+
+This is not tidiness. Inherited from a keyboard, such a case asks its
+question for real and waits — and inside `make release`, where the
+suite runs nested and its output is captured, it waits somewhere nobody
+can see. The release neither ends nor says why
+([report-0031](../work/reports/report-0031-suite-inherits-the-terminal.md)).
+
 ## The shape of a case here
 
 One directory per subject under test, one file per behaviour, suffixed
