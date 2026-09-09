@@ -1,7 +1,7 @@
 ---
 id: spec-0034
 task_ref: task-0031
-status: approved
+status: implemented
 created: 2026-09-09T06:24:00Z
 ---
 
@@ -110,3 +110,41 @@ notice this change.
 
 - `product/config.md` — says the no-argument form opens a screen, and
   that the two argued forms are unchanged.
+
+## Outcome
+
+Built as specified. `writrun config` with no argument opens the screen
+the drawing gives — the keys under their sections, a cursor, a detail
+line, and `↑↓ move · enter change · q back` — and `enter` runs the
+write-then-check path spec-0031 already built. Without a terminal it
+prints the listing, unchanged.
+
+**The terminal handover is one thing now, not two.** A change asks a
+question, and a question is another terminal program, so the settings
+screen has to release the terminal exactly as the session does for a
+command. Rather than write that discipline twice, `dispatch` became a
+label and a `func`: the session hands over a command, this screen hands
+over a change, and the part that is easy to get wrong lives in one
+place.
+
+**A defect this had, caught by a unit case and not by the pty.** The
+rows carried the key's bare name and handed that back as its identity,
+but the kit knows a key as `section.key` — so `enter` would have failed
+to write *after* the reader had typed the value. The pty case missed it
+because it cancels the question, which is what keeps it from editing
+the repository it runs in. `Setting` now separates what is shown from
+what identifies, and a case holds the two apart.
+
+**A stream the frame did not carry.** A command that opens a screen
+needs stdin, and `Ctx` had only the two writers — a question goes
+through `Terminal`, which holds its own reader. `Ctx.Stdin` is nil
+wherever the frame was built without one, which is every case that
+asks nothing.
+
+**What is still out of reach.** The screen offers no allowed values
+before the write, because they are bash variables inside
+`check_settings.sh`
+([report-0030](../reports/report-0030-settings-vocabulary-unreadable.md),
+open). A value is typed and judged after, on the screen as on the
+command line. If that report is triaged, this is where the choices
+would go.

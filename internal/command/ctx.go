@@ -17,6 +17,11 @@ var ErrDeclined = errors.New("declined")
 type Ctx struct {
 	Stdout io.Writer
 	Stderr io.Writer
+	// Stdin is the third stream, and only a command that opens a screen
+	// of its own needs it: a question is asked through Terminal, which
+	// holds its own reader. Nil where the frame was built without one,
+	// which is every test that asks nothing.
+	Stdin io.Reader
 
 	Terminal Terminal
 

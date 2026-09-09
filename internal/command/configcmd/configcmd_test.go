@@ -174,3 +174,112 @@ func TestAnAbsentSettingsFileOffersNoEdit(t *testing.T) {
 		t.Errorf("err = %v, want a refusal naming the absent file", err)
 	}
 }
+
+// screened runs `writrun config` with a terminal at both ends and the
+// keys the reader would press, so the screen opens for real.
+func screened(t *testing.T, root string, sc *scripts, typed string, args ...string) (string, error) {
+	t.Helper()
+	var out, errb bytes.Buffer
+	ctx := &command.Ctx{
+		Stdout: &out, Stderr: &errb,
+		Stdin:    strings.NewReader(typed),
+		Terminal: &command.FakeTerminal{In: true, Out: true},
+		Root:     root, Adopted: true, Yes: true,
+	}
+	err := run(ctx, Deps{Scripts: sc.run, Files: vfs.OS{}}, args)
+	return out.String(), err
+}
+
+// With no argument and a terminal at both ends, the settings open as
+// the screen the drawing gives — not the listing.
+func TestNoArgumentOpensTheScreenOnATerminal(t *testing.T) {
+	root, sc := repo(t)
+	out, err := screened(t, root, sc, "q")
+	if err != nil {
+		t.Fatalf("config = %v", err)
+	}
+	if !strings.Contains(out, "enter change") {
+		t.Errorf("the screen's footer is absent; it printed:\n%s", out)
+	}
+	if strings.Contains(out, "writrun config <key> <value> changes one") {
+		t.Error("the listing's closing line was printed, so this was the listing and not the screen")
+	}
+}
+
+// Without a terminal it prints, exactly as it did — a script reading
+// `writrun config` must keep reading it.
+func TestNoArgumentStillPrintsWithoutATerminal(t *testing.T) {
+	root, sc := repo(t)
+	out, _, err := exec(t, root, sc)
+	if err != nil {
+		t.Fatalf("config = %v", err)
+	}
+	if !strings.Contains(out, "writrun config <key> <value> changes one") {
+		t.Errorf("the listing is not what a non-terminal got:\n%s", out)
+	}
+	if strings.Contains(out, "enter change") {
+		t.Error("a screen was opened where there is no terminal")
+	}
+}
+
+// The screen and the command line reach the same write.
+//
+// `one` is what a key chosen on the screen runs: ask for the value,
+// then write and be judged. A second write path would be a second set
+// of rules about what happens to the adopter's file.
+func TestAKeyChosenOnTheScreenTakesTheSameWrite(t *testing.T) {
+	root, sc := repo(t)
+	var out, errb bytes.Buffer
+	ctx := &command.Ctx{
+		Stdout: &out, Stderr: &errb,
+		Terminal: &command.FakeTerminal{In: true, Out: true, InputAnswer: "conventional"},
+		Root:     root, Adopted: true, Yes: true,
+	}
+	path := filepath.Join(root, filepath.FromSlash(kit.Settings))
+	if err := one(ctx, Deps{Scripts: sc.run, Files: vfs.OS{}}, path, "stage_2.pr_title_style"); err != nil {
+		t.Fatalf("one = %v", err)
+	}
+	if !strings.Contains(readSettings(t, root), "conventional") {
+		t.Error("the value the reader typed was not written")
+	}
+	if !strings.Contains(out.String(), "pr_title_style is conventional") {
+		t.Errorf("the write was not reported:\n%s", out.String())
+	}
+}
+
+// A refusal from the checker reaches the reader through the same path,
+// and the file is exactly as it was.
+func TestAKeyChosenOnTheScreenCarriesTheCheckersRefusal(t *testing.T) {
+	root, sc := repo(t)
+	sc.refuse = "pr_title_style 'nonsense' is outside its vocabulary: conventional bracketed"
+	before := readSettings(t, root)
+
+	var out, errb bytes.Buffer
+	ctx := &command.Ctx{
+		Stdout: &out, Stderr: &errb,
+		Terminal: &command.FakeTerminal{In: true, Out: true, InputAnswer: "nonsense"},
+		Root:     root, Adopted: true, Yes: true,
+	}
+	path := filepath.Join(root, filepath.FromSlash(kit.Settings))
+	err := one(ctx, Deps{Scripts: sc.run, Files: vfs.OS{}}, path, "stage_2.pr_title_style")
+	if err == nil {
+		t.Fatal("a refused change answered success")
+	}
+	if !strings.Contains(errb.String(), "outside its vocabulary") {
+		t.Errorf("the checker's own words did not reach the reader:\n%s", errb.String())
+	}
+	if readSettings(t, root) != before {
+		t.Error("a refused change left the settings altered")
+	}
+}
+
+// The stage has no section of its own in the file, and is shown above
+// the ones that do.
+func TestTheStageIsHeadedWithoutASection(t *testing.T) {
+	if got := heading(""); got != "THE STAGE" {
+		t.Errorf("heading(\"\") = %q, want the stage's own label", got)
+	}
+	if got := heading("stage_2"); got != "STAGE 2" {
+		t.Errorf("heading(\"stage_2\") = %q", got)
+	}
+}
