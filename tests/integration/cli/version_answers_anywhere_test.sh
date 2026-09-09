@@ -10,7 +10,7 @@ cd "$WORK/nowhere" || exit 1
 
 check "writrun --version answers outside any repository" 0 "pins WritRun v" \
   -- "$WRITRUN" --version
-check "the client's own version is named" 0 "writrun v" \
+check "the client's own version is named" 0 "writrun-cli v" \
   -- "$WRITRUN" --version
 
 finish

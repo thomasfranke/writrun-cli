@@ -40,9 +40,10 @@ type Deps struct {
 // New returns the status command wired with its dependencies.
 func New(d Deps) command.Command {
 	return command.Command{
-		Name:    "status",
-		Summary: "say where the work stands: the branch's task, the checks, the reports, the kit",
-		Need:    command.NeedAdopted,
+		Name:        "status",
+		Summary:     "where the work stands, from this branch",
+		Need:        command.NeedAdopted,
+		AsksNothing: true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

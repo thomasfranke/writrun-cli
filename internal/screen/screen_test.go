@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -175,23 +176,48 @@ func TestParseDropsNoLineButTrailingBlanks(t *testing.T) {
 // Open drives the real program. The suite has no terminal, so the input
 // is a reader and the output a buffer — the same seam the term port
 // uses so a guarded flow stays exercisable end to end.
-func TestOpenRunsTheProgramAndReturnsWhatWasChosen(t *testing.T) {
-	act, err := Open(listing, strings.NewReader("q"), io.Discard)
-	if err != nil {
+func TestOpenRunsTheProgramAndLeavesOnQ(t *testing.T) {
+	if err := Open(sample(), noQueue(t), neverRun(t), strings.NewReader("q"), io.Discard); err != nil {
 		t.Fatalf("Open = %v", err)
-	}
-	if act != (Action{}) {
-		t.Errorf("q resolved to %+v, want the zero action", act)
 	}
 }
 
-func TestOpenCarriesTheChosenCommandOut(t *testing.T) {
-	act, err := Open(listing, strings.NewReader("w"), io.Discard)
+// Both screens through one program, which is the change: this used to
+// hang. Two Bubble Tea programs shared one reader and the first consumed
+// what the second would read; there is one now, so the whole crossing —
+// into the queue and back out — is drivable end to end.
+func TestOpenCrossesIntoTheQueueAndBack(t *testing.T) {
+	reads := 0
+	queue := func() (string, error) {
+		reads++
+		return "task-0021  ready\n", nil
+	}
+	// enter opens the queue (the first row is `list`), esc returns, q leaves.
+	err := Open(sample(), queue, neverRun(t), typed("\r", "\x1b", "q"), io.Discard)
 	if err != nil {
 		t.Fatalf("Open = %v", err)
 	}
-	if act.Command != "work" || act.Arg != "task-0020" {
-		t.Errorf("Open = %+v, want work on the first selectable row", act)
+	if reads == 0 {
+		t.Error("the queue was never read; the crossing did not happen")
+	}
+}
+
+// neverRun is the Runner for a case that chooses no command.
+func neverRun(t *testing.T) Runner {
+	return func(a Action, _ io.Writer) {
+		t.Helper()
+		t.Errorf("a command ran in a case that chose none: %+v", a)
+	}
+}
+
+// noQueue is the callback for a case that never opens the queue: it
+// fails the test rather than answering, so a run that reads the queue
+// when it should not is caught here rather than passing quietly.
+func noQueue(t *testing.T) func() (string, error) {
+	return func() (string, error) {
+		t.Helper()
+		t.Error("the queue was read by a run that never opened it")
+		return "", nil
 	}
 }
 
@@ -249,3 +275,54 @@ func TestAnUnknownKeyIsIgnored(t *testing.T) {
 		t.Error("an unknown key moved the selection")
 	}
 }
+
+// The queue answers an unknown height the same way the entry screen does.
+func TestTheQueueTreatsAnUnknownHeightAsNoLimit(t *testing.T) {
+	out, _ := newModel(rowsOf(t)).Update(tea.WindowSizeMsg{Width: 80, Height: 0})
+	m := out.(model)
+	if m.height != 0 {
+		t.Errorf("height = %d, want 0 for a terminal that did not say", m.height)
+	}
+	if !strings.Contains(m.View(), "task-0020") {
+		t.Error("an unknown height hid rows")
+	}
+}
+
+// typed is stdin as a person types it: one chunk per read, with a pause
+// between them.
+//
+// The pause is the point. A `strings.Reader` hands over everything at
+// once, and an `esc` sitting in the same read as the key after it is
+// parsed as alt+<key> — so the escape never happens and the key after
+// it is eaten with it. That is not a terminal's behaviour, and a case
+// written on it tests a parser rather than the screen.
+type typedInput struct {
+	chunks []string
+	i      int
+}
+
+func typed(chunks ...string) *typedInput { return &typedInput{chunks: chunks} }
+
+func (t *typedInput) Read(p []byte) (int, error) {
+	if t.i >= len(t.chunks) {
+		return 0, io.EOF
+	}
+	if t.i > 0 {
+		time.Sleep(30 * time.Millisecond)
+	}
+	n := copy(p, t.chunks[t.i])
+	t.i++
+	return n, nil
+}
+
+// A command running and the screen coming back is not provable here,
+// and the reason has the same shape as the bug it would guard.
+//
+// `tea.Exec` releases the terminal so the command can read it, and
+// releasing means cancelling the read Bubble Tea already has in flight.
+// On a terminal it can: that fd is cancellable. On a plain `io.Reader`
+// it cannot, so the program and the command hold the same reader and
+// race for the keys — a case written here would measure the harness.
+//
+// A real terminal is what proves it, and the pty tier drives one:
+// tests/e2e/screen/.

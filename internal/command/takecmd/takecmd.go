@@ -40,7 +40,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "take",
-		Summary: "take a task: the branch pushed and the draft pull request opened",
+		Summary: "begin a task: branch pushed, draft PR opened",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

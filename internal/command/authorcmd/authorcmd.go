@@ -55,7 +55,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "author",
-		Summary: "author a rule: the checks run, the derived work listed, the pull request opened ready",
+		Summary: "send a finished rule's derived work up",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

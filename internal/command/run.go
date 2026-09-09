@@ -23,15 +23,19 @@ type Frame struct {
 	FindRepo func(dir string) (root string, adopted bool, err error)
 	Getenv   func(string) string
 	Getwd    func() (string, error)
-	// Screen opens the no-command queue screen and returns the command
-	// it dispatched to, empty when the user left without choosing. It
-	// is a field rather than a call so the frame keeps no dependency on
-	// the screen's engine, and so a suite can drive the routing without
-	// one (screens/README.md, spec-0020).
+	// Screen opens the no-command screen and runs, through run, every
+	// command chosen in it, returning when the reader leaves. It is a
+	// field rather than a call so the frame keeps no dependency on the
+	// screen's engine, and so a suite can drive the routing without one
+	// (screens/README.md, spec-0020).
+	//
+	// The screen runs the commands rather than naming one back because a
+	// session outlives them: a command that ended the screen would make
+	// reading two things two runs of `writrun`.
 	//
 	// nil is a binary built without a screen: the no-command path then
 	// prints the help, which is what it printed before there was one.
-	Screen func(ctx *Ctx) (name string, arg string, err error)
+	Screen func(ctx *Ctx, run func(name, arg string, out io.Writer)) error
 }
 
 const docsAddress = "https://github.com/thomasfranke/writrun-cli/tree/main/docs"
@@ -61,7 +65,7 @@ func Run(f Frame, args []string) int {
 		}
 		switch {
 		case a == "--version":
-			fmt.Fprintf(f.Stdout, "writrun %s (pins WritRun %s)\n", f.Version, f.WritRunTag)
+			fmt.Fprintf(f.Stdout, "%s %s (pins WritRun %s)\n", Product, f.Version, f.WritRunTag)
 			return 0
 		case a == "--help" || a == "-h":
 			help(f)
@@ -81,17 +85,18 @@ func Run(f Frame, args []string) int {
 		}
 	}
 
+	// The screen is a session: it runs what is chosen in it and comes
+	// back, until the reader leaves. A command still owns the terminal
+	// alone while it asks its questions — the screen is paused and the
+	// terminal released, so the two never read a keyboard at once
+	// (docs/product/screens/README.md, internal/screen/session.go).
 	if name == "" {
-		code, dispatched, cmdName, cmdArg := openScreen(f, noColor, yes)
-		if !dispatched {
-			return code
-		}
-		name, rest = cmdName, nil
-		if cmdArg != "" {
-			rest = []string{cmdArg}
-		}
+		return openScreen(f, noColor, yes)
 	}
+	return dispatch(f, noColor, yes, name, rest)
+}
 
+func dispatch(f Frame, noColor, yes bool, name string, rest []string) int {
 	cmd, ok := lookup(f.Commands, name)
 	if !ok {
 		fmt.Fprintf(f.Stderr, "writrun: unknown command %q\n", name)
@@ -175,10 +180,17 @@ func lookup(cmds []Command, name string) (Command, bool) {
 	return Command{}, false
 }
 
+// Product is what the binary calls itself, in one place, because a
+// second copy is a second name. The command a person types is `writrun`
+// and is unchanged; this is the name the product carries, which the
+// repository, the module and the formula already use
+// (decisions/runtime/0014-the-product-is-writrun-cli.md).
+const Product = "writrun-cli"
+
 // help is one line per command plus the docs' address — it restates
 // nothing (product/rules.md).
 func help(f Frame) {
-	fmt.Fprintln(f.Stdout, "writrun — the porcelain for WritRun.")
+	fmt.Fprintln(f.Stdout, Product+" — the porcelain for WritRun.")
 	if len(f.Commands) > 0 {
 		fmt.Fprintln(f.Stdout)
 		width := 0
@@ -204,12 +216,14 @@ func usage(w io.Writer) {
 // is no screen to open, and the help is what the rule prescribes rather
 // than a fallback this invented (screens/README.md).
 //
-// It returns the exit code to use when nothing was dispatched, and the
-// command to run when something was.
-func openScreen(f Frame, noColor, yes bool) (code int, dispatched bool, name, arg string) {
+// It returns the process's exit code. A command that refuses inside the
+// session does not end it and does not decide it: the reader saw the
+// refusal, read it, and came back — leaving the screen is what ends the
+// run, and leaving is not a failure.
+func openScreen(f Frame, noColor, yes bool) int {
 	if f.Screen == nil || !f.Terminal.InteractiveIn() || !f.Terminal.InteractiveOut() {
 		help(f)
-		return 0, false, "", ""
+		return 0
 	}
 	// Adoption is read rather than enforced: outside one the rule asks
 	// for the help, not for the refusal NeedAdopted would print. This is
@@ -217,12 +231,12 @@ func openScreen(f Frame, noColor, yes bool) (code int, dispatched bool, name, ar
 	wd, err := f.Getwd()
 	if err != nil {
 		fmt.Fprintf(f.Stderr, "writrun: %v\n", err)
-		return 1, false, "", ""
+		return 1
 	}
 	root, adopted, err := f.FindRepo(wd)
 	if err != nil || !adopted {
 		help(f)
-		return 0, false, "", ""
+		return 0
 	}
 	ctx := &Ctx{
 		Stdout:   f.Stdout,
@@ -233,13 +247,29 @@ func openScreen(f Frame, noColor, yes bool) (code int, dispatched bool, name, ar
 		Root:     root,
 		Adopted:  adopted,
 	}
-	name, arg, err = f.Screen(ctx)
+	// The screen runs each chosen command through this, and the command
+	// reports itself on the terminal the screen released — so nothing is
+	// handed back to say, and an exit code is not one either. The one a
+	// command answers belongs to `writrun <command>`, where it is a
+	// script's to read; in a session there is no script to read it.
+	err = f.Screen(ctx, func(name, arg string, out io.Writer) {
+		var rest []string
+		if arg != "" {
+			rest = []string{arg}
+		}
+		g := f
+		// A captured command writes where the screen can page it, and
+		// both streams go to the one place: a reader reads one account,
+		// in the order it was written, not a report with its warnings
+		// filed somewhere else.
+		if out != nil {
+			g.Stdout, g.Stderr = out, out
+		}
+		dispatch(g, noColor, yes, name, rest)
+	})
 	if err != nil {
 		fmt.Fprintf(f.Stderr, "writrun: %v\n", err)
-		return 1, false, "", ""
+		return 1
 	}
-	if name == "" {
-		return 0, false, "", ""
-	}
-	return 0, true, name, arg
+	return 0
 }

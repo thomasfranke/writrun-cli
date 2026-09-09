@@ -23,4 +23,13 @@ type Command struct {
 	Summary string
 	Need    Need
 	Run     func(ctx *Ctx, args []string) error
+	// AsksNothing says this command reads the terminal for nothing: it
+	// writes its answer and returns. Only such a command can have its
+	// output captured and paged, because a captured question would wait
+	// on a reader who cannot see it.
+	//
+	// The zero value is the safe one. A command added without a thought
+	// here keeps the terminal to itself, which is only ever slower to
+	// read — never a question asked into the dark.
+	AsksNothing bool
 }

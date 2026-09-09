@@ -26,7 +26,7 @@ canonical|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000/T
 canonical|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 canonical|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 canonical|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
-canonical|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+canonical|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 crlf|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 crlf|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
 crlf|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
@@ -55,7 +55,7 @@ crlf|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000/Task n
 crlf|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
 crlf|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
 crlf|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
-crlf|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+crlf|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 fence-space|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 fence-space|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
 fence-space|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
@@ -84,7 +84,7 @@ fence-space|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000
 fence-space|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
 fence-space|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
 fence-space|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
-fence-space|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+fence-space|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 unclosed|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 unclosed|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
 unclosed|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
@@ -113,7 +113,7 @@ unclosed|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000/Ta
 unclosed|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
 unclosed|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
 unclosed|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
-unclosed|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+unclosed|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 no-front-matter|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 no-front-matter|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
 no-front-matter|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
@@ -142,7 +142,7 @@ no-front-matter|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-
 no-front-matter|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
 no-front-matter|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
 no-front-matter|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
-no-front-matter|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+no-front-matter|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 duplicate-status|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 duplicate-status|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 duplicate-status|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
@@ -171,7 +171,7 @@ duplicate-status|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task
 duplicate-status|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 duplicate-status|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 duplicate-status|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
-duplicate-status|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+duplicate-status|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 space-colon|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 space-colon|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
 space-colon|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
@@ -200,7 +200,7 @@ space-colon|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000
 space-colon|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
 space-colon|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
 space-colon|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
-space-colon|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+space-colon|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 mixed-endings|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 mixed-endings|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 mixed-endings|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
@@ -229,7 +229,7 @@ mixed-endings|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-00
 mixed-endings|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 mixed-endings|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 mixed-endings|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
-mixed-endings|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+mixed-endings|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 long-line|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 long-line|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 long-line|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
@@ -258,7 +258,7 @@ long-line|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000/T
 long-line|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 long-line|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 long-line|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
-long-line|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+long-line|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 missing-id|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 missing-id|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
 missing-id|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: work/specs/spec-0012-queue-reader.md carries no id
@@ -287,7 +287,7 @@ missing-id|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000/
 missing-id|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 missing-id|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 missing-id|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
-missing-id|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+missing-id|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 missing-status|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 missing-status|spec-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
 missing-status|0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: spec-0012 is no status at all — amend returns an approved spec to draft; a draft is already open for change and an implemented one is history (work/specs/spec-0012-queue-reader.md)
@@ -316,7 +316,7 @@ missing-status|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0
 missing-status|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports none open
 missing-status|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports none open
 missing-status|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports none open
-missing-status|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+missing-status|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins
 null-list|task-0012|amend|exit=1|work=-|gh=no|refs=2|table=-|writrun amend: "task-0012" names a task, and this resolves a spec — its number alone would land on spec-12, which is a different file about different work
 null-list|spec-0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
 null-list|0012|amend|exit=0|work=work/specs/spec-0012-queue-reader.md|gh=yes|refs=3|table=-|OK — the title observes 'bracketed', and agent_coauthor is honoured./amendment:/ spec spec-0012 → draft (work/specs/spec-0012-queue-reader.md)
@@ -345,4 +345,4 @@ null-list|task-0000|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0000/T
 null-list|task-abc-0012|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-abc-0012/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 null-list|report-0020|status|exit=0|work=-|gh=no|refs=2|table=-|Branch report-0020/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
 null-list|task-0099|status|exit=0|work=-|gh=no|refs=2|table=-|Branch task-0099/Task none — this branch carries no task/Reports 1 open, waiting to be triaged
-null-list|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the adopted kit to the tag this binary pins
+null-list|-|screen|exit=0|work=-|gh=no|refs=2|table=-|writrun-cli — the porcelain for WritRun./ init install the WritRun kit into this repository/ update refresh the kit to the tag this binary pins

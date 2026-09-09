@@ -77,7 +77,7 @@ var ledgerFlags = []struct{ flag, key string }{
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "finish",
-		Summary: "finish a task: the deltas checked, the outcome recorded, the pull request marked ready",
+		Summary: "complete a task: deltas checked, PR ready",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

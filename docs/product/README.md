@@ -6,26 +6,31 @@ maintainer, a contributor, a stakeholder.
 
 [`rules.md`](rules.md) holds what every command obeys: where it runs,
 what it never does, how it reports. Each command then has one file,
-grouped by flow:
+grouped by what a person is acting on — the grouping the
+[entry screen](screens/entry.excalidraw) shows, because one set
+grouped two ways is two answers about one tool:
 
-| Flow | Command | Answers |
+| | Command | Answers |
 |---|---|---|
 | Entry | [`writrun`](screens/README.md) | Acting on the queue by keys instead of typed commands. |
+| Tasks | [`list`](queue/list.md) | Reading the queue. |
+| | [`take`](pull-requests/take.md) | Beginning the work on a task. |
+| | [`work`](queue/work.md) | Launching the adopter's agent on a task. |
+| | [`status`](queue/status.md) | Where the work stands, from the current branch. |
+| | [`finish`](pull-requests/finish.md) | Completing the work. |
+| Authoring | [`author`](pull-requests/author.md) | Sending a finished rule's derived work up for review. |
+| | [`amend`](pull-requests/amend.md) | Returning an approved spec to draft. |
+| Reports | [`report`](reports/report.md) | Recording an observation before it is lost. |
 | Adoption | [`init`](adoption/init.md) | Installing the kit into an existing repository. |
 | | [`update`](adoption/update.md) | Refreshing the kit to a newer WritRun tag. |
 | | [`doctor`](adoption/doctor.md) | Whether the repository still satisfies what the methodology assumes. |
+| | [`config`](config.md) | Reading the adopter's settings, and changing one. |
 | | [`uninstall`](adoption/uninstall.md) | Removing the kit; the project's record stays. |
-| Queue | [`list`](queue/list.md) | Reading the queue. |
-| | [`work`](queue/work.md) | Launching the adopter's agent on a task. |
-| | [`status`](queue/status.md) | Where the work stands, from the current branch. |
-| Pull requests | [`take`](pull-requests/take.md) | Beginning the work on a task. |
-| | [`author`](pull-requests/author.md) | Sending a finished rule's derived work up for review. |
-| | [`finish`](pull-requests/finish.md) | Completing the work. |
-| | [`amend`](pull-requests/amend.md) | Returning an approved spec to draft. |
-| Reports | [`report`](reports/report.md) | Recording an observation before it is lost. |
 
-The four pull-request commands share one shape:
-[`pull-requests/shape.md`](pull-requests/shape.md).
+`take`, `author`, `finish` and `amend` end in a pull request and share
+one shape: [`pull-requests/shape.md`](pull-requests/shape.md). The
+grouping above is what a person is doing; the shape is what those four
+have in common, and each of their pages links it.
 
 ## Rules for this folder
 

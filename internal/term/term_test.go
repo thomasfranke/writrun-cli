@@ -149,3 +149,33 @@ func TestSpinWithoutATerminalRunsTheWorkPlainly(t *testing.T) {
 		t.Errorf("Spin ran=%v err=%v", ran, err)
 	}
 }
+
+// That every question *names* the way out is not assertable here: huh
+// writes nothing to an output that is not a terminal, which is why
+// every case in this file reads the answer and never the drawing. The
+// pty tier watches for it — tests/e2e/screen/.
+
+// And esc is that way out, not only its name.
+func TestEscLeavesEveryQuestion(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		ask  func(Terminal) error
+	}{
+		{"Input", func(tm Terminal) error { _, err := tm.Input("the summary:"); return err }},
+		{"Confirm", func(tm Terminal) error { _, err := tm.Confirm("record it?"); return err }},
+		{"Select", func(tm Terminal) error {
+			_, err := tm.Select("which one?", []string{"a", "b"})
+			return err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := headless(t, func() answer[string] {
+				tm := Terminal{In: strings.NewReader("\x1b"), Out: &bytes.Buffer{}}
+				return answer[string]{"", tc.ask(tm)}
+			})
+			if got.err == nil {
+				t.Error("esc did not leave the question")
+			}
+		})
+	}
+}

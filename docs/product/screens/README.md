@@ -4,12 +4,18 @@
 wording these files are the reference the implementation is checked
 against. The rules a drawing cannot carry are stated below them.
 
+**A drawing decides where colour goes, never which colour.** Its hues
+are a canvas's, chosen to read beside the other frames; the terminal's
+are the reader's, and the binary paints with the indexed palette their
+theme defines so a value chosen for one background is not imposed on
+another ([rules](../rules.md)).
+
 | | |
 |---|---|
-| [Queue](queue.excalidraw) | The lister's sections, navigated by keys. What `writrun` with no command opens today. |
-| [Entry](entry.excalidraw) | What the entry screen lists, and how it reaches the rest. Proposed. |
+| [Queue](queue.excalidraw) | The lister's sections, navigated by keys. One keystroke in from the entry screen. |
+| [Entry](entry.excalidraw) | What the entry screen lists, and how it reaches the rest. |
 | [doctor](doctor.excalidraw) | [`doctor`](../adoption/doctor.md)'s report, grouped by stage, at every level a finding carries. |
-| [Config](config.excalidraw) | The ten keys of `.writrun/settings.json`. Proposed. |
+| [Config](config.excalidraw) | [`config`](../config.md)'s keys, and what judges a change. |
 
 ## `writrun` with no command
 
@@ -26,8 +32,26 @@ a command. Which key does what is drawn in
 - Dispatches [`take`](../pull-requests/take.md),
   [`work`](../queue/work.md) and [`status`](../queue/status.md), and
   nothing else.
-- A key leaves the screen and runs the command it names — its checks,
-  its questions, its confirmation, unchanged ([rules](../rules.md)).
+- A key runs the command it names — its checks, its questions, its
+  confirmation, unchanged ([rules](../rules.md)).
+- **A command owns the keyboard alone, and the screen comes back when
+  it is done.** A command asks through a terminal program of its own,
+  and two of those in one process do not share a keyboard: a screen
+  still holding the input is a question that answers itself. So the
+  screen is paused and the terminal released — not closed — and reading
+  the next thing is a keypress rather than another `writrun`.
+- **A command that asks nothing answers into a screen.** Its output is
+  captured and shown scrollable, with the screen saying what is running
+  while it waits. The screen never gives up the terminal for such a
+  command, which is what lets it do either.
+- **A command that asks keeps the terminal to itself.** There is no
+  capturing a question: it would wait on a reader who cannot see it. It
+  takes the whole terminal, as a screen does, and hands it back when the
+  reader says they have read it.
+- **Which of the two is the command's own declaration**, and the safe
+  answer is the second. A command whose declaration is missing keeps the
+  terminal, which is only slower to read; the other mistake asks a
+  question into the dark.
 - The screen offers no action a command does not already provide.
 - The screen reads only; every change goes through the dispatched
   command.

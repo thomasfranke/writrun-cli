@@ -48,7 +48,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "report",
-		Summary: "record an observation into work/reports/: no triage, no branch, no pull request",
+		Summary: "record an observation: no triage, no branch",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

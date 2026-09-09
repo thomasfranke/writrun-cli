@@ -46,7 +46,7 @@ func New(d Deps) command.Command {
 	}
 	return command.Command{
 		Name:    "update",
-		Summary: "refresh the adopted kit to the tag this binary pins",
+		Summary: "refresh the kit to the tag this binary pins",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

@@ -18,7 +18,7 @@ stamped="${ldflags//\{\{ .Tag \}\}/v9.9.9}"
 
 WORK=$(mktemp -d)
 if (cd "$REPO_ROOT" && go build -ldflags "$stamped" -o "$WORK/writrun" ./cmd/writrun); then
-  check "the linked binary names the stamped tag" 0 "writrun v9.9.9" \
+  check "the linked binary names the stamped tag" 0 "writrun-cli v9.9.9" \
     -- "$WORK/writrun" --version
 else
   echo "FAIL  the linked binary names the stamped tag: go build failed"

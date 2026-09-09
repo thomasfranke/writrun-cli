@@ -18,8 +18,17 @@ test: tests
 # (product/screen.md). `go run` rather than a build so the source under
 # the cursor is the source that runs; the screen needs a terminal, so
 # this target is a session's, never CI's.
+# A refusal is an answer, not a broken target. `take` with nothing
+# available exits 1 having already said why, and two layers used to
+# answer over it: `go run` printing `exit status 1` and make printing
+# `*** [ui] Error 1`. Both read as the door failing rather than the
+# queue being empty, and both have been read that way. So the binary is
+# built and run rather than `go run`, which is what adds the first line,
+# and exit 1 is let through, which stops the second. Anything else still
+# fails the target and keeps its code.
 ui:
-	@go run ./cmd/writrun
+	@tmp=$$(mktemp -d) && go build -o "$$tmp/writrun" ./cmd/writrun && \
+		{ "$$tmp/writrun"; code=$$?; rm -rf "$$tmp"; [ $$code -le 1 ]; }
 
 # unit is Go, table-driven, beside the code (technical/testing/tiers.md).
 test-unit:

@@ -18,9 +18,10 @@ Installs the WritRun kit into an existing repository.
 - Installs a commit-message hook that **validates** the commit
   convention. It never writes a message — the message belongs to
   whoever made the change.
-- **Asks the stage** — 1 (files only), 2 (pull requests), 3 (GitHub
-  issues) — writes the answer to `.writrun/settings.json`, and runs the
-  chosen stage's [`doctor`](doctor.md) checks on the spot. What is
+- **Asks the stage.** The three are named here, and named nowhere else:
+  **1 files**, **2 pull requests**, **3 GitHub issues**. It writes the
+  answer to the settings and runs the chosen stage's
+  [`doctor`](doctor.md) checks on the spot. What is
   missing is named, never fixed: adoption is not conditioned on the
   forge.
 - Leaves the queue empty. Work arrives through the pipeline, never from

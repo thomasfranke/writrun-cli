@@ -1,7 +1,7 @@
 ---
 id: spec-0032
 task_ref: task-0029
-status: approved
+status: implemented
 created: 2026-09-08T15:04:04Z
 ---
 
@@ -105,4 +105,20 @@ behaviour except where a filter is added for a section that has none.
 
 ## Outcome
 
-_(fill after execution)_
+Two of the three settled as planned. The stage vocabulary is now two
+concepts rather than one word serving twice: `init.md` names the stages
+and says it names them nowhere else, and `doctor.md` says a group is
+named for what it examines — which is why the subjects run 0–3 and the
+names run 1–3. `product/README.md` groups by what a person acts on, the
+grouping the entry screen shows, and `shape.md` is reached from the four
+command pages rather than from a heading.
+
+**The filters diverge, by the maintainer's decision.** The plan said
+five sections, five filters. `listcmd` already folds *In progress* and
+*In flight* into `--available`, with its reason written: they are what
+taking work now depends on. Splitting them would let `--available`
+answer with a clean queue while a task waits to be resumed — a
+correct-looking answer that omits the thing the reader most needs. So
+the count stays three and `list.md` states the rule instead: filters
+select by question, not by section. The acceptance criterion that asked
+for a filter per section is the one this change does not meet.

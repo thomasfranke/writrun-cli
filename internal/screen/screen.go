@@ -6,23 +6,30 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Open runs the screen over the lister's output and returns the action
-// the user chose. The program owns the terminal only while it is open:
-// it has quit by the time this returns, which is what lets the caller
-// run a command that asks its own questions.
+// Open runs the screen until the reader leaves it. The entry screen and
+// the queue are two states of it, and a command chosen on either runs
+// and hands the screen back — reading the next thing is a keypress, not
+// another `writrun`.
 //
-// in and out are the terminal; the suite passes its own so the model is
-// driven without one.
-func Open(out string, in io.Reader, w io.Writer) (Action, error) {
-	m := newModel(Parse(out))
-	p := tea.NewProgram(m, tea.WithInput(in), tea.WithOutput(w))
-	final, err := p.Run()
-	if err != nil {
-		return Action{}, err
-	}
-	done, ok := final.(model)
-	if !ok {
-		return Action{}, nil
-	}
-	return done.action, nil
+// queue is called when the reader opens the queue, and again after a
+// command, and returns the lister's output. run is called with the
+// command a key chose. Both are callbacks rather than fields because
+// running the kit's scripts is the caller's act, not this package's —
+// nothing here knows a script path or a command's behaviour
+// (docs/technical/engineering/coupling.md).
+//
+// A command still owns the terminal alone while it asks its questions;
+// see session for why that is a pause rather than a close.
+func Open(e Entry, queue func() (string, error), run Runner, in io.Reader, w io.Writer) error {
+	// The alternate buffer is the session's, taken once and given back
+	// once. Each screen replaces the last rather than stacking, and the
+	// terminal a command is handed is the one it would have had.
+	p := tea.NewProgram(
+		newSession(e, queue, run, in, w),
+		tea.WithInput(in),
+		tea.WithOutput(w),
+		tea.WithAltScreen(),
+	)
+	_, err := p.Run()
+	return err
 }
