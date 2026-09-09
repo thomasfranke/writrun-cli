@@ -56,6 +56,24 @@ a command. Which key does what is drawn in
 - The screen reads only; every change goes through the dispatched
   command.
 
+## `writrun config`
+
+Opens the settings as a screen: every key the kit documents, under the
+section the kit gives it, navigated by keys. Which key does what is
+drawn in [config.excalidraw](config.excalidraw).
+
+- Holds no list of keys and no list of allowed values. Both are the
+  kit's — the keys read out of the settings file the kit's checker
+  governs, the values known only to that checker
+  ([report-0030](../../../work/reports/report-0030-settings-vocabulary-unreadable.md)).
+- Moving selects a key; choosing one asks for its value, as
+  [`config`](../config.md) already does from the command line.
+- A change is written and then judged: the kit's checker decides, and a
+  refusal restores the file to its previous bytes and prints the
+  checker's own sentence, unedited.
+- The screen offers no key the settings file does not name, and no
+  judgement of its own about a value.
+
 ## Rules for this folder
 
 - A drawing answers how a screen looks; a rule answers what holds,
