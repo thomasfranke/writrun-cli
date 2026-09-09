@@ -153,6 +153,9 @@ stage block reads `.writrun/settings.json` and writes nothing.
 
 - `technical/layout/tree.md` — `internal/screen` gains the entry
   screen beside the queue's rows.
+- `technical/testing/tiers.md` — points at the suite's own index, which
+  says where each tier is on disk and why the unit tier is not under
+  `tests/`. The tiers table itself is unchanged.
 
 ## Outcome
 
