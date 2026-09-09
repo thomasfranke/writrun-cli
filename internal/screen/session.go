@@ -125,10 +125,15 @@ func tick() tea.Cmd {
 // command writes to the process's own streams, which is exactly what
 // the released terminal is.
 type dispatch struct {
-	run    Runner
-	action Action
-	in     io.Reader
-	out    io.Writer
+	// label is what the screen says it is running, and run is the
+	// running. A func rather than an Action because more than one
+	// screen hands the terminal over — the session for a command, the
+	// settings screen for a change — and the discipline of doing so is
+	// the thing worth having in one place.
+	label string
+	run   func()
+	in    io.Reader
+	out   io.Writer
 }
 
 // The alternate screen, entered and left by hand.
@@ -164,8 +169,8 @@ func (d dispatch) Run() error {
 	// command owns the terminal, and a spinner would be a second writer
 	// interleaving with its output. The same reason a screen cannot
 	// stay open behind a question.
-	fmt.Fprintf(d.out, "  running %s…\n\n", d.action.Command)
-	d.run(d.action, nil)
+	fmt.Fprintf(d.out, "  running %s…\n\n", d.label)
+	d.run()
 	fmt.Fprint(d.out, "\n— enter to return to the screen —")
 	waitForLine(d.in)
 	fmt.Fprint(d.out, altOff)
@@ -351,7 +356,13 @@ func (s *session) exec(a Action) tea.Cmd {
 		s.pending = &a
 		return tick()
 	}
-	d := dispatch{run: s.run, action: a, in: s.in, out: s.out}
+	run := s.run
+	d := dispatch{
+		label: a.Command,
+		run:   func() { run(a, nil) },
+		in:    s.in,
+		out:   s.out,
+	}
 	return tea.Exec(d, func(error) tea.Msg { return ranMsg{} })
 }
 

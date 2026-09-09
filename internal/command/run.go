@@ -16,6 +16,9 @@ type Frame struct {
 
 	Stdout io.Writer
 	Stderr io.Writer
+	// Stdin is handed on to a command that opens a screen; questions go
+	// through Terminal, which holds its own reader.
+	Stdin io.Reader
 
 	Terminal Terminal
 	// FindRepo walks up from a directory to the git toplevel; adopted
@@ -107,6 +110,7 @@ func dispatch(f Frame, noColor, yes bool, name string, rest []string) int {
 	ctx := &Ctx{
 		Stdout:   f.Stdout,
 		Stderr:   f.Stderr,
+		Stdin:    f.Stdin,
 		Terminal: f.Terminal,
 		Yes:      yes,
 		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
@@ -241,6 +245,7 @@ func openScreen(f Frame, noColor, yes bool) int {
 	ctx := &Ctx{
 		Stdout:   f.Stdout,
 		Stderr:   f.Stderr,
+		Stdin:    f.Stdin,
 		Terminal: f.Terminal,
 		Yes:      yes,
 		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),

@@ -67,6 +67,7 @@ func main() {
 		Commands:   commands(),
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
+		Stdin:      os.Stdin,
 		Terminal:   terminal(),
 		FindRepo:   func(dir string) (string, bool, error) { return wrepo.Find(disk, dir) },
 		Getenv:     os.Getenv,

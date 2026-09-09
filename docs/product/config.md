@@ -2,6 +2,11 @@
 
 Shows the adopter's settings, and changes one.
 
+- **With no argument on a terminal, opens the settings as a screen**
+  ([config.excalidraw](screens/config.excalidraw)): the keys under
+  their sections, a cursor, and `enter` on one changing it. Where there
+  is no terminal it lists them instead, so a script reading this
+  command keeps reading it.
 - Lists every key the settings declare, under the section that owns it,
   with the value the kit's own reader answers.
 - **Holds no key and no allowed value.** Which keys exist is the
@@ -10,7 +15,13 @@ Shows the adopter's settings, and changes one.
   refuses.
 - Changes one key at a time, named as `section.key` — the form the kit's
   reader takes. Without a value, the value is the one free-text
-  question; `--yes` does not answer it.
+  question; `--yes` does not answer it. A key chosen on the screen
+  reaches the same question and the same write.
+- **Offers no choices before the write.** The vocabulary lives in the
+  kit's checker and nowhere a reader can reach
+  ([report-0030](../../work/reports/report-0030-settings-vocabulary-unreadable.md)),
+  so the value is typed and judged after, on the screen as on the
+  command line.
 - **Shows the key, the old value and the new one, then asks**
   ([rules](rules.md)).
 - Writes, then hands the file to the kit's checker. The change is kept

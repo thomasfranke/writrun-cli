@@ -15,6 +15,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/palette"
+	"github.com/thomasfranke/writrun-cli/internal/screen"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -58,6 +59,12 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 
 	keys := keysOf(string(before))
 	if fs.NArg() == 0 {
+		// A terminal gets the screen the drawing gives; anything else
+		// gets the listing, because a script reading `writrun config`
+		// must keep reading it (spec-0034).
+		if ctx.Terminal.InteractiveIn() && ctx.Terminal.InteractiveOut() {
+			return browse(ctx, d, path)
+		}
 		return show(ctx, d, keys)
 	}
 
@@ -72,6 +79,71 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		}
 	}
 	return set(ctx, d, path, before, key, strings.TrimSpace(value))
+}
+
+// browse opens the settings as a screen: the keys under their sections,
+// a cursor, and `enter` on one running the change this command already
+// performs from the command line.
+//
+// The rows are read again after every change rather than edited here,
+// because whether a change was kept is the file's answer — the kit's
+// checker may have refused it and put the previous bytes back.
+func browse(ctx *command.Ctx, d Deps, path string) error {
+	load := func() (screen.Settings, error) {
+		bytes, err := d.Files.ReadFile(path)
+		if err != nil {
+			return screen.Settings{}, err
+		}
+		s := screen.Settings{Header: "CONFIG · " + kit.Settings + "   checked by " + kit.CheckSettings}
+		var group *screen.SettingGroup
+		section := ""
+		for _, k := range keysOf(string(bytes)) {
+			if k.section != section || group == nil {
+				section = k.section
+				s.Groups = append(s.Groups, screen.SettingGroup{Name: heading(section)})
+				group = &s.Groups[len(s.Groups)-1]
+			}
+			value, err := read(d, ctx.Root, k)
+			if err != nil {
+				return screen.Settings{}, err
+			}
+			group.Rows = append(group.Rows, screen.Setting{Name: k.name, Key: k.dotted(), Value: value})
+		}
+		return s, nil
+	}
+
+	// The change is the argued path, unchanged: it asks for the value,
+	// writes, and lets the checker judge. Its refusal is its own to
+	// print, on the terminal the screen released for it.
+	change := func(key string) {
+		if err := one(ctx, d, path, key); err != nil {
+			fmt.Fprintf(ctx.Stderr, "writrun config: %v\n", err)
+		}
+	}
+	return screen.OpenSettings(load, change, ctx.Stdin, ctx.Stdout)
+}
+
+// one is `writrun config <key>` with no value: ask, then write and be
+// judged. The screen and the command line reach the same code.
+func one(ctx *command.Ctx, d Deps, path, key string) error {
+	before, err := d.Files.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	value, err := ctx.AskInput("The value for "+key+":", "", "the value as a second argument")
+	if err != nil {
+		return err
+	}
+	return set(ctx, d, path, before, key, strings.TrimSpace(value))
+}
+
+// heading is the label a section is shown under. The stage sits above
+// them all and the file gives it no section of its own.
+func heading(section string) string {
+	if section == "" {
+		return "THE STAGE"
+	}
+	return strings.ToUpper(strings.ReplaceAll(section, "_", " "))
 }
 
 // show prints every key under the section that owns it, with the value

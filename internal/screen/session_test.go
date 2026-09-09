@@ -207,22 +207,30 @@ func TestTheDispatchTakesNoStreamsOfItsOwn(t *testing.T) {
 	d.SetStderr(nil)
 }
 
-// The command is run with the action it was given, and the reader is
-// asked before the screen takes the terminal back.
-func TestTheDispatchRunsTheCommandThenWaits(t *testing.T) {
-	var got Action
+// The handover: the screen names what it is running, runs it, and asks
+// before taking the terminal back.
+//
+// It is a `func` and a label rather than an action because more than
+// one screen hands the terminal over — the session for a command, the
+// settings screen for a change — and the discipline of doing so is the
+// thing worth having in one place.
+func TestTheDispatchRunsWhatItWasGivenThenWaits(t *testing.T) {
+	ran := false
 	var out strings.Builder
 	d := dispatch{
-		run:    func(a Action, _ io.Writer) { got = a },
-		action: Action{Command: "take", Arg: "task-0021"},
-		in:     strings.NewReader("\n"),
-		out:    &out,
+		label: "take",
+		run:   func() { ran = true },
+		in:    strings.NewReader("\n"),
+		out:   &out,
 	}
 	if err := d.Run(); err != nil {
 		t.Fatalf("Run = %v", err)
 	}
-	if got != (Action{Command: "take", Arg: "task-0021"}) {
-		t.Errorf("ran %+v, want the action it was given", got)
+	if !ran {
+		t.Error("what it was given never ran")
+	}
+	if !strings.Contains(out.String(), "running take") {
+		t.Errorf("the screen did not name what it was running: %q", out.String())
 	}
 	if !strings.Contains(out.String(), "enter to return") {
 		t.Errorf("the way back was not offered: %q", out.String())
