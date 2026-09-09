@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/pointer"
@@ -49,6 +50,10 @@ type refresh struct {
 	// before v0.0.04 grafted. A refresh names it and rewrites nothing:
 	// from v0.0.04 that file is the project's, whole.
 	legacy bool
+	// moves are the adopter's files this refresh carries from the kit's
+	// home to the project's, once. stranded are the ones it will not,
+	// because both addresses already hold a file.
+	moves, stranded []move
 }
 
 // plan walks the fetched template and decides every write without
@@ -103,6 +108,8 @@ func plan(disk vfs.FS, root, template, from, to string) (*refresh, error) {
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("reading AGENTS.md: %w", err)
 	}
+	r.moves, r.stranded = migrations(disk, root)
+
 	return r, nil
 }
 
@@ -191,6 +198,9 @@ func sortedKeys(m map[string][]byte) []string {
 // empty reports a refresh with nothing to do — the tag moved but the
 // files it owns did not.
 func (r *refresh) empty() bool {
+	if len(r.moves) > 0 || len(r.stranded) > 0 {
+		return false
+	}
 	return len(r.changes) == 1 && r.changes[0].rel == kittag.Rel
 }
 
@@ -200,6 +210,15 @@ func (r *refresh) render(w io.Writer) {
 	if r.empty() {
 		fmt.Fprintf(w, "  Only the recorded tag differs; every kit-owned file already matches %s.\n\n", r.to)
 		return
+	}
+	for _, m := range r.moves {
+		fmt.Fprintf(w, "  move         %s → %s — yours, and it leaves the kit's home\n", m.from, m.to)
+	}
+	for _, m := range r.stranded {
+		fmt.Fprintf(w, "  left         %s — %s already answers; nothing is merged\n", m.from, m.to)
+	}
+	if len(r.moves) > 0 || len(r.stranded) > 0 {
+		fmt.Fprintln(w)
 	}
 	tops := map[string]map[verb]int{}
 	var order []string
@@ -246,6 +265,14 @@ func group(rel string) string {
 
 // apply performs exactly the rendered plan.
 func (r *refresh) apply() error {
+	// The migration runs first: a repository left half-refreshed is
+	// recoverable, and one whose answers were overwritten at the old
+	// address before they moved is not.
+	for _, m := range r.moves {
+		if err := r.migrate(m); err != nil {
+			return err
+		}
+	}
 	for _, c := range r.changes {
 		dst := localOf(r.root, c.rel)
 		if c.verb == removed {
@@ -280,4 +307,92 @@ func copyFile(disk vfs.FS, src, dst string) error {
 		return err
 	}
 	return disk.WriteFile(dst, content, info.Mode().Perm())
+}
+
+// move is one adopter file leaving the kit's home for the project's.
+// Both paths are slash-separated and relative to the repository root.
+type move struct{ from, to string }
+
+// migrations are the adopter's files still sitting at the addresses
+// WritRun v0.0.05 moved them out of. A repository adopted before that
+// tag keeps its answers under `.writrun/`, which the kit's own scripts
+// no longer read — so the refresh carries them across once, and never
+// looks again.
+//
+// Where both addresses hold the file the new one wins and the old one
+// is named, never merged: two answers about one setting are the
+// adopter's to reconcile, and a merge would pick for them
+// (WritRun spec-0090).
+func migrations(disk vfs.FS, root string) (moves, stranded []move) {
+	for _, m := range []move{
+		{kit.LegacySettings, kit.Settings},
+		{kit.LegacyGates, kit.Gates},
+		{kit.LegacyConventions, kit.Conventions},
+	} {
+		if !answers(disk, localOf(root, m.from)) {
+			continue
+		}
+		if answers(disk, localOf(root, m.to)) {
+			stranded = append(stranded, m)
+			continue
+		}
+		moves = append(moves, m)
+	}
+	return moves, stranded
+}
+
+// answers reports whether an address holds an answer. A directory
+// counts only where it holds a file: an empty `writrun/conventions/`
+// left by a half-finished move is not the project having answered, and
+// reading it as one would strand the answers it was supposed to
+// receive. The rule is per file, not per folder.
+func answers(disk vfs.FS, path string) bool {
+	info, err := disk.Stat(path)
+	if err != nil {
+		return false
+	}
+	if !info.IsDir() {
+		return true
+	}
+	found := false
+	_ = disk.WalkDir(path, func(_ string, e fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !e.IsDir() {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+// migrate carries one address across, byte for byte. The port has no
+// rename, and a copy followed by a removal is the same act through it.
+func (r *refresh) migrate(m move) error {
+	src, dst := localOf(r.root, m.from), localOf(r.root, m.to)
+	info, err := r.disk.Stat(src)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", m.from, err)
+	}
+	if !info.IsDir() {
+		if err := copyFile(r.disk, src, dst); err != nil {
+			return fmt.Errorf("writing %s: %w", m.to, err)
+		}
+		return r.disk.Remove(src)
+	}
+	err = r.disk.WalkDir(src, func(p string, e fs.DirEntry, err error) error {
+		if err != nil || e.IsDir() {
+			return err
+		}
+		rel, relErr := filepath.Rel(src, p)
+		if relErr != nil {
+			return relErr
+		}
+		return copyFile(r.disk, p, filepath.Join(dst, rel))
+	})
+	if err != nil {
+		return fmt.Errorf("writing %s: %w", m.to, err)
+	}
+	return r.disk.RemoveAll(src)
 }

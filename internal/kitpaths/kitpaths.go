@@ -14,38 +14,37 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/kit"
 )
 
-// Untouchable are the paths a refresh never rewrites: the adopter's
-// conventions, settings and gate answers, the entry points a project
-// owns whole from v0.0.04 on, its docs and its queue.
+// Untouchable are the paths a refresh never rewrites: the project's
+// home entire, the entry points a project owns whole from v0.0.04 on,
+// its docs and its queue.
+//
+// The home is named once rather than file by file, because no folder is
+// part of both homes (docs/technical/engineering/coupling.md, rule 3).
+// A tag that adds an answer under `writrun/` is protected the day it
+// ships, with no change here.
 var Untouchable = []string{
-	conventionsDir,
-	kit.Settings,
-	kit.Gates,
+	kit.Home,
 	"AGENTS.md",
 	"CLAUDE.md",
 	"docs",
 	"work",
 }
 
-// conventionsDir is the adopter's conventions folder. Nothing calls
-// into it — the kit's scripts read it and this binary does not — so it
-// is named here, where the one question asked of it is answered.
-const conventionsDir = ".writrun/conventions"
-
 // KitOwned are the kit's own files that sit under an Untouchable path.
 // A refresh writes them although the path above them is the project's —
 // `docs/` is the project's chapters and one file the kit installed.
 var KitOwned = []string{"docs/writrun-instructions.md"}
 
-// Seeded are the adopter-owned files a refresh writes where the tag
-// ships one the repository does not have: a kit whose own files
-// reference `gates.md` needs it present, and a project that has one
-// keeps every word of it.
+// Seeded is empty, and the emptiness is the rule: a refresh writes
+// nothing into the project's home. Seeding it is adoption's act.
 //
-// `settings.json` is deliberately not among them. Its shipped default
-// declares `stage: 1`, which is an answer a refresh may not give on the
-// project's behalf.
-var Seeded = []string{kit.Gates}
+// It was `gates.md` while an unanswered gate was a TODO in the
+// adopter's file that no update could correct. From v0.0.07 the kit
+// answers instead — a file that defers resolves to
+// `.writrun/defaults/`, so a project that never wrote one is answered
+// by the kit and keeps receiving its corrections. There is nothing left
+// for a refresh to seed.
+var Seeded = []string{}
 
 // namespaced are the directories where the kit prefixes its own files,
 // which is how `uninstall` and a refresh's removals tell them from the
@@ -87,13 +86,25 @@ func Seeds(rel string) bool {
 // and the kit's namespaced files in the two `.github` folders. A
 // workflow the project wrote is neither.
 func Removable(rel string) bool {
-	if Untouched(rel) {
+	if Untouched(rel) || legacyAdopter(rel) {
 		return false
 	}
 	if strings.HasPrefix(rel, ".writrun/") {
 		return true
 	}
 	return Namespaced(rel)
+}
+
+// legacyAdopter reports whether rel is an adopter answer still at the
+// address WritRun v0.0.05 moved it out of. It sits inside the kit's
+// home, so the ordinary rule would read it as a file the tag stopped
+// shipping and remove it — deleting the answers a refresh exists to
+// carry across. Where the migration moved one, it is already gone; where
+// it did not, because the new address answers too, the old file is the
+// adopter's to reconcile and stays for them to look at.
+func legacyAdopter(rel string) bool {
+	return rel == kit.LegacySettings || rel == kit.LegacyGates ||
+		rel == kit.LegacyConventions || strings.HasPrefix(rel, kit.LegacyConventions+"/")
 }
 
 // Namespaced reports whether rel is one of the kit's files recognised

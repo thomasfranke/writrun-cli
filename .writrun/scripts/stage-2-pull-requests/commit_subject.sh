@@ -23,7 +23,7 @@
 # door, and these commits pass no door.
 #
 # The scope is `queue` — these commits record what happened to `work/`,
-# and nothing else (.writrun/conventions/commits.md).
+# and nothing else (writrun/conventions/commits.md).
 #
 # Exit codes: 0 always, except 3 for a usage error.
 #

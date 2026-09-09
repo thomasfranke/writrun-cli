@@ -59,7 +59,7 @@ func TestRunRefusesASourceWithoutATemplate(t *testing.T) {
 	kit := fakeKit(t)
 	kit.FailNoTemplate(newTag)
 	if _, err := runUpdate(t, root, Deps{Kit: kit}); err == nil {
-		t.Fatal("a source with no template/ was refreshed from")
+		t.Fatal("a source with no kit/ was refreshed from")
 	} else if !strings.Contains(err.Error(), "not a WritRun repository") {
 		t.Errorf("the refusal does not say what the source is: %v", err)
 	}
@@ -195,7 +195,7 @@ func copyInto(t *testing.T, template, root string) {
 }
 
 func untouchedInTest(rel string) bool {
-	for _, prefix := range []string{".writrun/conventions", ".writrun/settings.json", ".writrun/gates.md", "AGENTS.md", "CLAUDE.md", "work/"} {
+	for _, prefix := range []string{"writrun/conventions", "writrun/settings.json", "writrun/gates.md", "AGENTS.md", "CLAUDE.md", "work/"} {
 		if rel == prefix || strings.HasPrefix(rel, prefix) {
 			return true
 		}

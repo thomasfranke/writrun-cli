@@ -17,7 +17,7 @@ TAG=$("$WRITRUN" --version | sed -n 's/.*pins WritRun \(v[0-9.]*\).*/\1/p')
 
 git_q() { git -c user.name=suite -c user.email=suite@test -c commit.gpgsign=false "$@"; }
 
-# make_source <dir> — a WritRun repository with a template/ carrying
+# make_source <dir> — a WritRun repository with a kit/ carrying
 # the files init touches, committed and tagged $TAG.
 make_source() {
   local src="$1"
@@ -25,15 +25,15 @@ make_source() {
   (
     cd "$src" || exit 1
     git_q init -q
-    mkdir -p template/.writrun/conventions \
-             template/.writrun/scripts/stage-2-pull-requests \
-             template/.writrun/skills/writrun-select-next-task \
-             template/.writrun/templates \
-             template/.github/workflows \
-             template/docs/product template/docs/technical \
-             template/work/tasks template/work/specs template/work/reports
+    mkdir -p kit/writrun/conventions \
+             kit/.writrun/scripts/stage-2-pull-requests \
+             kit/.writrun/skills/writrun-select-next-task \
+             kit/.writrun/templates \
+             kit/.github/workflows \
+             kit/docs/product kit/docs/technical \
+             kit/work/tasks kit/work/specs kit/work/reports
 
-    cat > template/AGENTS.md <<'EOF'
+    cat > kit/AGENTS.md <<'EOF'
 # AGENTS.md — entry point for AI agents
 
 <!-- TODO: one paragraph. -->
@@ -45,7 +45,7 @@ This project tracks its work with WritRun. Before touching `work/`,
 [`.writrun/AGENTS.md`](.writrun/AGENTS.md).
 EOF
 
-    cat > template/.writrun/AGENTS.md <<'EOF'
+    cat > kit/.writrun/AGENTS.md <<'EOF'
 # WritRun — the agent flow
 
 This file is WritRun's: `writ update` replaces it whole.
@@ -55,7 +55,7 @@ This file is WritRun's: `writ update` replaces it whole.
 The flow's text.
 EOF
 
-    cat > template/.writrun/gates.md <<'EOF'
+    cat > kit/writrun/gates.md <<'EOF'
 # Human gates
 
 This file is the project's: `writ update` never touches it.
@@ -66,16 +66,18 @@ This file is the project's: `writ update` never touches it.
 | Everything else | Agent, autonomously. |
 EOF
 
-    cat > template/.writrun/settings.json <<'EOF'
+    cat > kit/writrun/settings.json <<'EOF'
 {
   "stage": 1,
   "stage_2": {
-    "auto_commit": false
+    "auto_commit": false,
+    "commit_scopes": "about product technical",
+    "commit_types": "docs feat fix refactor chore"
   }
 }
 EOF
 
-    cat > template/.writrun/conventions/commits.md <<'EOF'
+    cat > kit/writrun/conventions/commits.md <<'EOF'
 # Commits
 
 - **Types**: `docs`, `feat`, `fix`, `refactor`, `chore`.
@@ -84,30 +86,42 @@ EOF
 - Example: `docs(product): add a chapter`.
 EOF
 
-    cat > template/.writrun/scripts/stage-2-pull-requests/check_observance.sh <<'EOF'
+    cat > kit/.writrun/scripts/stage-2-pull-requests/check_observance.sh <<'EOF'
 #!/usr/bin/env bash
 # check_observance.sh — the door.
 TYPES="docs feat fix refactor chore"
 SCOPES="about product technical"
 exit 0
 EOF
-    chmod +x template/.writrun/scripts/stage-2-pull-requests/check_observance.sh
+    chmod +x kit/.writrun/scripts/stage-2-pull-requests/check_observance.sh
 
-    printf '# Select next task\n' > template/.writrun/skills/writrun-select-next-task/SKILL.md
-    printf 'echo listing\n' > template/.writrun/skills/writrun-select-next-task/list_tasks.sh
-    printf '# Task template\n' > template/.writrun/templates/task.md
+    # The kit's reader, in the smallest form that keeps its contract:
+    # a dotted key in, that key's value out. The hook reads the commit
+    # vocabulary through it, so a fixture without one installs a hook
+    # that stands down rather than one that judges.
+    cat > kit/.writrun/scripts/stage-2-pull-requests/read_setting.sh <<'EOF'
+#!/usr/bin/env bash
+set -eu
+key="${1##*.}"
+sed -n "s/^ *\"$key\": \"\(.*\)\",\{0,1\}$/\1/p" writrun/settings.json | head -n1
+EOF
+    chmod +x kit/.writrun/scripts/stage-2-pull-requests/read_setting.sh
+
+    printf '# Select next task\n' > kit/.writrun/skills/writrun-select-next-task/SKILL.md
+    printf 'echo listing\n' > kit/.writrun/skills/writrun-select-next-task/list_tasks.sh
+    printf '# Task template\n' > kit/.writrun/templates/task.md
     for wf in approve check issues progress; do
       printf 'name: writrun %s\non: pull_request\n' "$wf" \
-        > "template/.github/workflows/writrun-$wf.yml"
+        > "kit/.github/workflows/writrun-$wf.yml"
     done
-    printf '# How to work this kit\n' > template/docs/writrun-instructions.md
-    printf '%s\n' "$TAG" > template/.writrun/VERSION
-    printf '# This project uses WritRun\n' > template/WRITRUN.md
-    printf '# Product skeleton\n' > template/docs/product/README.md
-    printf '# Technical skeleton\n' > template/docs/technical/README.md
-    printf '# Tasks\n' > template/work/tasks/README.md
-    printf '# Specs\n' > template/work/specs/README.md
-    printf '# Reports\n' > template/work/reports/README.md
+    printf '# How to work this kit\n' > kit/docs/writrun-instructions.md
+    printf '%s\n' "$TAG" > kit/.writrun/VERSION
+    printf '# This project uses WritRun\n' > kit/WRITRUN.md
+    printf '# Product skeleton\n' > kit/docs/product/README.md
+    printf '# Technical skeleton\n' > kit/docs/technical/README.md
+    printf '# Tasks\n' > kit/work/tasks/README.md
+    printf '# Specs\n' > kit/work/specs/README.md
+    printf '# Reports\n' > kit/work/reports/README.md
 
     # The older release: the same kit, one tag back. `update` moves
     # between these two, so the diff a case asserts on is a real one.
@@ -117,14 +131,14 @@ EOF
 
     # What the pinned tag changed: a refreshed skill, a new template
     # file, a reworded workflow — one of each verb the plan reports.
-    printf '# Select next task, reworded\n' > template/.writrun/skills/writrun-select-next-task/SKILL.md
-    printf '# Spec template\n' > template/.writrun/templates/spec.md
-    printf 'name: writrun check\non: pull_request\n# reworded\n' > template/.github/workflows/writrun-check.yml
+    printf '# Select next task, reworded\n' > kit/.writrun/skills/writrun-select-next-task/SKILL.md
+    printf '# Spec template\n' > kit/.writrun/templates/spec.md
+    printf 'name: writrun check\non: pull_request\n# reworded\n' > kit/.github/workflows/writrun-check.yml
     # Two files no list in Go names: the tag adds them and a refresh
     # writes them, which is what walking the template buys.
-    printf 'name: writrun intake\non: issues\n' > template/.github/workflows/writrun-intake.yml
-    mkdir -p template/.github/ISSUE_TEMPLATE
-    printf 'name: WritRun report\n' > template/.github/ISSUE_TEMPLATE/writrun-report.yml
+    printf 'name: writrun intake\non: issues\n' > kit/.github/workflows/writrun-intake.yml
+    mkdir -p kit/.github/ISSUE_TEMPLATE
+    printf 'name: WritRun report\n' > kit/.github/ISSUE_TEMPLATE/writrun-report.yml
     git_q add .
     git_q commit -q -m "the kit"
     git_q tag "$TAG"
@@ -143,13 +157,13 @@ age_kit() {
   old=$(mktemp -d)
   git_q -C "$SOURCE" worktree add -q --detach "$old" "$OLD_TAG"
   rm -rf "$target/.writrun/skills" "$target/.writrun/templates" "$target/.writrun/scripts"
-  cp -R "$old/template/.writrun/skills"    "$target/.writrun/skills"
-  cp -R "$old/template/.writrun/templates" "$target/.writrun/templates"
-  cp -R "$old/template/.writrun/scripts"   "$target/.writrun/scripts"
-  cp "$old/template/.writrun/AGENTS.md"    "$target/.writrun/AGENTS.md"
+  cp -R "$old/kit/.writrun/skills"    "$target/.writrun/skills"
+  cp -R "$old/kit/.writrun/templates" "$target/.writrun/templates"
+  cp -R "$old/kit/.writrun/scripts"   "$target/.writrun/scripts"
+  cp "$old/kit/.writrun/AGENTS.md"    "$target/.writrun/AGENTS.md"
   rm -rf "$target/.github/ISSUE_TEMPLATE"
   rm -f "$target/.github/workflows/writrun-intake.yml"
-  cp -R "$old/template/.github/workflows/." "$target/.github/workflows/"
+  cp -R "$old/kit/.github/workflows/." "$target/.github/workflows/"
   printf '%s\n' "$OLD_TAG" > "$target/.writrun/VERSION"
   git_q -C "$SOURCE" worktree remove --force "$old"
 }

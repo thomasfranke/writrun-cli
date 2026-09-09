@@ -100,17 +100,22 @@ EOF
 # repository's own kit, two available tasks and one the queue holds
 # back. Committed, so a case can assert that nothing moved after.
 make_repo() {
-  mkdir -p "$TARGET/.writrun" "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
+  mkdir -p "$TARGET/.writrun" "$TARGET/writrun" "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp -R "$REPO_ROOT/.writrun/scripts"     "$TARGET/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$TARGET/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$TARGET/.writrun/templates"
-  cp -R "$REPO_ROOT/.writrun/conventions" "$TARGET/.writrun/conventions"
+  # The fixture always gets the new address; the source is wherever
+  # this repository still keeps them, which is the old one until its
+  # own migration lands.
+  conv="$REPO_ROOT/writrun/conventions"
+  [ -d "$conv" ] || conv="$REPO_ROOT/.writrun/conventions"
+  cp -R "$conv" "$TARGET/writrun/conventions"
   printf '%s\n' "$PINNED" > "$TARGET/.writrun/VERSION"
   printf '# Tasks\n'   > "$TARGET/work/tasks/README.md"
   printf '# Specs\n'   > "$TARGET/work/specs/README.md"
   printf '# Reports\n' > "$TARGET/work/reports/README.md"
 
-  cat > "$TARGET/.writrun/settings.json" <<'EOF'
+  cat > "$TARGET/writrun/settings.json" <<'EOF'
 {
   "stage": 2,
   "stage_2": {

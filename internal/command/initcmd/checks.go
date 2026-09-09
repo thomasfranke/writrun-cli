@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/chapter"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/queue"
@@ -103,17 +104,13 @@ func checkFiles(disk vfs.FS, root string) []gap {
 		gaps = append(gaps, gap{1, "AGENTS.md — a TODO remains; the skeleton's paragraph is the project's to write"})
 	}
 
-	// The gates are the kit's own declaration, and the adoption just
-	// copied it with every answer still a placeholder. Naming the file
-	// is the whole of what init can say: which answers are right is the
-	// project's, and doctor names them one by one once the repository
-	// is in use (task-0019).
-	gates, err := disk.ReadFile(filepath.Join(root, ".writrun", "gates.md"))
-	switch {
-	case err != nil:
-		gaps = append(gaps, gap{1, ".writrun/gates.md — the project's gate answers are missing"})
-	case strings.Contains(string(gates), todoPlaceholder):
-		gaps = append(gaps, gap{1, ".writrun/gates.md — the gates are still the kit's TODOs; each must be answered"})
+	// The gates file the adoption just copied defers to the kit's
+	// default, which answers every gate the cautious way — so a fresh
+	// adoption owes no answer, and only the file's absence is a gap.
+	// Which answers are right is the project's, and doctor names them
+	// one by one once the repository is in use (task-0019).
+	if _, err := disk.ReadFile(filepath.Join(root, filepath.FromSlash(kit.Gates))); err != nil {
+		gaps = append(gaps, gap{1, kit.Gates + " — the project's gate answers are missing"})
 	}
 
 	// The file and its reading are kittag's; what an unrecorded tag
@@ -126,9 +123,9 @@ func checkFiles(disk vfs.FS, root string) []gap {
 	var settings struct {
 		Stage int `json:"stage"`
 	}
-	raw, err := disk.ReadFile(filepath.Join(root, ".writrun", "settings.json"))
+	raw, err := disk.ReadFile(filepath.Join(root, filepath.FromSlash(kit.Settings)))
 	if err != nil || json.Unmarshal(raw, &settings) != nil || settings.Stage < 1 || settings.Stage > 3 {
-		gaps = append(gaps, gap{1, ".writrun/settings.json — the settings are not canonical; a stage of 1, 2 or 3 is required"})
+		gaps = append(gaps, gap{1, kit.Settings + " — the settings are not canonical; a stage of 1, 2 or 3 is required"})
 	}
 	return gaps
 }

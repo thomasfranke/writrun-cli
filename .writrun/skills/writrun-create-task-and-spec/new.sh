@@ -50,7 +50,7 @@
 # cut from the same main both claimed 0009 here.
 #
 # Body templates resolve in three layers — the project's shape wins:
-#   1. .writrun/conventions/templates/{task,spec,report}.md  — the project customized
+#   1. writrun/conventions/templates/{task,spec,report}.md   — the project customized
 #   2. .writrun/templates/{task,spec,report}.md   — WritRun's shipped default
 #   3. the skeleton built into this script         — safety: works anywhere
 # The template's {{id}}, {{title}}, {{task_ref}} and {{references}} are
@@ -178,8 +178,8 @@ refs_line() {
 # body_template_for <task|spec> — the project's template wins, then the
 # shipped default; empty output means fall back to the built-in skeleton.
 body_template_for() {
-  if [[ -f ".writrun/conventions/templates/$1.md" ]]; then
-    printf '.writrun/conventions/templates/%s.md' "$1"
+  if [[ -f "writrun/conventions/templates/$1.md" ]]; then
+    printf 'writrun/conventions/templates/%s.md' "$1"
   elif [[ -f ".writrun/templates/$1.md" ]]; then
     printf '.writrun/templates/%s.md' "$1"
   fi

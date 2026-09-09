@@ -4,9 +4,9 @@ import "testing"
 
 func TestTheAdoptersOwnPathsAreUntouched(t *testing.T) {
 	for _, rel := range []string{
-		".writrun/settings.json",
-		".writrun/gates.md",
-		".writrun/conventions/commits.md",
+		"writrun/settings.json",
+		"writrun/gates.md",
+		"writrun/conventions/commits.md",
 		"AGENTS.md",
 		"CLAUDE.md",
 		"docs/product/rules.md",
@@ -53,7 +53,7 @@ func TestASeededFileIsAlsoUntouchable(t *testing.T) {
 func TestTheSettingsAreNotSeeded(t *testing.T) {
 	// Its shipped default declares `stage: 1`, which is an answer a
 	// refresh may not give on the project's behalf.
-	if Seeds(".writrun/settings.json") {
+	if Seeds("writrun/settings.json") {
 		t.Error("settings.json is seeded — a refresh would declare a stage the project did not choose")
 	}
 }
@@ -73,9 +73,9 @@ func TestOnlyTheKitsOwnFilesAreRemovable(t *testing.T) {
 	for _, rel := range []string{
 		".github/workflows/tests.yml",
 		".github/workflows/release.yml",
-		".writrun/settings.json",
-		".writrun/gates.md",
-		".writrun/conventions/prs.md",
+		"writrun/settings.json",
+		"writrun/gates.md",
+		"writrun/conventions/prs.md",
 		"docs/about.md",
 		"work/tasks/task-0001-a-thing.md",
 	} {

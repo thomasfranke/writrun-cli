@@ -8,12 +8,17 @@ import (
 	"testing"
 )
 
-// The vocabulary of commit types and scopes is the kit's, declared in
-// check_observance.sh and in conventions/commits.md. A copy in Go would
-// be a third authority over one statement, which is what
+// The vocabulary of commit types and scopes is the adopter's, declared
+// in `writrun/settings.json` and read there by the checks. A copy in Go
+// would be a second authority over one statement, which is what
 // product/rules.md forbids and what amend and author avoid by handing
 // the script the composed title instead of judging it
 // (spec-0023, task-0024).
+//
+// It lived in check_observance.sh and in conventions/commits.md until
+// WritRun v0.0.07 gave it one home: a kit file a refresh replaces could
+// not hold an adopter's answer, and a convention explains a vocabulary
+// rather than carrying it (spec-0033).
 //
 // This case lives beside the runner because the runner is why no copy
 // is needed: everything that has to know the list asks the script.
@@ -25,7 +30,7 @@ import (
 // runs.
 func TestNoShippedGoFileHoldsTheKitsVocabulary(t *testing.T) {
 	root := filepath.Join("..", "..")
-	script := filepath.Join(root, ".writrun", "scripts", "stage-2-pull-requests", "check_observance.sh")
+	script := filepath.Join(root, filepath.FromSlash(Settings))
 	declared, err := os.ReadFile(script)
 	if err != nil {
 		t.Fatalf("reading %s: %v", script, err)
@@ -33,9 +38,11 @@ func TestNoShippedGoFileHoldsTheKitsVocabulary(t *testing.T) {
 
 	lists := map[string]string{}
 	for _, line := range strings.Split(string(declared), "\n") {
-		for _, key := range []string{"TYPES", "SCOPES"} {
-			if strings.HasPrefix(line, key+`="`) && strings.HasSuffix(line, `"`) {
-				lists[key] = strings.TrimSuffix(strings.TrimPrefix(line, key+`="`), `"`)
+		line = strings.TrimSpace(line)
+		for _, key := range []string{"commit_types", "commit_scopes"} {
+			prefix := `"` + key + `": "`
+			if strings.HasPrefix(line, prefix) {
+				lists[key] = strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(line, prefix), `,`), `"`)
 			}
 		}
 	}
@@ -48,7 +55,7 @@ func TestNoShippedGoFileHoldsTheKitsVocabulary(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" || d.Name() == ".writrun" {
+			if d.Name() == ".git" || d.Name() == ".writrun" || d.Name() == "writrun" {
 				return fs.SkipDir
 			}
 			return nil

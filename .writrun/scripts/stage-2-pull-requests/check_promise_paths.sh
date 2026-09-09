@@ -27,7 +27,7 @@
 #
 #   - **Root-relative.** The first segment names an entry at the
 #     repository root for which `docs/` holds no counterpart. `tests/`,
-#     `template/`, `.github/`, `.writrun/` and a leading `docs/` are all
+#     `kit/`, `.github/`, `.writrun/` and a leading `docs/` are all
 #     caught this way; `product/` and `technical/` are not root entries,
 #     so a promise into them passes whether or not the file exists yet.
 #   - **Not a document.** The path ends in neither `.md` nor `/` — a

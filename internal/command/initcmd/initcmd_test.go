@@ -97,7 +97,7 @@ func TestInitStageIsArrowSelectedWithoutTheFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init = %v\n%s", err, out)
 	}
-	if !strings.Contains(read(t, target, ".writrun/settings.json"), `"stage": 2`) {
+	if !strings.Contains(read(t, target, "writrun/settings.json"), `"stage": 2`) {
 		t.Error("the selected stage did not land in the settings")
 	}
 	if len(term.Asked) == 0 || !strings.Contains(term.Asked[0], "stage") {
@@ -162,7 +162,7 @@ func TestInitRefusesASourceWithoutATemplate(t *testing.T) {
 	kit.FailNoTemplate(testTag)
 	d := Deps{Tag: testTag, Kit: kit}
 	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
-	if err == nil || !strings.Contains(err.Error(), "no template/") {
+	if err == nil || !strings.Contains(err.Error(), "no kit/") {
 		t.Fatalf("init = %v, want the no-template refusal", err)
 	}
 	if !strings.Contains(err.Error(), "not a WritRun repository") {
@@ -229,7 +229,7 @@ func TestInitRefusesATemplateWithoutAgents(t *testing.T) {
 	target := makeTarget(t)
 	d := Deps{Tag: testTag, Kit: kitfetch.NewFake(template)}
 	_, err := runInit(t, target, d, &command.FakeTerminal{}, true, "--stage", "1")
-	if err == nil || !strings.Contains(err.Error(), "no template/AGENTS.md") {
+	if err == nil || !strings.Contains(err.Error(), "no kit/AGENTS.md") {
 		t.Fatalf("init = %v, want the missing-skeleton refusal", err)
 	}
 	if _, statErr := os.Stat(filepath.Join(target, ".writrun")); statErr == nil {

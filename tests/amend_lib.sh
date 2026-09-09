@@ -120,13 +120,18 @@ EOF
 # every case amends, with task-0012 in flight on it; spec-0013 is a
 # draft, which amend must refuse.
 make_repo() {
-  mkdir -p "$TARGET/.writrun" "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
+  mkdir -p "$TARGET/.writrun" "$TARGET/writrun" "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp -R "$REPO_ROOT/.writrun/scripts"     "$TARGET/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$TARGET/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$TARGET/.writrun/templates"
-  cp -R "$REPO_ROOT/.writrun/conventions" "$TARGET/.writrun/conventions"
+  # The fixture always gets the new address; the source is wherever
+  # this repository still keeps them, which is the old one until its
+  # own migration lands.
+  conv="$REPO_ROOT/writrun/conventions"
+  [ -d "$conv" ] || conv="$REPO_ROOT/.writrun/conventions"
+  cp -R "$conv" "$TARGET/writrun/conventions"
 
-  cat > "$TARGET/.writrun/settings.json" <<'EOF'
+  cat > "$TARGET/writrun/settings.json" <<'EOF'
 {
   "stage": 2,
   "stage_1": {

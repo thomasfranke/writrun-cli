@@ -66,12 +66,13 @@ BOT_COMMITTER="github-actions[bot]"
 STYLE=$(bash "$READ_SETTING" stage_2.pr_title_style)
 TITLE="${PR_TITLE:-}"
 
-# The vocabularies, as conventions/commits.md spells them. They are the
-# adopter's to edit there; this list is the machine half of the same
-# statement, and the two are kept in step by hand — the file is prose an
-# agent reads, not a format a script can parse.
-TYPES="docs feat fix refactor chore"
-SCOPES="about product technical tasks specs skills ci tests agents readme setup queue conventions"
+# The vocabularies are the project's, and they are values: they live in
+# settings.json and are read from there, never carried here. A copy in
+# this file would be a second statement of the same thing — reverted by
+# every refresh while the project's own went on declaring otherwise,
+# which is what report-0040 found.
+TYPES=$(bash "$READ_SETTING" stage_2.commit_types)
+SCOPES=$(bash "$READ_SETTING" stage_2.commit_scopes)
 
 # The `[TASK-NNNN]` tag is not the settable part: one bracket per task,
 # uppercase, no separator, leading the title. Stripping it leaves the

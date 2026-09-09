@@ -76,7 +76,7 @@ func makeAdopted(t *testing.T) string {
 	write(t, root, "WRITRUN.md", "# This project uses WritRun\n")
 	write(t, root, "docs/writrun-instructions.md", "# How to work this kit\n")
 	write(t, root, ".writrun/VERSION", "v9.9.9\n")
-	write(t, root, ".writrun/settings.json", "{\n  \"stage\": 1\n}\n")
+	write(t, root, "writrun/settings.json", "{\n  \"stage\": 1\n}\n")
 	write(t, root, ".writrun/scripts/take.sh", "echo take\n")
 	for _, wf := range []string{"approve", "check", "issues", "progress"} {
 		write(t, root, ".github/workflows/writrun-"+wf+".yml", "name: writrun "+wf+"\n")

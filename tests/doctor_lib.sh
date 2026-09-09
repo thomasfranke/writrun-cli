@@ -12,6 +12,7 @@
 . "$(dirname "${BASH_SOURCE[0]}")/cli_lib.sh"
 
 READER=".writrun/scripts/stage-2-pull-requests/read_setting.sh"
+RESOLVER=".writrun/scripts/stage-1-tasks-and-specs/resolve_doc.sh"
 SETTINGS_CHECK=".writrun/scripts/stage-2-pull-requests/check_settings.sh"
 FRONT_MATTER=".writrun/skills/writrun-check-front-matter/check_front_matter.sh"
 
@@ -21,16 +22,22 @@ TARGET="$WORK/target"
 
 # make_repo [stage] — an adopted repository nothing in stages 0–3 has a
 # finding about: the three documents, the docs/ and work/ split, an
-# an AGENTS.md pointing at the flow, every gate in `.writrun/gates.md`
+# an AGENTS.md pointing at the flow, every gate in `writrun/gates.md`
 # answered, the kit's tag recorded, canonical settings, and one commit so
 # a case can ask git whether anything changed.
 make_repo() {
   local stage="${1:-3}"
   mkdir -p "$TARGET/.writrun/scripts/stage-2-pull-requests" \
            "$TARGET/.writrun/skills/writrun-check-front-matter" \
+           "$TARGET/.writrun/scripts/stage-1-tasks-and-specs" \
+           "$TARGET/writrun" \
            "$TARGET/docs/product" "$TARGET/docs/technical" \
            "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp "$REPO_ROOT/$READER" "$TARGET/$READER"
+  cp "$REPO_ROOT/$RESOLVER" "$TARGET/$RESOLVER"
+  # The defaults are what a deferring file resolves to, so a fixture
+  # without them is a repository the resolver cannot answer for.
+  cp -R "$REPO_ROOT/.writrun/defaults" "$TARGET/.writrun/defaults"
   cp "$REPO_ROOT/$SETTINGS_CHECK" "$TARGET/$SETTINGS_CHECK"
   cp "$REPO_ROOT/$FRONT_MATTER" "$TARGET/$FRONT_MATTER"
 
@@ -93,11 +100,11 @@ The flow's text.
 EOF
 }
 
-# gates [who] — .writrun/gates.md with every row answered. Passing a
+# gates [who] — writrun/gates.md with every row answered. Passing a
 # placeholder leaves the docs row unanswered.
 gates() {
   local who="${1:-The maintainer reviews before merge.}"
-  cat > "$TARGET/.writrun/gates.md" <<EOF
+  cat > "$TARGET/writrun/gates.md" <<EOF
 # Human gates — per principle 7
 
 | Transition | Who |
@@ -113,10 +120,10 @@ gates() {
 EOF
 }
 
-# settings <stage> — .writrun/settings.json in the shape check_settings.sh
+# settings <stage> — writrun/settings.json in the shape check_settings.sh
 # holds the file to.
 settings() {
-  cat > "$TARGET/.writrun/settings.json" <<EOF
+  cat > "$TARGET/writrun/settings.json" <<EOF
 {
   "stage": $1,
   "stage_1": {
@@ -130,6 +137,8 @@ settings() {
     "auto_commit": false,
     "auto_pr": false,
     "auto_push": true,
+    "commit_scopes": "about product technical",
+    "commit_types": "docs feat fix refactor chore",
     "pr_title_style": "bracketed"
   }
 }

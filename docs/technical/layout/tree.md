@@ -5,7 +5,7 @@
 | `cmd/writrun/` | Entry point — `main` and production wiring only. |
 | `internal/command/` | One package per command: the use case, depending on ports and nothing else. |
 | `internal/vfs/` | The filesystem — the port, the `os` implementation, and the fake. |
-| `internal/kit/` | Names the adopted repository's `.writrun/` scripts and files, and runs the scripts — the exec port. |
+| `internal/kit/` | Names the adopted repository's `.writrun/` scripts and the adopter's files under `writrun/`, and runs the scripts — the exec port. |
 | `internal/gitx/` | One git invocation — the git port, and the type its consumers name. |
 | `internal/forge/` | The `gh` invocations — the forge port. |
 | `internal/term/` | Interaction: selection, confirmation, TTY detection — the terminal port. |

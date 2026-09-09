@@ -7,6 +7,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -64,90 +65,81 @@ func TestExtractVocabularyWithNeitherSourceIsEmpty(t *testing.T) {
 
 // applyTestKit lays the two files applyVocabulary rewrites into a
 // bare directory, as the copy step would have.
+
+// applyTestKit seeds the one file the vocabulary now lands in.
 func applyTestKit(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	write(t, root, ".writrun/conventions/commits.md", templateCommits)
-	write(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
+	write(t, root, kit.Settings, templateSettings)
 	return root
 }
 
-func TestApplyVocabularyRewritesBothHalves(t *testing.T) {
+func TestApplyVocabularyWritesTheSettings(t *testing.T) {
 	root := applyTestKit(t)
 	v := vocabulary{Types: []string{"feat", "fix"}, Scopes: []string{"api"}, Source: "the commit history"}
 	if err := applyVocabulary(vfs.OS{}, root, v); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
-	commits := read(t, root, ".writrun/conventions/commits.md")
-	if !strings.Contains(commits, "- **Types**: `feat`, `fix`.") {
-		t.Errorf("commits.md types not rewritten:\n%s", commits)
+	got := read(t, root, kit.Settings)
+	for _, want := range []string{`"commit_types": "feat fix"`, `"commit_scopes": "api"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("settings missing %s\n%s", want, got)
+		}
 	}
-	if !strings.Contains(commits, "`api`.") || strings.Contains(commits, "`about`") {
-		t.Errorf("commits.md scopes not rewritten:\n%s", commits)
+}
+
+// The vocabulary has one home from WritRun v0.0.07. A second copy in a
+// kit file is what a refresh used to revert, so nothing outside the
+// settings may carry it.
+func TestApplyVocabularyTouchesNoOtherFile(t *testing.T) {
+	root := applyTestKit(t)
+	write(t, root, "writrun/conventions/commits.md", templateCommits)
+	write(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
+	v := vocabulary{Types: []string{"feat"}, Source: "the commit history"}
+	if err := applyVocabulary(vfs.OS{}, root, v); err != nil {
+		t.Fatalf("applyVocabulary = %v", err)
 	}
-	observance := read(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh")
-	if !strings.Contains(observance, `TYPES="feat fix"`) || !strings.Contains(observance, `SCOPES="api"`) {
-		t.Errorf("check_observance.sh not rewritten:\n%s", observance)
+	if got := read(t, root, "writrun/conventions/commits.md"); got != templateCommits {
+		t.Error("the convention was rewritten; it explains the vocabulary, it does not carry it")
+	}
+	if got := read(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh"); got != templateObservance {
+		t.Error("a kit file was rewritten; a refresh would revert it")
 	}
 }
 
 func TestApplyVocabularyKeepsShippedScopesWhenNoneObserved(t *testing.T) {
 	root := applyTestKit(t)
-	if err := applyVocabulary(vfs.OS{}, root, vocabulary{Types: []string{"fix"}}); err != nil {
+	v := vocabulary{Types: []string{"feat"}, Source: "the commit history"}
+	if err := applyVocabulary(vfs.OS{}, root, v); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
-	observance := read(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh")
-	if !strings.Contains(observance, `SCOPES="about product technical"`) {
-		t.Errorf("shipped scopes did not survive:\n%s", observance)
-	}
-	commits := read(t, root, ".writrun/conventions/commits.md")
-	if !strings.Contains(commits, "`about`, `product`, `technical`") {
-		t.Errorf("shipped scopes bullet did not survive:\n%s", commits)
+	got := read(t, root, kit.Settings)
+	if !strings.Contains(got, `"commit_scopes": "about product"`) {
+		t.Errorf("shipped scopes were not kept\n%s", got)
 	}
 }
 
 func TestApplyVocabularyEmptyChangesNothing(t *testing.T) {
 	root := applyTestKit(t)
-	before := read(t, root, ".writrun/conventions/commits.md")
+	before := read(t, root, kit.Settings)
 	if err := applyVocabulary(vfs.OS{}, root, vocabulary{}); err != nil {
 		t.Fatalf("applyVocabulary = %v", err)
 	}
-	if read(t, root, ".writrun/conventions/commits.md") != before {
+	if read(t, root, kit.Settings) != before {
 		t.Error("an empty vocabulary rewrote the shipped defaults")
 	}
 }
 
-func TestReplaceBulletSwallowsContinuationLines(t *testing.T) {
-	in := "- **Scopes** (optional): `a`,\n  `b`, `c`.\n- Example: `x: y`.\n"
-	out := replaceBullet(in, "- **Scopes**", "- **Scopes**: `z`.")
-	want := "- **Scopes**: `z`.\n- Example: `x: y`.\n"
-	if out != want {
-		t.Errorf("replaceBullet = %q, want %q", out, want)
+// A miss is loud: a silent no-op would report a vocabulary the file
+// does not record.
+func TestApplyVocabularyRefusesSettingsWithoutTheKey(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, kit.Settings, "{\n  \"stage\": 1\n}\n")
+	err := applyVocabulary(vfs.OS{}, root, vocabulary{Types: []string{"feat"}})
+	if err == nil {
+		t.Fatal("applyVocabulary accepted settings carrying no commit_types key")
 	}
-}
-
-func TestApplyVocabularyRespellsTheExample(t *testing.T) {
-	root := applyTestKit(t)
-	v := vocabulary{Types: []string{"feat", "fix"}, Scopes: []string{"api"}, Source: "the commit history"}
-	if err := applyVocabulary(vfs.OS{}, root, v); err != nil {
-		t.Fatalf("applyVocabulary = %v", err)
-	}
-	commits := read(t, root, ".writrun/conventions/commits.md")
-	// The summary is the kit's prose and stays; the vocabulary it
-	// spells is the project's, and a shipped one would be a subject the
-	// hook installed by the same run refuses.
-	if !strings.Contains(commits, "- Example: `feat(api): add a chapter`.") {
-		t.Errorf("the example was not respelled:\n%s", commits)
-	}
-}
-
-func TestApplyVocabularyExampleKeepsTheShippedScope(t *testing.T) {
-	root := applyTestKit(t)
-	if err := applyVocabulary(vfs.OS{}, root, vocabulary{Types: []string{"fix"}}); err != nil {
-		t.Fatalf("applyVocabulary = %v", err)
-	}
-	commits := read(t, root, ".writrun/conventions/commits.md")
-	if !strings.Contains(commits, "- Example: `fix(product): add a chapter`.") {
-		t.Errorf("the example dropped the shipped scope:\n%s", commits)
+	if !strings.Contains(err.Error(), "commit_types") {
+		t.Errorf("the refusal does not name the key: %v", err)
 	}
 }

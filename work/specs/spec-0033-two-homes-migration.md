@@ -1,7 +1,7 @@
 ---
 id: spec-0033
 task_ref: task-0030
-status: approved
+status: implemented
 created: 2026-09-08T16:15:40Z
 ---
 
@@ -220,4 +220,65 @@ so the row was a second copy of a rule every project already receives.
 
 ## Outcome
 
-_(fill after execution)_
+Built as planned, and the pin reads `v0.0.07`. What the plan did not
+hold is below, because the divergence is the record.
+
+**This repository migrated itself, and that was not a step.** The
+integration tier could not pass while the binary spoke `v0.0.07` and the
+kit around it spoke `v0.0.04`: the fixtures copy this repository's own
+scripts, so a check that reads an address answered about the old one and
+passed where it should have refused. `writrun update` was run here, on
+the branch, and carried the three adopter files across. Every convention
+and `gates.md` then took the kit's stub — the maintainer's decision,
+recorded above — and the vocabulary the stubs stopped carrying was
+written into `commit_types` and `commit_scopes` by hand, which is the
+migration step `init` performs only for a fresh adoption.
+
+**Five things knew an address that this change moved, and the plan named
+one of them.** They are one defect in five places: a component that
+knows *where* something lives rather than *whom to ask*.
+
+- `kitpaths.Removable` derived "the kit's" from "not the adopter's", so
+  narrowing `Untouchable` to the home made the legacy addresses
+  removable — the refresh would have deleted the answers the migration
+  exists to carry. Caught by the both-addresses test, in the same
+  change; no report, because a finding that does not outlive its fix is
+  a commit.
+- `kitfetch` looked for `template/`, which `v0.0.07` renamed to `kit/`.
+  `init` and `update` were broken outright against the pinned tag. Only
+  the e2e tier sees this, because only it clones the real WritRun.
+- `internal/hook` writes a commit-msg script that read the vocabulary
+  from `check_observance.sh`. It now reads it through the kit's own
+  `read_setting.sh`. This one is the hardest class: the coupling was
+  inside a string, in a file that exists only after `init` runs.
+- Seven test libraries and both source fixtures built the old layout.
+- An empty directory at the new address was read as an answer, which
+  stranded the conventions silently. The spec's own edge case already
+  said the rule is per file, not per folder; the code did not.
+
+**Three rules were revoked, and their tests now assert the opposite.**
+`update` no longer seeds `gates.md` — a project that never wrote one is
+answered by the kit's default. `init` no longer reports the gates as the
+kit's TODOs, because the kit ships a stub rather than TODOs. `doctor` no
+longer names an absent `gates.md`, for the same reason. In none of the
+three did the code drift; the rule changed, and the tests say so in
+their names.
+
+**Where the plan was thin, and why.** It surveyed what changed *address*
+and not what changed *shape*. Four of the five above are shape. The same
+habit cost three wrong assertions about `check_observance.sh` in a row —
+each written from what `v0.0.07` was expected to have done rather than
+from the file, which reads the vocabulary rather than declaring it or
+omitting it.
+
+**Two debts, named rather than carried.** The guard in step 12 covers
+adopter paths; it does not cover the kit's delivery shape, which is the
+class the `kitfetch` defect belongs to — `shippedDir` is already a
+constant, and extending the guard to it is small. And the public
+contract WritRun freezes at a tag
+([release.md](https://github.com/thomasfranke/writrun/blob/main/docs/technical/distribution/release.md))
+already names every fact that broke here — the stated addresses, each
+script's exit codes, the schemas — but it is prose, so a client
+transcribes it into literals and the transcription drifts. A
+machine-readable form of that same contract would have prevented four of
+the five.

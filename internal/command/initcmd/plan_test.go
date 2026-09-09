@@ -12,6 +12,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -86,14 +87,16 @@ func TestApplyPerformsTheWholePlan(t *testing.T) {
 	if got := strings.TrimSpace(read(t, target, ".writrun/VERSION")); got != testTag {
 		t.Errorf("VERSION = %q, want %q", got, testTag)
 	}
-	if settings := read(t, target, ".writrun/settings.json"); !strings.Contains(settings, `"stage": 2`) {
+	if settings := read(t, target, "writrun/settings.json"); !strings.Contains(settings, `"stage": 2`) {
 		t.Errorf("settings do not record stage 2:\n%s", settings)
 	}
 	if agents := read(t, target, "AGENTS.md"); !strings.Contains(agents, pointer.Target) {
 		t.Error("AGENTS.md lacks WritRun's section")
 	}
-	if observance := read(t, target, ".writrun/scripts/stage-2-pull-requests/check_observance.sh"); !strings.Contains(observance, `TYPES="feat"`) {
-		t.Errorf("the extracted vocabulary did not land:\n%s", observance)
+	// The vocabulary has one home: the settings the checks read. A kit
+	// file carrying a second copy is what a refresh used to revert.
+	if settings := read(t, target, kit.Settings); !strings.Contains(settings, `"commit_types": "feat"`) {
+		t.Errorf("the extracted vocabulary did not land:\n%s", settings)
 	}
 	info, err := os.Stat(a.hookPath)
 	if err != nil {
@@ -160,10 +163,10 @@ func TestRenderNamesEveryDecision(t *testing.T) {
 func TestSummarizeCopiesGroupsByTopLevel(t *testing.T) {
 	got := summarizeCopies([]copyStep{
 		{rel: filepath.Join(".writrun", "VERSION")},
-		{rel: filepath.Join(".writrun", "settings.json")},
+		{rel: filepath.FromSlash(kit.Settings)},
 		{rel: "WRITRUN.md"},
 	})
-	if !strings.Contains(got, "3 files") || !strings.Contains(got, ".writrun/ (2 files)") || !strings.Contains(got, "WRITRUN.md") {
+	if !strings.Contains(got, "3 files") || !strings.Contains(got, ".writrun/ (1 files)") || !strings.Contains(got, "writrun/ (1 files)") || !strings.Contains(got, "WRITRUN.md") {
 		t.Errorf("summarizeCopies = %q", got)
 	}
 }
@@ -211,12 +214,12 @@ func TestApplyRefusesSettingsWithNoStageKey(t *testing.T) {
 	a := planFixture(t, target, 3)
 	// The copy step reads from the template at apply time, so this is
 	// a kit whose settings init cannot write a stage into.
-	write(t, a.template, ".writrun/settings.json", "{\n  \"stage_1\": {}\n}\n")
+	write(t, a.template, "writrun/settings.json", "{\n  \"stage_1\": {}\n}\n")
 	err := a.apply()
 	if err == nil || !strings.Contains(err.Error(), `no "stage" key`) {
 		t.Fatalf("apply = %v, want the refusal rather than a silent no-op", err)
 	}
-	if settings := read(t, target, ".writrun/settings.json"); strings.Contains(settings, `"stage": 3`) {
+	if settings := read(t, target, "writrun/settings.json"); strings.Contains(settings, `"stage": 3`) {
 		t.Errorf("a stage was written after all:\n%s", settings)
 	}
 }

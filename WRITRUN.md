@@ -77,7 +77,8 @@ Three things happen off this line:
 | `docs/` | What is true. Product rules for people, technical detail for builders. |
 | `work/tasks/`, `work/specs/` | The queue and its plans. Statuses live in the file, never in the folder. |
 | `work/reports/` | What was noticed. Commits to nothing. |
-| `.writrun/` | The machinery: skills, scripts, conventions, settings. Its [README](.writrun/README.md) says which of them are WritRun's and which are yours. |
+| `.writrun/` | The machinery: skills, scripts, templates, the flow, and `defaults/` — the answers in force until you write your own. WritRun's, whole — an update replaces it entire. |
+| `writrun/` | Your answers: `settings.json`, and one file per question — `gates.md`, each convention — deferring to WritRun's default until you replace it. Yours, whole — no update touches it. |
 | `.github/workflows/writrun-*.yml` | The checks, the recording, and the intake that turns a labelled issue into a report. The two mirror workflows and the intake are optional. |
 | `AGENTS.md` | Where an agent starts. WritRun claims four lines of it — a pointer to `.writrun/AGENTS.md`, where the whole flow lives; the rest is yours. |
 | `CLAUDE.md` | One line, `@AGENTS.md` — Claude Code reads this file, not `AGENTS.md`, so the shim points it at the shared entry. |
@@ -86,15 +87,35 @@ Three things happen off this line:
 
 WritRun ships opinions, not a straitjacket.
 
-`.writrun/settings.json` is yours: the **stage** (1 files only, 2 pull
+`writrun/settings.json` is yours: the **stage** (1 files only, 2 pull
 requests, 3 GitHub Issues), and whether an agent may commit, push and
 open pull requests on its own. It ships cautious — Stage 1, every flag
 off — so a fresh copy does nothing you did not ask for.
 
-`.writrun/conventions/` is yours too: commit grammar, branch names, pull
-request titles, how a task reads. Rewrite it to your taste on day one.
+`writrun/gates.md` and `writrun/conventions/` are yours too — who
+approves what, commit grammar, branch names, pull request titles, how a
+task reads. **They arrive answered.** Each ships as a stub whose first
+line defers to WritRun's default of the same name — the prose under it
+only says how to make the file yours — so nothing is unset on day one
+and every gate already names a human. Replace a file's contents
+when you want it different: yours then stands whole, the files beside it
+go on deferring, and a correction WritRun ships still reaches them.
+
+Read what is in force with `resolve_doc.sh` (it prints the file and
+whether it is yours or WritRun's) rather than opening a path:
+
+```bash
+bash .writrun/scripts/stage-1-tasks-and-specs/resolve_doc.sh \
+  writrun/conventions/commits.md --origin
+```
+
+Two things are values rather than prose, and live in `settings.json`:
+the commit `commit_types` and `commit_scopes` your titles are checked
+against. Editing the convention text does not change what the door
+accepts; editing those keys does.
+
 Body shapes layer the same way — a template you drop in
-`.writrun/conventions/templates/` beats the one WritRun ships, and the
+`writrun/conventions/templates/` beats the one WritRun ships, and the
 pull request body template lives in `.writrun/templates/`, which is
 where agents read it from.
 
@@ -102,19 +123,21 @@ The skills in `.writrun/skills/` are WritRun's: picking the next task,
 creating tasks and specs, and three checks — the promised docs, the
 lifecycle, and the file shapes. An agent runs them; you never have to.
 
-## Adopting — you just copied `template/` here
+## Adopting — you just copied `kit/` here
 
-1. `.writrun/` and the workflows work as copied. Make the conventions
-   yours.
+1. `.writrun/` and the workflows work as copied — never edit them.
+   `writrun/` is yours, and it already answers: every file in it defers
+   to WritRun's default until you replace one.
 2. **`AGENTS.md`** — no previous one? Fill the TODO. Already had one?
    Add the four-line WritRun pointer section to it; never overwrite,
    and add nothing else — the flow lives in `.writrun/AGENTS.md`, which
    is WritRun's and gets replaced whole on update. Keep the pointer a
    link, never an `@` reference: Claude Code imports recursively, and an
    `@` would load the whole flow into every session. Fill
-   **`.writrun/gates.md`** with the project's answers — it is yours,
-   like `settings.json`, and no update touches it; naming an agent as a
-   gate's operator is an answer, leaving a gate unnamed is not.
+   **`writrun/gates.md`** if WritRun's defaults are not your answers —
+   they name a human at every gate, which is the cautious side and a
+   working one; naming an agent as a gate's operator is equally an
+   answer, and it is yours to write.
    Vendors: Codex and Antigravity read `AGENTS.md` at the root natively
    (Antigravity caps a rules file at 12,000 characters — one more
    reason the entry point stays short). Claude Code reads `CLAUDE.md`;
@@ -132,7 +155,7 @@ lifecycle, and the file shapes. An agent runs them; you never have to.
    blocked. The owner approves those settings in session: they live
    outside the repository, so no review will ever catch a wrong one.
 
-Then declare your stage in `.writrun/settings.json` and delete this
+Then declare your stage in `writrun/settings.json` and delete this
 section. The rest of this file is your reference card.
 
 The kit is MIT-0: no attribution, no notice to keep.

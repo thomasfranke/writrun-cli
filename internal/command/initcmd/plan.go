@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
 	"github.com/thomasfranke/writrun-cli/internal/pointer"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
@@ -93,7 +94,7 @@ func plan(disk vfs.FS, root, template, tag, source string, stage int, hookAt str
 	// Without it there is no AGENTS.md decision to make, and the plan
 	// would promise a skeleton it cannot write — its zero value.
 	if !sawAgents {
-		return nil, fmt.Errorf("%s carries no template/AGENTS.md at %s — not a WritRun repository", source, tag)
+		return nil, fmt.Errorf("%s carries no kit/AGENTS.md at %s — not a WritRun repository", source, tag)
 	}
 
 	a.vocab = extractVocabulary(disk, root, git)
@@ -142,7 +143,7 @@ func (a *adoption) render(w io.Writer) {
 		fmt.Fprintln(w, line)
 	}
 	fmt.Fprintf(w, "  hook         %s validates the Conventional subject; it never writes one\n", a.hookDisplay())
-	fmt.Fprintf(w, "  settings     .writrun/settings.json records stage %d\n", a.stage)
+	fmt.Fprintf(w, "  settings     %s records stage %d\n", kit.Settings, a.stage)
 	fmt.Fprintf(w, "  version      .writrun/VERSION records %s\n", a.tag)
 	fmt.Fprintln(w)
 }
@@ -218,7 +219,7 @@ func (a *adoption) apply() error {
 	// The chosen stage lands in the copied settings by targeted
 	// replacement — the rest of the file stays byte-for-byte the
 	// shipped default, which is the adopter's to edit next.
-	if err := rewriteFile(a.disk, filepath.Join(a.root, ".writrun", "settings.json"), func(s string) (string, error) {
+	if err := rewriteFile(a.disk, filepath.Join(a.root, filepath.FromSlash(kit.Settings)), func(s string) (string, error) {
 		// A miss here is silent: ReplaceAllString hands back the input
 		// unchanged, and the run would report a stage the file does not
 		// record.

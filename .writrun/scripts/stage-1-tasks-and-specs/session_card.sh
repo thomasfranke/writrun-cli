@@ -11,17 +11,15 @@
 #
 # **It computes nothing and decides nothing.** Every line is read from
 # `settings.json` (through read_setting.sh, defaults included — its
-# --origin flag is what lets a default be marked as one), from
-# check_observance.sh's TYPES=/SCOPES= lines (the machine half of the
-# vocabulary, and its single source), or is a methodology constant the
-# contract already fixes. A second parser of either file would be a
-# second answer.
+# --origin flag is what lets a default be marked as one), or is a
+# methodology constant the contract already fixes. A second parser of
+# that file would be a second answer.
 #
 # It replaces reading, so growing is regressing: the card is ~30 lines.
 #
 # Exit codes: 0 always — a project with no settings file is pre-adoption,
-# which is a state and not an error — except 3 when the vocabularies
-# cannot be read, because a card missing them must not look complete.
+# which is a state and not an error — except 3 when the reader itself
+# cannot answer, because a card missing values must not look complete.
 #
 # Portable bash 3.2, POSIX awk/sed. See the standing rule in
 # docs/technical/decisions/.
@@ -30,16 +28,21 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 READ_SETTING="$HERE/../stage-2-pull-requests/read_setting.sh"
-OBSERVANCE="$HERE/../stage-2-pull-requests/check_observance.sh"
 
 TOP=$(git rev-parse --show-toplevel 2>/dev/null) && cd "$TOP"
 
 # value/origin, from the one reader. A key nobody declared prints its
-# documented default, marked as one.
+# documented default, marked as one. The reader itself failing is a
+# different state — a missing or broken kit, not a missing declaration —
+# and rendering it as '(default)' would make an empty card look
+# complete, so it is the loud exit the header promises.
 VAL=""; ORIGIN=""
 read_key() {
   local out
-  out=$(bash "$READ_SETTING" "$1" --origin 2>/dev/null)
+  if ! out=$(bash "$READ_SETTING" "$1" --origin); then
+    echo "session_card: read_setting.sh could not answer '$1' — a card missing it must not look complete" >&2
+    exit 3
+  fi
   VAL=$(printf '%s' "$out" | cut -f1)
   ORIGIN=$(printf '%s' "$out" | cut -f2)
   [ -n "$ORIGIN" ] || ORIGIN=default
@@ -50,14 +53,13 @@ show() {   # show <label> <address> <meaning>
   printf '  %-18s %s (%s)%s\n' "${1}:" "$VAL" "$ORIGIN" "${3:+  — $3}"
 }
 
-TYPES=$(sed -n 's/^TYPES="\(.*\)"$/\1/p' "$OBSERVANCE" | head -n1)
-SCOPES=$(sed -n 's/^SCOPES="\(.*\)"$/\1/p' "$OBSERVANCE" | head -n1)
-if [ -z "$TYPES" ] || [ -z "$SCOPES" ]; then
-  echo "Could not read the TYPES/SCOPES lines from ${OBSERVANCE}." >&2
-  echo "They are the machine half of the vocabulary, and a card without them" >&2
-  echo "would look complete while stating nothing about what a title may say." >&2
-  exit 3
-fi
+# The two vocabularies are settings like any other value on this card —
+# read through the one reader, and marked when nobody declared them.
+# They were scraped out of check_observance.sh while the check carried
+# them embedded; a card built by reading a script's source states what
+# that script happens to say, not what the project declared.
+read_key stage_2.commit_types;  TYPES="$VAL";  TYPES_ORIGIN="$ORIGIN"
+read_key stage_2.commit_scopes; SCOPES="$VAL"; SCOPES_ORIGIN="$ORIGIN"
 
 read_key stage
 STAGE="$VAL"; STAGE_ORIGIN="$ORIGIN"
@@ -71,7 +73,7 @@ esac
 read_key stage_2.pr_title_style
 STYLE="$VAL"; STYLE_ORIGIN="$ORIGIN"
 
-echo "WritRun — the settings this session obeys (.writrun/settings.json)"
+echo "WritRun — the settings this session obeys (writrun/settings.json)"
 echo
 printf 'stage: %s (%s) — %s\n' "$STAGE" "$STAGE_ORIGIN" "$STAGE_MEANING"
 echo
@@ -101,8 +103,8 @@ esac
 echo
 echo 'commit subject — a constant, whatever the title style:'
 echo '  type(scope): imperative summary'
-printf '  types:   %s\n' "$TYPES"
-printf '  scopes:  %s\n' "$SCOPES"
+printf '  types:   %s (%s)\n' "$TYPES" "$TYPES_ORIGIN"
+printf '  scopes:  %s (%s)\n' "$SCOPES" "$SCOPES_ORIGIN"
 echo
 echo 'branches and the tag — constants:'
 echo '  docs/<short-name>        authoring       title carries no task tag'

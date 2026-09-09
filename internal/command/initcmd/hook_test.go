@@ -9,16 +9,22 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/hook"
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
 // installTestHook adopts just enough of a repository for the hook to
-// validate against: the observance vocabulary and the hook itself.
+// validate against: the settings that declare the vocabulary, the kit's
+// reader that answers for them, and the hook itself.
 func installTestHook(t *testing.T) (root, hookAt string) {
 	t.Helper()
 	root = makeTarget(t)
-	write(t, root, ".writrun/scripts/stage-2-pull-requests/check_observance.sh", templateObservance)
+	write(t, root, kit.Settings, templateSettings)
+	write(t, root, kit.ReadSetting, templateReader)
+	if err := os.Chmod(filepath.Join(root, filepath.FromSlash(kit.ReadSetting)), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	hookAt, err := hook.Path(root, gitx.Run)
 	if err != nil {
 		t.Fatalf("hook.Path = %v", err)

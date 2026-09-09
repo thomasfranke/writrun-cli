@@ -3,12 +3,15 @@
 
 # The rewrite half of the adoption, against the real template rather
 # than a fixture: a repository whose history is Conventional has its own
-# vocabulary written onto both halves of the kit's statement — the prose
-# lists in conventions/commits.md and the TYPES/SCOPES lines in
-# check_observance.sh. The parity case next door adopts a repository
-# with no Conventional history, so the shipped defaults stand there and
-# this path is never taken; a drift in the real files' line shapes would
-# fail the adoption mid-apply and nothing else would notice.
+# vocabulary written where the checks read it, `commit_types` and
+# `commit_scopes` in the adopter's settings. The parity case next door
+# adopts a repository with no Conventional history, so the shipped
+# defaults stand there and this path is never taken; a drift in the real
+# file's line shape would fail the adoption mid-apply and nothing else
+# would notice.
+#
+# It is also where the vocabulary having one home is proved: a second
+# copy inside the kit's own home is what a refresh used to revert.
 
 TAG=$("$WRITRUN" --version | sed -n 's/.*pins WritRun \(v[0-9.]*\).*/\1/p')
 git_q() { git -c user.name=suite -c user.email=suite@test -c commit.gpgsign=false "$@"; }
@@ -38,26 +41,24 @@ cd "$TARGET" || exit 1
 check "init adopts and reports the extracted vocabulary" 0 "types feat, fix" \
   -- "$WRITRUN" init --stage 1 --yes
 
-OBSERVANCE=".writrun/scripts/stage-2-pull-requests/check_observance.sh"
+SETTINGS="writrun/settings.json"
 
 # Ranked by frequency, most used first — feat twice, fix once.
-check "the door's types are the project's" 0 "" \
-  -- grep -qxF 'TYPES="feat fix"' "$OBSERVANCE"
-check "the door's scopes are the project's" 0 "" \
-  -- grep -qxF 'SCOPES="api cli"' "$OBSERVANCE"
-
-COMMITS=".writrun/conventions/commits.md"
-check "the prose types match the door" 0 "" \
-  -- grep -qF -e '- **Types**: `feat`, `fix`.' "$COMMITS"
-check "the prose scopes match the door" 0 "" \
-  -- grep -qF '`api`, `cli`.' "$COMMITS"
+check "the settings carry the project's types" 0 "" \
+  -- grep -qF '"commit_types": "feat fix"' "$SETTINGS"
+check "the settings carry the project's scopes" 0 "" \
+  -- grep -qF '"commit_scopes": "api cli"' "$SETTINGS"
 check "no shipped type survives the rewrite" 1 "" \
-  -- grep -qF -e '- **Types**: `docs`' "$COMMITS"
+  -- grep -qF '"commit_types": "docs' "$SETTINGS"
 
-# The example is the file's own demonstration; left as shipped it would
-# be a subject the hook this same run installed refuses.
-check "the example is respelled in the project's vocabulary" 0 "" \
-  -- grep -qF -e '- Example: `feat(api): ' "$COMMITS"
+# The vocabulary has one home, and the door is not it. A kit file
+# carrying a second copy is what the next refresh would revert, leaving
+# the two halves disagreeing — so the door must carry none at all.
+DOOR=".writrun/scripts/stage-2-pull-requests/check_observance.sh"
+check "the door declares no vocabulary of its own" 1 "" \
+  -- grep -qE '^(TYPES|SCOPES)="' "$DOOR"
+check "the door reads the vocabulary from the settings" 0 "" \
+  -- grep -qF 'stage_2.commit_types' "$DOOR"
 
 # The end of it: the installed hook accepts what the kit now declares
 # and refuses what it does not.

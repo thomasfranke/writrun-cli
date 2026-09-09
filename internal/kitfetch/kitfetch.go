@@ -61,12 +61,16 @@ func Fetch(files vfs.FS, tag, source string, git gitx.Runner) (*Fetched, error) 
 		cleanup()
 		return nil, errClone(tag, source, err)
 	}
-	template := filepath.Join(clone, "template")
-	if _, err := files.Stat(template); err != nil {
+	// The folder the kit ships from takes the kit's name. It was
+	// `template/` before WritRun v0.0.07 renamed it; the binary pins one
+	// tag at a time, so it looks where the tag it pins puts it and
+	// refuses anything else (docs/about.md — pins, never tracks).
+	shipped := filepath.Join(clone, shippedDir)
+	if _, err := files.Stat(shipped); err != nil {
 		cleanup()
 		return nil, errNoTemplate(tag, source)
 	}
-	return &Fetched{Template: template, Cleanup: cleanup}, nil
+	return &Fetched{Template: shipped, Cleanup: cleanup}, nil
 }
 
 // errClone is the refusal a clone that could not run produces: it
@@ -76,8 +80,11 @@ func errClone(tag, source string, cause error) error {
 	return fmt.Errorf("fetching WritRun %s from %s failed — nothing was written: %w", tag, source, cause)
 }
 
-// errNoTemplate is the refusal a clone carrying no `template/`
-// produces: a repository, but not a WritRun one.
+// shippedDir is the folder a WritRun tag ships its adopter tree from.
+const shippedDir = "kit"
+
+// errNoTemplate is the refusal a clone carrying no shipped folder
+// produces: a repository, but not a WritRun one at the pinned tag.
 func errNoTemplate(tag, source string) error {
-	return fmt.Errorf("%s carries no template/ at %s — not a WritRun repository", source, tag)
+	return fmt.Errorf("%s carries no %s/ at %s — not a WritRun repository", source, shippedDir, tag)
 }

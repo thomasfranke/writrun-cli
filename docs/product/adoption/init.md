@@ -7,8 +7,10 @@ Installs the WritRun kit into an existing repository.
 - Installs the kit at a pinned WritRun tag and records which tag it
   took.
 - **Extracts the repository's existing conventions** — its commit
-  history, its contributing guide — into the conventions folder, rather
-  than imposing the shipped defaults.
+  history, its contributing guide — and writes the vocabulary it found
+  where the checks read it, rather than imposing the shipped defaults.
+  A convention explains a vocabulary; it never carries a second copy
+  for a check to disagree with.
 - **Grafts an existing `AGENTS.md`**, never overwrites it: WritRun's
   part enters as one section, the heading that links
   `.writrun/AGENTS.md`. A repository without one gets the skeleton, and

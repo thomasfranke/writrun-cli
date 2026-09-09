@@ -12,6 +12,9 @@ Removes the WritRun kit from an adopted repository.
 - **Recognises the kit's files outside `.writrun/` by the `writrun-`
   prefix they carry**, so a workflow the project wrote is never removed
   and one a later tag added always is.
+- **Never touches the project's home.** `writrun/` holds the
+  project's settings, its gate answers and its conventions, and a
+  removal leaves the folder whole.
 - **Never touches `work/`.** Tasks, specs, and reports are the
   project's record, not the kit's — the queue and its history survive
   the tooling that managed them.

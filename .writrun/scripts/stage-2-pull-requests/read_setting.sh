@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# read_setting.sh — prints one value from .writrun/settings.json.
+# read_setting.sh — prints one value from writrun/settings.json.
 #
 # Usage: read_setting.sh <address> [--origin]
 #   Run from the repository root; the path is relative to it.
@@ -66,8 +66,9 @@ emit() {
   if [ -n "$WITH_ORIGIN" ]; then printf '%s\t%s\n' "$1" "$2"; else printf '%s\n' "$1"; fi
 }
 
-SETTINGS=".writrun/settings.json"
-LEGACY=".writrun/conventions/settings.json"
+SETTINGS="writrun/settings.json"
+LEGACY=".writrun/settings.json"
+OLDER=".writrun/conventions/settings.json"
 
 # The documented defaults, addressed the way the schema addresses them
 # (docs/technical/settings/schema.md#settings). Each is the behaviour from before
@@ -85,6 +86,11 @@ default_for() {
     stage_2.auto_pr)         printf 'true' ;;
     stage_2.auto_push)       printf 'true' ;;
     stage_2.pr_title_style)  printf 'conventional' ;;
+    # The two vocabularies check_observance.sh carried embedded before
+    # they became settings. Same words, so a project that declares
+    # neither is judged exactly as it was.
+    stage_2.commit_types)    printf 'docs feat fix refactor chore' ;;
+    stage_2.commit_scopes)   printf 'about product technical tasks specs skills ci tests agents readme setup queue conventions' ;;
   esac
 }
 
@@ -95,15 +101,18 @@ case "$KEY" in
   *)   SECTION=""; NAME="$KEY" ;;
 esac
 
-# The migration bridge (decision 0053): a file left at the old address is
-# read flat, under the contract frozen at the move — shape included, so a
-# sectioned address finds its key at the top level there. The check is
-# what names the move; this is what keeps the adopter's choice honoured
-# until they make it.
+# The migration bridges: a file still in the kit's old home (decision
+# 0074) is read as-is — same shape, wrong house — and a file at the
+# pre-0053 address is read flat, under the contract frozen at that move,
+# so a sectioned address finds its key at the top level there. The check
+# is what names each move; this is what keeps the adopter's choice
+# honoured until they make it.
 FILE="$SETTINGS"
 if [ ! -f "$SETTINGS" ]; then
   if [ -f "$LEGACY" ]; then
     FILE="$LEGACY"
+  elif [ -f "$OLDER" ]; then
+    FILE="$OLDER"
     SECTION=""
   else
     emit "$(default_for "$KEY")" default; exit 0

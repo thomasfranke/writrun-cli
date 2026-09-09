@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -42,7 +43,7 @@ The flow's text.
 <!-- writrun:end -->
 `
 
-// gatesDoc is `.writrun/gates.md` as a project answers it. A case that
+// gatesDoc is `writrun/gates.md` as a project answers it. A case that
 // wants one unanswered rewrites the row it is about.
 const gatesDoc = `# Human gates — per principle 7
 
@@ -272,13 +273,18 @@ func newFixture(t *testing.T, stage string) *fixture {
 	write(t, root, "work/specs/README.md", "# Specs\n")
 	write(t, root, "work/reports/README.md", "# Reports\n")
 	write(t, root, "AGENTS.md", agentsDoc)
-	write(t, root, ".writrun/gates.md", gatesDoc)
+	write(t, root, "writrun/gates.md", gatesDoc)
 	write(t, root, ".writrun/VERSION", "v0.0.03\n")
 
 	return &fixture{
 		root: root,
 		scripts: &scripts{
-			said:    map[string]string{settingsReader: stage + "\n"},
+			said: map[string]string{
+				settingsReader: stage + "\n",
+				// The resolver answers the project's own file: a fixture
+				// that writes gates is a project that declared them.
+				kit.ResolveDoc: kit.Gates + "\n",
+			},
 			verdict: map[string]error{},
 		},
 		forge: &forge{replies: healthyForge(), fails: map[string]error{}},
