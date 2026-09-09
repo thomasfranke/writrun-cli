@@ -40,9 +40,12 @@ a command. Which key does what is drawn in
   still holding the input is a question that answers itself. So the
   screen is paused and the terminal released — not closed — and reading
   the next thing is a keypress rather than another `writrun`.
-- **A command's output is read before the screen returns.** The screen
-  takes the whole terminal, so coming straight back would take the
-  answer with it; the reader says when they are done with it.
+- **A command takes the whole terminal too, and its output is read
+  before the screen returns.** A command is a screen like the others —
+  it replaces what is on the terminal and gives it back untouched,
+  rather than printing into the scrollback beneath the screen that
+  dispatched it. Coming straight back would take the answer with it, so
+  the reader says when they are done with it.
 - The screen offers no action a command does not already provide.
 - The screen reads only; every change goes through the dispatched
   command.

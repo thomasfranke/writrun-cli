@@ -108,12 +108,19 @@ stage block reads `.writrun/settings.json` and writes nothing.
 - Unit, `internal/palette`: a palette that was told not to paint hands
   every role's text back unchanged, and one that may paint wraps the
   text without replacing it.
+- Unit, `internal/screen`: the session's states — the queue opens and
+  closes, a choice on either screen is asked for and cleared, `q` ends
+  it from both, the queue is re-read after a command and only while it
+  is showing, and a lister that fails is named rather than fatal. And
+  `waitForLine` leaves behind what was typed after the line.
 - e2e, `tests/e2e/screen/`: a real pty, driven through `expect` — the
   alternate screen is asked for, the groups and footer are drawn, the
   cursor moves with the detail line following, `enter` on `list` opens
-  the queue, `esc` returns to the entry screen, and `q` leaves with
-  zero. This is the only tier that sees the terminal rather than the
-  model, and it reads the queue without touching it.
+  the queue, `esc` returns to the entry screen, a command takes the
+  screen and hands it back, and `q` leaves with zero. This is the only
+  tier that sees the terminal rather than the model — the session is
+  not provable without one — and it reads the queue without touching
+  it.
 
 ## Definition of Done
 
@@ -247,8 +254,16 @@ with a fake reader races itself. The pty tier proves it, and was held
 against the old behaviour first: with the command ending the program it
 fails naming that the screen never came back.
 
-`screens/README.md` carries the rule as it now stands, replacing the one
-that said the screen does not come back.
+A command is a screen like the others, too: it takes the alternate
+buffer rather than printing into the scrollback beneath the screen that
+dispatched it, and gives the terminal back untouched. The cost is that
+output taller than the window scrolls off with no scrollback to reach
+it — `writrun <command>` on its own is where a long answer is read at
+leisure, and a screen that pages its own output is the fix if that
+bites.
+
+`screens/README.md` carries the rules as they now stand, replacing the
+one that said the screen does not come back.
 
 **`make ui` reported a refusal as a broken target.** Choosing `take`
 with nothing available dispatches a command that exits 1 having already

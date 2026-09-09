@@ -115,6 +115,24 @@ expect {
   eof         { puts "\nFAIL: down three times did not reach status (the screen left first)"; exit 17 }
 }
 send -- "\r"
+# A command is a screen like the others: it takes the whole terminal
+# rather than printing into the scrollback under the one it came from.
+# `tea.Exec` gives the terminal back on the normal buffer, so this is
+# asked for by hand and has to be asked for again here.
+expect {
+  -ex "\033\[?1049h" {}
+  timeout            { puts "\nFAIL: the command printed inline instead of taking the screen"; exit 20 }
+  eof                { puts "\nFAIL: the command closed the CLI instead of taking the screen"; exit 20 }
+}
+# What is running, before it runs. Expected here, ahead of the command's
+# own words, because that ordering is the whole point: a command that
+# reaches the forge takes seconds, and an empty terminal in the meantime
+# is indistinguishable from a hung one.
+expect {
+  "running status" {}
+  timeout          { puts "\nFAIL: the screen never said what it was running"; exit 21 }
+  eof              { puts "\nFAIL: the screen never said what it was running (it left)"; exit 21 }
+}
 # status reads the queue and asks the forge, so it is given room.
 set timeout 90
 expect {

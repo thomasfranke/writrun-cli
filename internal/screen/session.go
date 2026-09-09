@@ -75,10 +75,44 @@ type dispatch struct {
 	out    io.Writer
 }
 
+// The alternate screen, entered and left by hand.
+//
+// `tea.Exec` gives the terminal back in the state it found it — the
+// normal buffer — so a command left inline would print into the
+// scrollback and the screen would come back over the top of it. A
+// command is a screen like the others: it takes the whole terminal and
+// gives it back untouched, and the reader's scrollback is not where its
+// answer lands.
+//
+// Leaving before returning is what keeps the two in step: Bubble Tea
+// restores from the normal buffer, which is where it released from.
+//
+// The cost is that output taller than the window scrolls off the top
+// and there is no scrollback to reach it — an alternate buffer keeps
+// none. `writrun <command>` on its own is where a long answer is read
+// at leisure, and a screen that pages its own output is the fix if this
+// bites.
+const (
+	altOn  = "\033[?1049h\033[H\033[2J"
+	altOff = "\033[?1049l"
+)
+
 func (d dispatch) Run() error {
+	fmt.Fprint(d.out, altOn)
+	// What is running, said before it runs. A command that reaches the
+	// forge takes seconds, and the screen it replaced is gone by then —
+	// an empty terminal is indistinguishable from a hung one.
+	//
+	// It does not animate, and that is the terminal's arithmetic rather
+	// than a preference: from here until the command returns, the
+	// command owns the terminal, and a spinner would be a second writer
+	// interleaving with its output. The same reason a screen cannot
+	// stay open behind a question.
+	fmt.Fprintf(d.out, "  running %s…\n\n", d.action.Command)
 	d.run(d.action)
 	fmt.Fprint(d.out, "\n— enter to return to the screen —")
 	waitForLine(d.in)
+	fmt.Fprint(d.out, altOff)
 	return nil
 }
 
