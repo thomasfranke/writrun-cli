@@ -116,10 +116,17 @@ func (d dispatch) Run() error {
 	return nil
 }
 
-// waitForLine consumes exactly up to and including one newline.
+// waitForLine consumes exactly up to and including one return.
+//
+// Both `\n` and `\r` end it, because which one arrives is the terminal
+// mode's answer and not the reader's. Enter sends `\r`; a terminal in
+// canonical mode translates it to `\n` and a terminal in raw mode does
+// not. A command that asks a question puts the terminal in raw mode to
+// do it — so waiting on `\n` alone hangs after exactly those commands,
+// and the way back reads as absent when it is simply deaf.
 //
 // A buffered reader would be the obvious way and is the wrong one: it
-// reads ahead, and what it read ahead of the newline is dropped with it
+// reads ahead, and what it read ahead of the return is dropped with it
 // — keys the reader typed for the screen, swallowed on the way back to
 // it. One byte at a time takes what this is owed and leaves the rest
 // where the screen will find it.
@@ -130,7 +137,7 @@ func waitForLine(r io.Reader) {
 		if err != nil {
 			return
 		}
-		if n > 0 && b[0] == '\n' {
+		if n > 0 && (b[0] == '\n' || b[0] == '\r') {
 			return
 		}
 	}

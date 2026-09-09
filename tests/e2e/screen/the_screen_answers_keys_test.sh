@@ -148,6 +148,56 @@ expect {
   eof         { puts "\nFAIL: the screen did not come back after the command (it left)"; exit 19 }
 }
 
+# A command that asks a question, cancelled — the other half of the
+# session, and the half that broke.
+#
+# `status` only prints, so it leaves the terminal in canonical mode and
+# the return key arrives as `\n`. A command that asks puts the terminal
+# in raw mode to do it, and there Enter is `\r` with nothing to
+# translate it. Waiting on `\n` alone left `report` with a way back that
+# could not hear, which reads exactly like having none.
+#
+# It is cancelled, never completed: a case that filed a report would be
+# writing into the queue it is testing against.
+# Four rows on from `status`: finish, author, amend, report.
+send -- "\033\[B"
+send -- "\033\[B"
+send -- "\033\[B"
+send -- "\033\[B"
+expect {
+  "report — " {}
+  timeout     { puts "\nFAIL: down four times did not reach report"; exit 22 }
+  eof         { puts "\nFAIL: down four times did not reach report (the screen left)"; exit 22 }
+}
+send -- "\r"
+expect {
+  "What did you notice" {}
+  timeout               { puts "\nFAIL: report never asked its first question"; exit 23 }
+  eof                   { puts "\nFAIL: report closed the CLI instead of asking"; exit 23 }
+}
+# The question names the way out. huh spells its footer from the field's
+# own bindings and leaves the form's `ctrl+c` unnamed, so a reader who
+# did not want to answer had no key they could see — which is how this
+# command came to be reported as having no way out. Only a terminal can
+# be asked whether it was drawn: huh writes nothing to anything else.
+expect {
+  "esc cancels" {}
+  timeout       { puts "\nFAIL: the question never named the way out of it"; exit 26 }
+  eof           { puts "\nFAIL: the question left before naming a way out"; exit 26 }
+}
+send -- "\033"
+expect {
+  "enter to return" {}
+  timeout           { puts "\nFAIL: a cancelled question offered no way back"; exit 24 }
+  eof               { puts "\nFAIL: a cancelled question closed the CLI"; exit 24 }
+}
+send -- "\r"
+expect {
+  "enter run" {}
+  timeout     { puts "\nFAIL: the way back did not hear the return after a question"; exit 25 }
+  eof         { puts "\nFAIL: the screen did not come back after a question"; exit 25 }
+}
+
 # q leaves, and leaving is not a failure.
 send -- "q"
 expect {

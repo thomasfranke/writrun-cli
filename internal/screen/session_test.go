@@ -162,6 +162,23 @@ func TestWaitForLineLeavesWhatComesAfterIt(t *testing.T) {
 	}
 }
 
+// A carriage return is a return too.
+//
+// Which byte Enter delivers is the terminal mode's answer, not the
+// reader's: canonical mode translates `\r` to `\n` and raw mode hands
+// `\r` over as typed. A command that asks a question leaves the
+// terminal raw to do it, so waiting on `\n` alone hangs after exactly
+// those commands — `report` was reported as having no way back, and it
+// had one that could not hear.
+func TestACarriageReturnEndsTheWaitToo(t *testing.T) {
+	r := strings.NewReader("\rqjk")
+	waitForLine(r)
+	rest, _ := readAll(r)
+	if rest != "qjk" {
+		t.Errorf("what was left = %q, want the keys typed after the return", rest)
+	}
+}
+
 // A reader that ends without a line does not wait forever.
 func TestWaitForLineStopsAtTheEnd(t *testing.T) {
 	waitForLine(strings.NewReader("no line here"))

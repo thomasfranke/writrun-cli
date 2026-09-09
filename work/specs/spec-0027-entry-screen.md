@@ -265,6 +265,26 @@ bites.
 `screens/README.md` carries the rules as they now stand, replacing the
 one that said the screen does not come back.
 
+**A question named no way out of itself.** `report` was reported as
+having no way back, and it was not the session: huh spells its footer
+from the field's own bindings and leaves the form's `ctrl+c` unnamed,
+so every question read `enter submit` and stopped there — how to go
+forward, never how to go back. `esc` now cancels alongside `ctrl+c`,
+and the key is written where huh does render, one line under the
+title.
+
+Getting there cost a wrong answer worth recording. The first diagnosis
+was that `waitForLine` accepted only `\n` while a raw terminal delivers
+`\r`, which was plausible and false: the e2e passes either way, because
+huh restores canonical mode before returning. The fix stayed — a return
+key is a return key, and a unit case holds it — but it fixed nothing
+the maintainer had seen. What settled it was opening a pty and reading
+the frame, which said `enter submit` and nothing else.
+
+That assertion lives in the pty tier and cannot live below it: huh
+writes nothing to an output that is not a terminal, which is why every
+case in `internal/term` reads the answer and never the drawing.
+
 **`make ui` reported a refusal as a broken target.** Choosing `take`
 with nothing available dispatches a command that exits 1 having already
 explained itself, and make added `*** [ui] Error 1` underneath — which
