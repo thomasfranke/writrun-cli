@@ -1,8 +1,8 @@
 ---
 id: task-0032
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0035]
 doc_ref: technical/versioning/scheme.md
 origin: rule
