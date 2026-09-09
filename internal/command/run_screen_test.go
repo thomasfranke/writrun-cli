@@ -69,7 +69,7 @@ func TestAKeyDispatchesTheCommandItNames(t *testing.T) {
 	}
 	f, _, _ := frame(t, []Command{cmd}, true, nil)
 	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
-	f.Screen = func(*Ctx) (string, string, error) { return "take", "task-0021", nil }
+	f.Screen = once("take", "task-0021")
 	if code := Run(f, nil); code != 0 {
 		t.Fatalf("exit = %d, want 0", code)
 	}
@@ -87,12 +87,25 @@ func TestTheDispatchedCommandsCodeIsTheProcesss(t *testing.T) {
 	}
 	f, _, errb := frame(t, []Command{cmd}, true, nil)
 	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
-	f.Screen = func(*Ctx) (string, string, error) { return "take", "task-0021", nil }
+	f.Screen = once("take", "task-0021")
 	if code := Run(f, nil); code != 1 {
 		t.Errorf("exit = %d, want the declined 1", code)
 	}
 	if !strings.Contains(errb.String(), "declined") {
 		t.Error("the command's own words were not printed")
+	}
+}
+
+// once answers with one dispatch and then with the departure, so a case
+// exercises a single visit rather than looping forever.
+func once(name, arg string) func(*Ctx) (string, string, error) {
+	done := false
+	return func(*Ctx) (string, string, error) {
+		if done {
+			return "", "", nil
+		}
+		done = true
+		return name, arg, nil
 	}
 }
 

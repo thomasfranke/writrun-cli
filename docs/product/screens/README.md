@@ -34,6 +34,11 @@ a command. Which key does what is drawn in
   nothing else.
 - A key leaves the screen and runs the command it names — its checks,
   its questions, its confirmation, unchanged ([rules](../rules.md)).
+- **The screen is gone before the command asks anything, and does not
+  come back.** A command asks through a terminal program of its own, and
+  two of those in one process do not share a keyboard: a screen still
+  holding the input is a question that answers itself. Reading the next
+  thing is another `writrun`.
 - The screen offers no action a command does not already provide.
 - The screen reads only; every change goes through the dispatched
   command.

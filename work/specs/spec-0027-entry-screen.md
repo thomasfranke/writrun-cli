@@ -157,6 +157,40 @@ and would then be guarding its own invention.
 function that returns the lister's output, so the screen package still
 knows no script path.
 
+**A session was built and taken out again, and the rule it broke was
+already written here.** With twelve commands, a screen that ends in the
+shell after one is a launcher for one — the maintainer opened `config`,
+read it, and was back at the prompt, and `report` had no way out of its
+questions but to kill the binary. So the screen was made to return after
+every command, with a `Pause` on the terminal port to keep the output
+readable.
+
+It broke six commands in six ways, all one defect. `status` hung, `doctor`
+locked the binary, `config` would not navigate, `report` could not be
+cancelled, `take` worked by accident, and `finish` reached its
+confirmation and answered it — the `enter` that dispatched it from the
+menu arriving as the answer. **Two terminal programs in one process do
+not share a keyboard**, which is why the original closed the screen
+*before* the command ran and said so: "a huh form rendering underneath a
+live Bubble Tea program is two programs holding one terminal". Pausing
+instead of leaving put a screen back on the input while a command asked
+its questions.
+
+No forge act followed — the draft was still a draft — but a confirmation
+that answers itself is the failure to fear, not the one that happened.
+The session is reverted and `screens/README.md` now states why: the
+screen is gone before the command asks anything, and does not come back.
+The session is still the right shape and it is a task of its own: one
+Bubble Tea program for the whole session, releasing and restoring the
+terminal around each command, which is design rather than adjustment.
+
+**None of the three UI defects in this task was found by a test**, and
+that is a property of the suite rather than of these three. Every case
+here drives the model — keys in, actions out — and a model answers
+correctly while the terminal underneath it does not. There is no tier
+that drives a real terminal, and the pty harness this branch used
+delivered keys unreliably enough to prove nothing either way.
+
 **Two divergences the drawing carried and the plan did not name**, both
 found by the maintainer rather than by a test. The screens ran inline,
 so each left its last frame in the scrollback and the next drew beneath

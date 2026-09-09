@@ -81,6 +81,11 @@ func Run(f Frame, args []string) int {
 		}
 	}
 
+	// The screen dispatches once and the command owns the terminal from
+	// then on. It is not a session: a command asks its questions through
+	// a second terminal program, and two of those in one process do not
+	// share a keyboard — the screen has to be gone, not paused, before
+	// the first question is asked (docs/product/screens/README.md).
 	if name == "" {
 		code, dispatched, cmdName, cmdArg := openScreen(f, noColor, yes)
 		if !dispatched {
@@ -91,7 +96,10 @@ func Run(f Frame, args []string) int {
 			rest = []string{cmdArg}
 		}
 	}
+	return dispatch(f, noColor, yes, name, rest)
+}
 
+func dispatch(f Frame, noColor, yes bool, name string, rest []string) int {
 	cmd, ok := lookup(f.Commands, name)
 	if !ok {
 		fmt.Fprintf(f.Stderr, "writrun: unknown command %q\n", name)
