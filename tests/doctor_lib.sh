@@ -12,6 +12,7 @@
 . "$(dirname "${BASH_SOURCE[0]}")/cli_lib.sh"
 
 READER=".writrun/scripts/stage-2-pull-requests/read_setting.sh"
+RESOLVER=".writrun/scripts/stage-1-tasks-and-specs/resolve_doc.sh"
 SETTINGS_CHECK=".writrun/scripts/stage-2-pull-requests/check_settings.sh"
 FRONT_MATTER=".writrun/skills/writrun-check-front-matter/check_front_matter.sh"
 
@@ -28,9 +29,28 @@ make_repo() {
   local stage="${1:-3}"
   mkdir -p "$TARGET/.writrun/scripts/stage-2-pull-requests" \
            "$TARGET/.writrun/skills/writrun-check-front-matter" \
+           "$TARGET/.writrun/scripts/stage-1-tasks-and-specs" \
+           "$TARGET/writrun" \
            "$TARGET/docs/product" "$TARGET/docs/technical" \
            "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
   cp "$REPO_ROOT/$READER" "$TARGET/$READER"
+  # The kit's resolver, in the smallest form that keeps its contract:
+  # a file whose first line is the marker — or that is absent — is
+  # answered by the default of the same name in the kit's home. This
+  # repository still ships a v0.0.04 kit, which carries no resolver, so
+  # the fixture stands one up rather than copying one that is not there.
+  cat > "$TARGET/$RESOLVER" <<'RESOLVE'
+#!/usr/bin/env bash
+set -eu
+rel="$1"
+default=".writrun/defaults/${rel#writrun/}"
+if [ ! -f "$rel" ] || [ "$(head -n 1 "$rel")" = "/// writrun:default" ]; then
+  printf '%s\n' "$default"
+else
+  printf '%s\n' "$rel"
+fi
+RESOLVE
+  chmod +x "$TARGET/$RESOLVER"
   cp "$REPO_ROOT/$SETTINGS_CHECK" "$TARGET/$SETTINGS_CHECK"
   cp "$REPO_ROOT/$FRONT_MATTER" "$TARGET/$FRONT_MATTER"
 

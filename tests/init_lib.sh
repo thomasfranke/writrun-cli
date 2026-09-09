@@ -143,13 +143,13 @@ age_kit() {
   old=$(mktemp -d)
   git_q -C "$SOURCE" worktree add -q --detach "$old" "$OLD_TAG"
   rm -rf "$target/.writrun/skills" "$target/.writrun/templates" "$target/.writrun/scripts"
-  cp -R "$old/template/.writrun/skills"    "$target/.writrun/skills"
-  cp -R "$old/template/.writrun/templates" "$target/.writrun/templates"
-  cp -R "$old/template/.writrun/scripts"   "$target/.writrun/scripts"
-  cp "$old/template/.writrun/AGENTS.md"    "$target/.writrun/AGENTS.md"
+  cp -R "$old/kit/.writrun/skills"    "$target/.writrun/skills"
+  cp -R "$old/kit/.writrun/templates" "$target/.writrun/templates"
+  cp -R "$old/kit/.writrun/scripts"   "$target/.writrun/scripts"
+  cp "$old/kit/.writrun/AGENTS.md"    "$target/.writrun/AGENTS.md"
   rm -rf "$target/.github/ISSUE_TEMPLATE"
   rm -f "$target/.github/workflows/writrun-intake.yml"
-  cp -R "$old/template/.github/workflows/." "$target/.github/workflows/"
+  cp -R "$old/kit/.github/workflows/." "$target/.github/workflows/"
   printf '%s\n' "$OLD_TAG" > "$target/.writrun/VERSION"
   git_q -C "$SOURCE" worktree remove --force "$old"
 }

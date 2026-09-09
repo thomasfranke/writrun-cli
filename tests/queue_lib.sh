@@ -208,14 +208,19 @@ COMMANDS="amend finish author status screen"
 # an authoring branch for `author`; and a bare origin holding all three.
 build_state() {
   rm -rf "$PRISTINE"
-  mkdir -p "$PRISTINE/target/.writrun" \
+  mkdir -p "$PRISTINE/target/.writrun" "$PRISTINE/target/writrun" \
            "$PRISTINE/target/work/tasks" "$PRISTINE/target/work/specs" \
            "$PRISTINE/target/work/reports" "$PRISTINE/target/docs/product"
   local t="$PRISTINE/target"
   cp -R "$REPO_ROOT/.writrun/scripts"     "$t/.writrun/scripts"
   cp -R "$REPO_ROOT/.writrun/skills"      "$t/.writrun/skills"
   cp -R "$REPO_ROOT/.writrun/templates"   "$t/.writrun/templates"
-  cp -R "$REPO_ROOT/writrun/conventions" "$t/writrun/conventions"
+  # The fixture always gets the new address; the source is wherever
+  # this repository still keeps them, which is the old one until its
+  # own migration lands.
+  conv="$REPO_ROOT/writrun/conventions"
+  [ -d "$conv" ] || conv="$REPO_ROOT/.writrun/conventions"
+  cp -R "$conv" "$t/writrun/conventions"
   cp "$REPO_ROOT/.writrun/VERSION"        "$t/.writrun/VERSION"
   cat > "$t/writrun/settings.json" <<'EOF'
 {
