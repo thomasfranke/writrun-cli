@@ -66,20 +66,42 @@ func (v verdict) ExitCode() int { return int(v) }
 func run(ctx *command.Ctx, d Deps, args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
+	atStage := fs.Int("at", 0, "examine up to this stage instead of the declared one")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() > 0 {
 		return fmt.Errorf("unexpected argument %q — doctor examines the whole repository and takes none", fs.Arg(0))
 	}
+	if *atStage != 0 && (*atStage < 1 || *atStage > 3) {
+		return fmt.Errorf("--at %d is not a stage — 1, 2 or 3", *atStage)
+	}
 
-	stage, unreadable := declaredStage(ctx.Root, d)
-	found := examine(ctx.Root, stage, d, unreadable)
-	render(ctx.Stdout, stage, found)
-	if breaking(found) > 0 {
+	declared, unreadable := declaredStage(ctx.Root, d)
+	// The declaration decides the verdict; --at decides only how far the
+	// examination reaches. A stage nobody declared cannot fail a build,
+	// or asking what a stage would require would be a way to break one
+	// (product/adoption/doctor.md).
+	examined := declared
+	if *atStage != 0 {
+		examined = *atStage
+	}
+	found := examine(ctx.Root, examined, d, unreadable)
+	render(ctx.Stdout, declared, examined, found)
+	if breaking(at(found, upTo(declared)...)) > 0 {
 		return verdict(1)
 	}
 	return nil
+}
+
+// upTo is every stage a declaration reaches, which is what the exit
+// status answers for.
+func upTo(stage int) []int {
+	out := make([]int, 0, stage+1)
+	for s := 0; s <= stage; s++ {
+		out = append(out, s)
+	}
+	return out
 }
 
 // declaredStage asks the repository's own settings reader which stage

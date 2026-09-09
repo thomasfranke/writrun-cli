@@ -47,6 +47,7 @@ already defines; it never decides in the methodology's place.
 - Output is plain text, readable in a terminal without a pager.
 - Color appears only where stdout is a terminal; `NO_COLOR` set or
   `--no-color` given disables it.
-- `--version` names the client's version and the WritRun tag it pins.
+- `--version` names the product — `writrun-cli` — its own version, and
+  the WritRun tag it pins. The command a person types stays `writrun`.
 - `--help` prints one line per command and where the docs live; it
   restates nothing.

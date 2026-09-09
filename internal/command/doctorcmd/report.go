@@ -50,14 +50,21 @@ var stageNames = [4]string{"environment", "files", "the forge", "Issues"}
 // when it holds nothing: a stage that was not examined has to say so,
 // or a clean report and an unexamined one read alike (spec-0004, edge
 // cases).
-func render(w io.Writer, stage int, found []finding) {
-	fmt.Fprintf(w, "Stage %d is declared — stages 0–%d examined. doctor reports; it repairs nothing.\n", stage, stage)
+func render(w io.Writer, declared, examined int, found []finding) {
+	if examined == declared {
+		fmt.Fprintf(w, "Stage %d is declared — stages 0–%d examined. doctor reports; it repairs nothing.\n", declared, declared)
+	} else {
+		// Both numbers, always: a run reaching past the declaration is
+		// an answer about a stage this repository has not taken on, and
+		// reading it as the verdict would be reading someone else's.
+		fmt.Fprintf(w, "Stage %d is declared, stages 0–%d examined at your asking — what stage %d costs, not what this repository owes. doctor reports; it repairs nothing.\n", declared, examined, examined)
+	}
 	for s := 0; s <= 3; s++ {
 		group := at(found, s)
 		fmt.Fprintf(w, "\nStage %d — %s: ", s, stageNames[s])
 		switch {
-		case s > stage:
-			fmt.Fprintf(w, "not examined — the repository declares stage %d.\n", stage)
+		case s > examined:
+			fmt.Fprintf(w, "not examined — the repository declares stage %d.\n", declared)
 		case len(group) == 0:
 			fmt.Fprintln(w, "all clear.")
 		default:
@@ -71,7 +78,7 @@ func render(w io.Writer, stage int, found []finding) {
 		}
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, summary(stage, found))
+	fmt.Fprintln(w, summary(examined, found))
 }
 
 // summary is the one line a reader can stop at, and it agrees with the
@@ -88,11 +95,17 @@ func summary(stage int, found []finding) string {
 	return fmt.Sprintf("%d finding(s): %d breaking a flow, %d recommended, %d unread.", len(found), b, a, u)
 }
 
-// at is the findings one stage made, in the order they were found.
-func at(found []finding, stage int) []finding {
+// at is the findings the named stages made, in the order they were
+// found. One stage renders a group; the declaration's whole range is
+// what the exit status answers for.
+func at(found []finding, stages ...int) []finding {
+	want := map[int]bool{}
+	for _, s := range stages {
+		want[s] = true
+	}
 	var group []finding
 	for _, f := range found {
-		if f.stage == stage {
+		if want[f.stage] {
 			group = append(group, f)
 		}
 	}

@@ -6,6 +6,10 @@ assumes. Reports; it never repairs.
 - **Checks are grouped by stage** and run from stage 0 up to the
   declared one — a project is never judged against machinery it did
   not enable.
+- **A group is named for what it examines, not for the stage.** The
+  stages' own names are [`init`](init.md)'s; the subjects below are this
+  report's, and they run 0–3 where the names run 1–3, because adoption
+  never offers stage 0.
 - **Stage 0 — environment:** the wrapped scripts' own requirements
   present on the `PATH`
   ([requirements](../../technical/runtime/requirements.md)).
@@ -34,3 +38,8 @@ assumes. Reports; it never repairs.
 - A recommended setting missing is a recommendation. Only a finding
   that breaks a flow makes the exit status non-zero; every finding
   names the file or setting and what is expected of it.
+- **`--at <stage>` examines that stage instead of the declared one**, so
+  a project can ask what a stage it has not taken on would require. The
+  report names both numbers, and the exit status still answers for the
+  declared stage alone: a stage nobody declared cannot fail a build.
+- `--at` outside 1–3 is refused, and nothing is examined.
