@@ -61,7 +61,7 @@ func Run(f Frame, args []string) int {
 		}
 		switch {
 		case a == "--version":
-			fmt.Fprintf(f.Stdout, "%s %s (pins WritRun %s)\n", product, f.Version, f.WritRunTag)
+			fmt.Fprintf(f.Stdout, "%s %s (pins WritRun %s)\n", Product, f.Version, f.WritRunTag)
 			return 0
 		case a == "--help" || a == "-h":
 			help(f)
@@ -175,16 +175,17 @@ func lookup(cmds []Command, name string) (Command, bool) {
 	return Command{}, false
 }
 
-// product is what the binary calls itself. The command a person types
-// is `writrun` and is unchanged; this is the name the product carries,
-// which the repository, the module and the formula already use
+// Product is what the binary calls itself, in one place, because a
+// second copy is a second name. The command a person types is `writrun`
+// and is unchanged; this is the name the product carries, which the
+// repository, the module and the formula already use
 // (decisions/runtime/0014-the-product-is-writrun-cli.md).
-const product = "writrun-cli"
+const Product = "writrun-cli"
 
 // help is one line per command plus the docs' address — it restates
 // nothing (product/rules.md).
 func help(f Frame) {
-	fmt.Fprintln(f.Stdout, product+" — the porcelain for WritRun.")
+	fmt.Fprintln(f.Stdout, Product+" — the porcelain for WritRun.")
 	if len(f.Commands) > 0 {
 		fmt.Fprintln(f.Stdout)
 		width := 0

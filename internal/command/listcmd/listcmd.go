@@ -34,7 +34,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "list",
-		Summary: "show the queue: what is available, what is held back, what waits for triage",
+		Summary: "the queue: available, held back, untriaged",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

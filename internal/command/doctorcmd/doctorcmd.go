@@ -16,6 +16,7 @@ import (
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
+	"github.com/thomasfranke/writrun-cli/internal/palette"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
@@ -46,7 +47,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "doctor",
-		Summary: "report whether the repository still satisfies what the methodology assumes",
+		Summary: "what the methodology assumes, checked",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
@@ -87,7 +88,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		examined = *atStage
 	}
 	found := examine(ctx.Root, examined, d, unreadable)
-	render(ctx.Stdout, declared, examined, found)
+	render(ctx.Stdout, palette.New(ctx.Color), declared, examined, found)
 	if breaking(at(found, upTo(declared)...)) > 0 {
 		return verdict(1)
 	}

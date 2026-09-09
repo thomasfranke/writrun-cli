@@ -47,7 +47,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "work",
-		Summary: "launch the configured agent on the next available task, or on the one named",
+		Summary: "launch the configured agent on a task",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

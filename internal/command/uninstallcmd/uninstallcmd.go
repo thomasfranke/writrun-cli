@@ -34,7 +34,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "uninstall",
-		Summary: "remove the WritRun kit, keeping the project's record",
+		Summary: "remove the kit, keeping the project's record",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/thomasfranke/writrun-cli/internal/palette"
 )
 
 // level is what a finding costs. Only one of the three reaches the exit
@@ -50,7 +52,7 @@ var stageNames = [4]string{"environment", "files", "the forge", "Issues"}
 // when it holds nothing: a stage that was not examined has to say so,
 // or a clean report and an unexamined one read alike (spec-0004, edge
 // cases).
-func render(w io.Writer, declared, examined int, found []finding) {
+func render(w io.Writer, p palette.Palette, declared, examined int, found []finding) {
 	if examined == declared {
 		fmt.Fprintf(w, "Stage %d is declared — stages 0–%d examined. doctor reports; it repairs nothing.\n", declared, declared)
 	} else {
@@ -61,7 +63,7 @@ func render(w io.Writer, declared, examined int, found []finding) {
 	}
 	for s := 0; s <= 3; s++ {
 		group := at(found, s)
-		fmt.Fprintf(w, "\nStage %d — %s: ", s, stageNames[s])
+		fmt.Fprintf(w, "\n%s: ", p.Heading(fmt.Sprintf("Stage %d — %s", s, stageNames[s])))
 		switch {
 		case s > examined:
 			fmt.Fprintf(w, "not examined — the repository declares stage %d.\n", declared)
@@ -70,7 +72,7 @@ func render(w io.Writer, declared, examined int, found []finding) {
 		default:
 			fmt.Fprintf(w, "%d finding(s).\n", len(group))
 			for _, f := range group {
-				fmt.Fprintf(w, "  %-7s  %s\n", labels[f.level], f.text)
+				fmt.Fprintf(w, "  %s  %s\n", paintLevel(p, f.level), f.text)
 				for _, line := range detailLines(f.detail) {
 					fmt.Fprintf(w, "           | %s\n", line)
 				}
@@ -93,6 +95,22 @@ func summary(stage int, found []finding) string {
 		return fmt.Sprintf("%d finding(s), none breaking a flow: %d recommended, %d unread.", len(found), a, u)
 	}
 	return fmt.Sprintf("%d finding(s): %d breaking a flow, %d recommended, %d unread.", len(found), b, a, u)
+}
+
+// level paints a finding's word without changing it: the column is
+// what a reader without colour reads, so the word keeps its width and
+// its place (docs/product/rules.md — colour never carries meaning
+// alone).
+func paintLevel(p palette.Palette, l level) string {
+	word := fmt.Sprintf("%-7s", labels[l])
+	switch l {
+	case breaks:
+		return p.Breaks(word)
+	case advises:
+		return p.Advises(word)
+	default:
+		return p.Unread(word)
+	}
 }
 
 // at is the findings the named stages made, in the order they were

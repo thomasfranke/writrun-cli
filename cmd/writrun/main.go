@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime/debug"
@@ -163,33 +164,78 @@ func terminal() term.Terminal {
 	return t
 }
 
-// openScreen is the frame's screen port in production: the queue read
-// by the selection skill's own lister — the same authority `writrun
-// list` wraps, so the two cannot become two answers about one queue —
-// and then shown for a key.
-//
-// The lister's own reporting is captured rather than streamed: it is
-// the screen's content, not a message to print behind it. A lister that
-// fails is reported and no screen opens.
-//
-// Exit 1 is not such a failure. The lister's last statement is
-// `[ -n "$available" ]`, so its status answers "is anything available",
-// and 1 is the answer "no" — the reading listcmd and takecmd both make
-// of it. Treating it as a failure closed the screen on the one state
-// its own footer was written for (internal/screen/model.go).
+// openScreen is the frame's screen port in production: the entry screen
+// built from the command table the binary already carries, with the
+// queue one keystroke in — read by the selection skill's own lister,
+// the same authority `writrun list` wraps, so the two cannot become two
+// answers about one queue.
 func openScreen(ctx *command.Ctx) (string, string, error) {
-	var out, errb bytes.Buffer
-	if err := kit.Run(ctx.Root, &out, &errb, nil, listerScript); err != nil && exitCode(err) != 1 {
-		if msg := strings.TrimSpace(errb.String()); msg != "" {
-			return "", "", fmt.Errorf("%s", msg)
-		}
-		return "", "", err
-	}
-	action, err := screen.Open(out.String(), os.Stdin, os.Stdout)
+	action, err := screen.Open(entryScreen(ctx), func() (string, error) {
+		return listing(ctx)
+	}, os.Stdin, os.Stdout)
 	if err != nil {
 		return "", "", err
 	}
 	return action.Command, action.Arg, nil
+}
+
+// listing is the lister's output, captured rather than streamed: it is
+// the screen's content, not a message to print behind it.
+//
+// Exit 1 is not a failure. The lister's last statement is
+// `[ -n "$available" ]`, so its status answers "is anything available",
+// and 1 is the answer "no" — the reading listcmd and takecmd both make
+// of it. Treating it as a failure closed the screen on the one state
+// its own footer was written for (internal/screen/model.go).
+func listing(ctx *command.Ctx) (string, error) {
+	var out, errb bytes.Buffer
+	if err := kit.Run(ctx.Root, &out, &errb, nil, listerScript); err != nil && exitCode(err) != 1 {
+		if msg := strings.TrimSpace(errb.String()); msg != "" {
+			return "", fmt.Errorf("%s", msg)
+		}
+		return "", err
+	}
+	return out.String(), nil
+}
+
+// entryGroups is what the screen lists, in the order it lists them: the
+// grouping docs/product/README.md gives the same commands, because one
+// set grouped two ways is two answers about one tool. A command absent
+// from here is a command the screen does not offer, and `init` is the
+// only one — it refuses inside an adoption, which is the only place
+// this screen opens.
+var entryGroups = []struct {
+	name  string
+	names []string
+}{
+	{"tasks", []string{"list", "take", "work", "status", "finish"}},
+	{"authoring", []string{"author", "amend"}},
+	{"reports", []string{"report"}},
+	{"adoption", []string{"doctor", "update", "uninstall"}},
+}
+
+// entryScreen fills the screen from the command table and the facts the
+// context already holds. Every summary is the table's own — nothing
+// here writes a second description of a command.
+func entryScreen(ctx *command.Ctx) screen.Entry {
+	summaries := map[string]string{}
+	for _, c := range commands() {
+		summaries[c.Name] = c.Summary
+	}
+	e := screen.Entry{Header: header(ctx)}
+	for _, g := range entryGroups {
+		group := screen.Group{Name: g.name}
+		for _, n := range g.names {
+			if s, there := summaries[n]; there {
+				group.Rows = append(group.Rows, screen.Command{Name: n, Summary: s})
+			}
+		}
+		if len(group.Rows) > 0 {
+			e.Groups = append(e.Groups, group)
+		}
+	}
+	e.Stage = stageLines(ctx)
+	return e
 }
 
 // exitCode reads the script's own verdict off the error the runner
@@ -207,3 +253,50 @@ func exitCode(err error) int {
 // names it — one path, two callers, and neither reimplements what it
 // decides.
 const listerScript = kit.ListTasks
+
+// header is the screen's first line. Every fact in it is a cheap read:
+// no check runs to open this screen, so a version, a pinned tag and the
+// current branch are all it may say.
+func header(ctx *command.Ctx) string {
+	line := command.Product + " " + buildVersion() + " · pins WritRun " + writrunTag
+	if b, err := gitx.Run(ctx.Root, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
+		if name := strings.TrimSpace(b); name != "" {
+			line += " · branch " + name
+		}
+	}
+	return line
+}
+
+// stageLines are the declared stage and the conduct flags that decide
+// what the commands below will do, read through the kit's own reader.
+// Where a value cannot be read the line is left out: a screen that
+// cannot say the stage says nothing about it rather than guessing.
+func stageLines(ctx *command.Ctx) []string {
+	read := func(key string) string {
+		var out bytes.Buffer
+		if err := kit.Run(ctx.Root, &out, io.Discard, nil, kit.ReadSetting, key); err != nil {
+			return ""
+		}
+		return strings.TrimSpace(out.String())
+	}
+	stage := read("stage")
+	if stage == "" {
+		return nil
+	}
+	lines := []string{"STAGE " + stage}
+	// `ask` and `auto` are what the flag means to the reader: a false
+	// conduct flag is a command that composes and waits for a yes.
+	word := func(key string) string {
+		switch read(key) {
+		case "true":
+			return "auto"
+		case "false":
+			return "ask"
+		}
+		return "?"
+	}
+	lines = append(lines, "  commit "+word("stage_2.auto_commit")+
+		" · push "+word("stage_2.auto_push")+
+		" · pull request "+word("stage_2.auto_pr"))
+	return lines
+}

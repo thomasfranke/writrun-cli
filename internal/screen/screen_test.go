@@ -176,7 +176,7 @@ func TestParseDropsNoLineButTrailingBlanks(t *testing.T) {
 // is a reader and the output a buffer — the same seam the term port
 // uses so a guarded flow stays exercisable end to end.
 func TestOpenRunsTheProgramAndReturnsWhatWasChosen(t *testing.T) {
-	act, err := Open(listing, strings.NewReader("q"), io.Discard)
+	act, err := Open(sample(), noQueue(t), strings.NewReader("q"), io.Discard)
 	if err != nil {
 		t.Fatalf("Open = %v", err)
 	}
@@ -185,13 +185,20 @@ func TestOpenRunsTheProgramAndReturnsWhatWasChosen(t *testing.T) {
 	}
 }
 
-func TestOpenCarriesTheChosenCommandOut(t *testing.T) {
-	act, err := Open(listing, strings.NewReader("w"), io.Discard)
-	if err != nil {
-		t.Fatalf("Open = %v", err)
-	}
-	if act.Command != "work" || act.Arg != "task-0020" {
-		t.Errorf("Open = %+v, want work on the first selectable row", act)
+// The loop between the two screens is covered at the model level
+// (entry_test.go), not here. Two Bubble Tea programs in one process
+// share one reader, and the first consumes what the second would read —
+// a live terminal blocks for the next key, a strings.Reader does not, so
+// driving both through Open would hang rather than test anything.
+
+// noQueue is the callback for a case that never opens the queue: it
+// fails the test rather than answering, so a run that reads the queue
+// when it should not is caught here rather than passing quietly.
+func noQueue(t *testing.T) func() (string, error) {
+	return func() (string, error) {
+		t.Helper()
+		t.Error("the queue was read by a run that never opened it")
+		return "", nil
 	}
 }
 

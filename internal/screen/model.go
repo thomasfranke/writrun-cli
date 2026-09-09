@@ -26,6 +26,7 @@ const (
 	keyTake   = "enter"
 	keyWork   = "w"
 	keyStatus = "s"
+	keyBack   = "esc"
 	keyQuit   = "q"
 )
 
@@ -41,6 +42,10 @@ type model struct {
 	height int
 	top    int
 	action Action
+	// back says `esc` was pressed: the reader came from the entry
+	// screen and is going back to it, which is not an action and not a
+	// departure.
+	back bool
 }
 
 func newModel(rows []Row) model {
@@ -78,7 +83,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case keyStatus:
 			m.action = Action{Command: "status"}
 			return m, tea.Quit
-		case keyQuit, "ctrl+c", "esc":
+		case keyBack:
+			m.back = true
+			return m, tea.Quit
+		case keyQuit, "ctrl+c":
 			return m, tea.Quit
 		}
 	}
@@ -143,9 +151,9 @@ func (m model) View() string {
 	}
 	b.WriteByte('\n')
 	if m.cursor < 0 {
-		b.WriteString("nothing to select · s status · q quit\n")
+		b.WriteString("nothing to select · s status · esc back · q quit\n")
 	} else {
-		b.WriteString("↑↓ move · enter take · w work · s status · q quit\n")
+		b.WriteString("↑↓ move · enter take · w work · s status · esc back · q quit\n")
 	}
 	return b.String()
 }

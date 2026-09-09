@@ -92,7 +92,7 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "amend",
-		Summary: "amend a spec: returned to draft, the suspended pull request named, the amendment opened",
+		Summary: "return an approved spec to draft",
 		Need:    command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
