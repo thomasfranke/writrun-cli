@@ -2,9 +2,31 @@
 
 This file is WritRun's: `writ update` replaces it whole, and hand edits
 here do not survive a refresh. The project's own answers — who approves
-what — live in [`gates.md`](gates.md), which no update touches. Humans:
+what — live in [`writrun/gates.md`](../writrun/gates.md), in the
+project's home, which no update touches. Humans:
 this file is written for agents; the guide written for you travels with
 the kit as `WRITRUN.md`.
+
+## Reading an answer — the project's home first, the kit's default behind it
+
+Every text WritRun answers on a project's behalf — `gates.md`, each
+file under `conventions/` — is addressed at `writrun/<name>` and read
+from there. A file whose **first line** is exactly
+`/// writrun:default` defers, and so does one that is absent: the
+answer is then WritRun's own, at the same name under
+`.writrun/defaults/`. Anything else is the project's answer, whole —
+nothing merges, and no update ever touches it.
+
+**Ask, never guess which home won:**
+
+```bash
+bash .writrun/scripts/stage-1-tasks-and-specs/resolve_doc.sh writrun/conventions/commits.md
+```
+
+It prints the file in force; `--origin` adds `declared` or `default`
+beside it. Read what it prints. Never read `.writrun/defaults/`
+directly — a project that overrode the file would be read past — and
+never hand-edit anything under it, because the next update replaces it.
 
 ## Picking work
 
@@ -121,18 +143,19 @@ is upstream's; otherwise it is a local report like any other.
 
 ## Human gates
 
-Who operates each gate is the project's own answer, and it lives in
-[`gates.md`](gates.md) — read it before any transition it names:
-approving a spec, touching `docs/`, deriving work, changing forge
-settings, or acting on a task whose brief is insufficient. A gate
-`gates.md` leaves unnamed is a question for the human, never a default
-to assume.
+Who operates each gate is the project's own answer, addressed at
+[`writrun/gates.md`](../writrun/gates.md) — resolve it (above) and read
+what answers, before any transition it names: approving a spec,
+touching `docs/`, deriving work, changing forge settings, or acting on
+a task whose brief is insufficient. No gate is unnamed: while that file
+defers, WritRun's default answers every one of them with a human, which
+is the cautious side to be on and never a licence to assume the other.
 
 ## Deriving work
 
 When derivation runs (a rule authored, or work discovered), whether the
 derived tasks and specs are presented in the session before the PR opens
-is [`gates.md`](gates.md)'s to say.
+is [`writrun/gates.md`](../writrun/gates.md)'s to say.
 
 ## Completing a task
 
@@ -159,14 +182,19 @@ deliberately and says so in `gates.md`.
 
 ## The settings
 
-[`settings.json`](settings.json) is the adopter's file and the first
-edit after adoption: the stage, the conduct flags that say who presses
-commit, push and open, and the title style everything else here obeys.
-It ships cautious — `stage: 1` and all three flags `false` — so a fresh
-copy does nothing on its own until the project says otherwise. It is
-adopter-owned like [`gates.md`](gates.md), and `writ update` touches
-neither. The schema is in the WritRun repository's
+[`writrun/settings.json`](../writrun/settings.json) is the adopter's
+file and the first edit after adoption: the stage, the conduct flags
+that say who presses commit, push and open, and the title style
+everything else here obeys. It ships cautious — `stage: 1` and all
+three flags `false` — so a fresh copy does nothing on its own until the
+project says otherwise. It lives in `writrun/`, the project's home,
+like [`gates.md`](../writrun/gates.md) — `writ update` touches nothing
+there. The schema is in the WritRun repository's
 `docs/technical/settings/`.
 
 Commit messages, branch names, PR titles, and task/spec style:
-[`conventions/`](conventions/README.md).
+[`writrun/conventions/`](../writrun/conventions/README.md) — one file
+per subject, each resolved the same way, so a project that overrode one
+of them still reads WritRun's default for the six beside it. The two
+commit vocabularies are not prose: `stage_2.commit_types` and
+`stage_2.commit_scopes` are settings, read with `read_setting.sh`.

@@ -44,8 +44,10 @@ HERE=$(bash "$(dirname "$0")/read_setting.sh" stage)
 # names a file the adopter has. An unmoved file is still honoured through
 # the bridge (decision 0053), and pointing them at the address they have
 # not adopted yet would send them to a path that does not exist.
-SETTINGS=".writrun/settings.json"
-if [ ! -f "$SETTINGS" ] && [ -f ".writrun/conventions/settings.json" ]; then
+SETTINGS="writrun/settings.json"
+if [ ! -f "$SETTINGS" ] && [ -f ".writrun/settings.json" ]; then
+  SETTINGS=".writrun/settings.json"
+elif [ ! -f "$SETTINGS" ] && [ -f ".writrun/conventions/settings.json" ]; then
   SETTINGS=".writrun/conventions/settings.json"
 fi
 

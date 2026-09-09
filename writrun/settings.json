@@ -11,6 +11,8 @@
     "auto_commit": false,
     "auto_pr": false,
     "auto_push": true,
+    "commit_scopes": "about product technical tasks specs skills ci tests agents readme setup queue conventions",
+    "commit_types": "docs feat fix refactor chore",
     "pr_title_style": "bracketed"
   }
 }

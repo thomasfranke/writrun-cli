@@ -1,7 +1,7 @@
 # Pull requests
 
 - **Title**: every task the PR carries, tagged, then a summary written in
-  the style [`settings.json`](../settings.json) names.
+  the style [`settings.json`](../../../writrun/settings.json) names.
 
   **The tag is not the settable part.** One bracket per task, uppercase,
   no separator — `[TASK-0012]`, or `[TASK-0012][TASK-0014]` when several.
@@ -38,19 +38,32 @@
   **Whichever is declared, `writrun check` reads the title against it**
   from Stage 2 on — the style is a setting an agent was told to obey, and
   a title is where disobeying it leaves a trace
-  ([observance](https://github.com/thomasfranke/writrun/blob/main/docs/technical/README.md#observance-is-checked-where-it-leaves-a-trace)).
+  ([observance](https://github.com/thomasfranke/writrun/blob/main/docs/technical/settings/observance.md#observance-is-checked-where-it-leaves-a-trace)).
   Case inside the brackets is not judged: `[Fix]` and `[DOCS]` are both
   the vocabulary, spelled two ways this file itself uses.
 
   Neither is more correct. Pick the one your readers already know, state
   it in the settings file, and let the agents follow it.
-- **Body**: the [template](../templates/pull_request_template.md), lives
+- **Body**: the [template](../../templates/pull_request_template.md), lives
   only in `.writrun/templates/` — agents fill it when opening any PR; a
   human opening one by hand copies it from there (GitHub does not
   pre-fill from `.writrun/`; this project chose one home over the
   platform's pre-fill). Everything in it is editable except the
   `## Derived work` heading, which `writrun check` reads — a **contract
   marker**.
+- **Every reference is a bullet, and every bullet opens**: id, title, and
+  a link — `- [spec-0059](https://…/blob/main/work/specs/spec-0059-slug.md) — The routed end runs`.
+  The link is a **full URL** on **`main`**: a body is a page and not a
+  file in the tree, so a relative path resolves under the pull request's
+  own address, and a link to the head branch dies when a squash merge
+  deletes it. The reasoning is
+  [`body.md`](https://github.com/thomasfranke/writrun/blob/main/docs/product/stage-2-pull-requests/body.md).
+- **The body answers two questions, not one**: `## How to verify` is the
+  methodology's — the gates' result, and anything to re-read by hand;
+  `## How to test` is the reviewer's — what to run and what to expect
+  back. A change with nothing runnable says so in a line, because a
+  deleted section and a forgotten one look the same
+  ([`body.md`](https://github.com/thomasfranke/writrun/blob/main/docs/product/stage-2-pull-requests/body.md#the-body-says-how-to-test)).
 - **Opening state**: an implementing PR opens as a **draft**, at the
   moment its task is taken and before the work starts — that is what puts
   the task's mirror on `status:in-progress`. Ready for review is the end

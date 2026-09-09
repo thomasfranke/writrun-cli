@@ -76,7 +76,7 @@ fi
 if [ "$#" -gt 0 ]; then
   ROOTS="$*"
 else
-  ROOTS="docs template .writrun AGENTS.md README.md CONTRIBUTING.md"
+  ROOTS="docs kit .writrun AGENTS.md README.md CONTRIBUTING.md"
 fi
 
 faults=0

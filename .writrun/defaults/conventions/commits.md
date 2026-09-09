@@ -3,62 +3,67 @@
 **The commit subject is a constant** — [Conventional
 Commits](https://www.conventionalcommits.org/), `type(scope): imperative
 summary` — in every project, whatever
-[`settings.json`](../settings.json)'s `stage_2.pr_title_style` declares.
+[`settings.json`](../../../writrun/settings.json)'s `stage_2.pr_title_style` declares.
 That key reaches the pull request title and stops there: a queue of open
 pull requests is read by the people working it, while `main` is read by
 bisect, by release tooling and by whoever arrives in a year, and that
 audience is the same everywhere
 ([0063](https://github.com/thomasfranke/writrun/blob/main/docs/technical/decisions/pull-requests/0063-title-and-subject-are-two-texts.md)).
-This file carries the two vocabularies the subject uses; what a title
+This file explains the two vocabularies the subject uses; what a title
 does with the same two is [prs.md](prs.md)'s.
 
-- **Types**: `docs`, `feat`, `fix`, `refactor`, `chore`.
-- **Scopes** (optional — omit when a change genuinely spans the
-  repository): `about`, `product`, `technical`, `tasks`, `specs`,
-  `skills`, `ci`, `tests`, `agents`, `readme`, `setup`, `queue`,
-  `conventions`. The last one is this folder: it is a subsystem a change
-  can be about, like `skills` beside it, and the vocabulary that decides
-  lives inside it.
+- **Types** — the kind of change: `stage_2.commit_types` in
+  [`settings.json`](../../../writrun/settings.json).
+- **Scopes** — the subsystem it is about, optional: omit when a change
+  genuinely spans the repository. `stage_2.commit_scopes` in the same
+  file.
 - Example: `docs(product): add the coverage-rule concept chapter`.
 
-**The two lists are lower case, and they are not interchangeable.** A
-subject spells them exactly as above; a bracketed title carries the same
-words in whatever case it likes, and `writrun check` folds it. What
-neither may do is swap the slots — `tests` is a scope, so `[Tests]`
-leading a title is a type the vocabulary does not have, and the door
-says so.
+**The words themselves live in the settings file, and only there.** A
+project's vocabulary is a value, so it sits where the machinery and the
+reader find one statement — `check_observance.sh` reads exactly the
+list the project declared, and a convention that spelled the words a
+second time would be a copy free to disagree with the door
+([schema](https://github.com/thomasfranke/writrun/blob/main/docs/technical/settings/schema.md#settings)).
+Adding a scope is editing one line of `settings.json`, and every check
+sees it at once. Read the two lists in force with:
+
+```bash
+bash .writrun/scripts/stage-2-pull-requests/read_setting.sh stage_2.commit_scopes
+```
+
+**Both lists are lower case, and they are not interchangeable.** A
+subject spells them exactly as declared; a bracketed title carries the
+same words in whatever case it likes, and `writrun check` folds it.
+What neither may do is swap the slots — a scope leading a title is a
+type the vocabulary does not have, and the door says so.
 
 **The `[TASK-NNNN]` tags lead the title and stay out of the subject.**
 On the title they sit **outside** whichever grammar follows, so the one
 parser that exists never has to know both at once: from Stage 2,
 `writrun check` strips the tags and reads what is left against the
-declared style — the type against the list above, the scope against it
-too when one is present, and nothing at all about the summary that
-follows. What lands on `main` carries no tag; the `(#NN)` the forge
+declared style — the type against `commit_types`, the scope against
+`commit_scopes` when one is present, and nothing at all about the
+summary that follows. What lands on `main` carries no tag; the `(#NN)` the forge
 appends to a squash subject is the hop back to the pull request, which
 still carries them and is still what the machinery parses. Anything
 downstream of that is read by eye rather than by a strict parser; the
 release notes the forge generates come from pull requests and parse
 nothing here.
 
-**Editing the two vocabularies above is editing what the check
-accepts.** They are this project's, like every other line in this
-folder, and `check_observance.sh` carries the machine half of the same
-statement — change one and change the other, or a type this file offers
-is a type the door refuses.
-
 - Trivial work is a commit, never a task (principle 6).
 
-**Two workflows commit, and their subjects are the constant above.**
+**Three workflows commit, and their subjects are the constant above.**
 `writrun approve` records what a merge decided — the specs it approved,
-and the `queued`/`merged` dates it earned — and `writrun progress`
-records what a pull request event moved. Both take their subject from
-[`commit_subject.sh`](../scripts/stage-2-pull-requests/commit_subject.sh),
+and the `queued`/`merged` dates it earned — `writrun progress` records
+what a pull request event moved, and `writrun intake` records the
+report a maintainer's label let in. All three take their subject from
+[`commit_subject.sh`](../../scripts/stage-2-pull-requests/commit_subject.sh),
 one literal per event under the scope `queue`; the text lives there and
-not in either workflow, because two callers writing it separately are two
-places to edit, and nothing squashes these — a subject that drifted would
-sit on `main` for good. Each is one commit because each records one
-event.
+not in any workflow, because three callers writing it separately are
+three places to edit, and nothing squashes these — a subject that
+drifted would sit on `main` for good. Each is one commit because each
+records one event.
 
 **A branch's own subjects are a convention kept by hand.** Squash-only
 discards every one of them — what reaches `main` is a single subject,

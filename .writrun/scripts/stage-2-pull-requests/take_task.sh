@@ -111,24 +111,32 @@ if [ -n "$COAUTHOR" ] && [ "$CREDIT" = false ]; then
   refuse "--coauthor was given while stage_2.agent_coauthor is false — this project's commits carry no credit trailer"
 fi
 
-# The three vocabularies come from check_observance.sh's own assignment
-# lines — the machine half of conventions/commits.md, and a single
-# source. A title this script accepted and the door then refused would
-# be worse than no validation at all, and the same holds for the name
-# this script writes into a trailer.
-TYPES=$(sed -n 's/^TYPES="\(.*\)"$/\1/p' "$OBSERVANCE" | head -n1)
-SCOPES=$(sed -n 's/^SCOPES="\(.*\)"$/\1/p' "$OBSERVANCE" | head -n1)
-# CATEGORIES is written over two lines with a continuation, so it is read
-# as the span from its assignment to the line that closes the quote.
+# The two commit vocabularies are the project's, and they are values:
+# read from settings.json through the one reader, exactly as the door
+# reads them. A title this script accepted and the door then refused
+# would be worse than no validation at all.
+TYPES=$(bash "$READ_SETTING" stage_2.commit_types)
+SCOPES=$(bash "$READ_SETTING" stage_2.commit_scopes)
+# CATEGORIES is the kit's, not the project's — the category words a
+# model name may not be (check_observance.sh, the tripwire that refuses
+# `Co-Authored-By: AI`). It has no setting because no project chooses
+# it, so it is still read from the check that owns it: written over two
+# lines with a continuation, so read as the span from its assignment to
+# the line that closes the quote.
 CATEGORIES=$(awk '/^CATEGORIES="/ { c = 1 }
                   c { print }
                   c && /"[[:space:]]*$/ { exit }' "$OBSERVANCE" \
   | sed 's/^CATEGORIES="//; s/"[[:space:]]*$//; s/\\$//' \
   | tr '\n' ' ' | tr -s ' ')
-if [ -z "$TYPES" ] || [ -z "$SCOPES" ] || [ -z "$CATEGORIES" ]; then
-  echo "Could not read TYPES/SCOPES/CATEGORIES from ${OBSERVANCE} — a title" >&2
-  echo "or a trailer checked against a vocabulary this script had to guess" >&2
-  echo "at is not checked." >&2
+if [ -z "$TYPES" ] || [ -z "$SCOPES" ]; then
+  echo "Could not read the commit vocabularies from writrun/settings.json —" >&2
+  echo "a title checked against a vocabulary this script had to guess at" >&2
+  echo "is not checked." >&2
+  exit 3
+fi
+if [ -z "$CATEGORIES" ]; then
+  echo "Could not read CATEGORIES from ${OBSERVANCE} — a trailer checked" >&2
+  echo "against a vocabulary this script had to guess at is not checked." >&2
   exit 3
 fi
 

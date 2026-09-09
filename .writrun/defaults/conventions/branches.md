@@ -2,7 +2,7 @@
 
 ## Strategy
 
-**This repository is trunk-based**: `main` is the only long-lived branch
+**The default is trunk-based**: `main` is the only long-lived branch
 and is always green. That is a choice, not a methodology rule — the
 methodology needs exactly one thing from a branching strategy: **one
 authority branch**, the branch the flows' pull requests target, protected,

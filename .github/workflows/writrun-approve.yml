@@ -3,7 +3,7 @@ name: writrun approve
 # Records the `draft -> approved` transition once the maintainer has
 # assented. **Here the assenting act is the merge**, not an approving
 # review (docs/product/stage-2-pull-requests/approval.md, and this repository's
-# own answer in .writrun/gates.md): every pull request here is authored by its
+# own answer in writrun/gates.md): every pull request here is authored by its
 # maintainer, and no forge lets a person approve their own, so a
 # review-based gate would never be satisfiable — and an unsatisfiable gate
 # gets worked around, which is worse than no gate.

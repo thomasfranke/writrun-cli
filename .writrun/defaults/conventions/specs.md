@@ -2,7 +2,7 @@
 
 The front-matter schema and the section headings are contract — the two
 Proposed-changes headings are grep-level markers the delta check reads;
-see the [spec schema](https://github.com/thomasfranke/writrun/blob/main/docs/technical/README.md#spec-schema). What is
+see the [spec schema](https://github.com/thomasfranke/writrun/blob/main/docs/technical/schemas/spec.md#spec-schema). What is
 taste, and this file's to state:
 
 - **Title**: `spec-NNNN — <what the change achieves>`.
@@ -18,7 +18,7 @@ taste, and this file's to state:
   changes sections to match what actually happened.
 
 To reshape the generated body itself, create
-`.writrun/conventions/templates/spec.md` — it wins over the shipped default in
+`writrun/conventions/templates/spec.md` — it wins over the shipped default in
 `.writrun/templates/`. `{{id}}`, `{{title}}`, `{{task_ref}}` are
 substituted; front-matter is contract, and the template must keep the two
 Proposed-changes headings and Outcome or the generator refuses it.
