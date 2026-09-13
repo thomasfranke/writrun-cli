@@ -10,23 +10,60 @@ are the reader's, and the binary paints with the indexed palette their
 theme defines so a value chosen for one background is not imposed on
 another ([rules](../rules.md)).
 
+**One folder per section of the entry screen, one file per row it
+lists.** The grouping is [`product/README.md`](../README.md)'s, because
+one set grouped two ways is two answers about one tool.
+
 | | |
 |---|---|
-| [Queue](queue.excalidraw) | The lister's sections, navigated by keys. One keystroke in from the entry screen. |
 | [Entry](entry.excalidraw) | What the entry screen lists, and how it reaches the rest. |
-| [doctor](doctor.excalidraw) | [`doctor`](../adoption/doctor.md)'s report, grouped by stage, at every level a finding carries. |
-| [Config](config.excalidraw) | [`config`](../config.md)'s keys, and what judges a change. |
+| [First run](first-run.excalidraw) | What `writrun` opens where `.writrun/` is absent: the environment answered, and `init`. |
+| [--help and --version](help.excalidraw) | The two answers that run anywhere, and the grouped help proposed in their place. |
+
+### Tasks
+
+| | |
+|---|---|
+| [list](tasks/list.excalidraw) | The lister's sections, navigated by keys. One keystroke in from the entry screen. |
+| [take](tasks/take.excalidraw) | The composition that waits for a yes, the task arrow-selected, the draft opened. |
+| [work](tasks/work.excalidraw) | The task launched on the adopter's agent, and the abort where none is configured. |
+| [status](tasks/status.excalidraw) | Where the work stands, on a branch carrying a task and on one carrying none. |
+| [finish](tasks/finish.excalidraw) | The deltas checked, the two fields written, preflight, and the draft marked ready. |
+
+### Authoring
+
+| | |
+|---|---|
+| [author](authoring/author.excalidraw) | The four checks, the composition, and the pull request that opens ready. |
+| [amend](authoring/amend.excalidraw) | The spec returned to draft, and the pull request the amendment suspends. |
+
+### Reports
+
+| | |
+|---|---|
+| [report](reports/report.excalidraw) | The observation recorded: an id minted, no branch, no triage. |
+
+### Adoption
+
+| | |
+|---|---|
+| [init](adoption/init.excalidraw) | The plan, the stage question, and the gaps the stage's checks name. |
+| [update](adoption/update.excalidraw) | What the refresh will write, what it never touches, and the dirty tree it refuses. |
+| [doctor](adoption/doctor.excalidraw) | Every requirement named and marked, the stage above the declaration previewed, and the report navigable with a detail pane. |
+| [config](adoption/config.excalidraw) | [`config`](../config.md)'s keys, and what judges a change. |
+| [uninstall](adoption/uninstall.excalidraw) | What is removed, what stays, and the record that survives the tooling. |
 
 ## `writrun` with no command
 
 Opens the queue as a screen navigated by keys; every action dispatches
 a command. Which key does what is drawn in
-[queue.excalidraw](queue.excalidraw).
+[tasks/list.excalidraw](tasks/list.excalidraw).
 
 - Requires a terminal on stdin and stdout; without one, prints what
   `--help` prints instead.
 - Requires an adopted repository; outside one, prints what `--help`
-  prints instead.
+  prints instead. A screen in its place is drawn, proposed, in
+  [first-run.excalidraw](first-run.excalidraw).
 - Shows the sections [`list`](../queue/list.md) shows, in the same
   order.
 - Dispatches [`take`](../pull-requests/take.md),
@@ -60,7 +97,7 @@ a command. Which key does what is drawn in
 
 Opens the settings as a screen: every key the kit documents, under the
 section the kit gives it, navigated by keys. Which key does what is
-drawn in [config.excalidraw](config.excalidraw).
+drawn in [adoption/config.excalidraw](adoption/config.excalidraw).
 
 - Holds no list of keys and no list of allowed values. Both are the
   kit's — the keys read out of the settings file the kit's checker
@@ -74,15 +111,40 @@ drawn in [config.excalidraw](config.excalidraw).
 - The screen offers no key the settings file does not name, and no
   judgement of its own about a value.
 
+## The drawings and the binary
+
+- **A drawing states the design, whole.** A frame is what the screen
+  must render — not a record of what it rendered before, and not a
+  proposal waiting beside the real thing. One screen, one answer.
+- **Where the binary does not match a drawing, the gap is a task**, in
+  [`work/`](../../../work/tasks/README.md), never a second frame. The
+  drawing does not soften and the binary does not get the benefit of the
+  doubt.
+- **A change that closes a gap re-transcribes the frame** from a real
+  run of the new binary. Its spec names the drawing in *Proposed product
+  changes*, so
+  [`writrun-check-spec-deltas`](../../../.writrun/skills/writrun-check-spec-deltas/SKILL.md)
+  reads the diff and refuses a merge that left the drawing behind.
+- **Re-transcribed, never relabelled.** Editing a caption to claim the
+  binary prints what the drawing asked for is how a reference stops
+  being one.
+- **A drawing is not a changelog.** The state before a change is in the
+  git history, which is where a reader looks for it.
+
 ## Rules for this folder
 
 - A drawing answers how a screen looks; a rule answers what holds,
   including where no screen exists. Neither states the other's part.
-- One file per screen. A screen drawn in two files is two answers about
-  one screen.
-- A frame is transcribed from a real run, or built from values read out
-  of this repository's own files.
-- A screen that does not exist yet is labelled proposed, in the table
-  above and on the drawing.
+- One file per screen, under the folder its entry-screen section
+  names. A screen drawn in two files is two answers about one screen.
+- **The drawings lead the binary.** They are documentation, and a
+  document may state what is asked of the implementation before the
+  implementation answers it. A task derives from a drawing; a drawing
+  never waits for one.
+- A frame whose design the binary already renders is transcribed from a
+  real run; one it does not is built from values read out of this
+  repository's own files. Neither is written from memory.
+- A screen that does not exist yet is drawn like any other: the design
+  is the document, and the implementation follows it.
 - `.excalidraw` files open at [excalidraw.com](https://excalidraw.com)
   and in the VS Code extension.

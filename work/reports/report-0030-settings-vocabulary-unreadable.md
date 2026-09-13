@@ -26,7 +26,7 @@ have to hold them, and a copy in Go is a second authority that drifts
 on the next kit update.
 
 Observed while building the CLI config screen against
-docs/product/screens/config.excalidraw, whose own note already named
+docs/product/screens/adoption/config.excalidraw, whose own note already named
 this as the thing to route upstream. The result today: the reader picks
 blind and learns the vocabulary only from a refusal — "pr_title_style
 'x' is outside its vocabulary: conventional bracketed" — which is a

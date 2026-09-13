@@ -3,7 +3,7 @@
 Shows the adopter's settings, and changes one.
 
 - **With no argument on a terminal, opens the settings as a screen**
-  ([config.excalidraw](screens/config.excalidraw)): the keys under
+  ([adoption/config.excalidraw](screens/adoption/config.excalidraw)): the keys under
   their sections, a cursor, and `enter` on one changing it. Where there
   is no terminal it lists them instead, so a script reading this
   command keeps reading it.
