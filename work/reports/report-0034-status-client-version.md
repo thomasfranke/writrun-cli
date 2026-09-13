@@ -1,10 +1,10 @@
 ---
 id: report-0034
-status: tracked
-task_ref: [task-0035]
+status: open
+task_ref: []
 doc_ref: product/queue/status.md
 created: 2026-09-13T21:23:45Z
-triaged: 2026-09-13T22:20:00Z
+triaged: null
 ---
 
 # status names the kit's tag but never the client's own version
@@ -21,6 +21,3 @@ screen's header line carries the same three facts. A reader comparing
 two machines from `status` alone cannot tell which client produced the
 answer, which is the question a version exists to settle.
 
-**Triage — tracked.** [task-0035](../tasks/task-0035-binary-explains.md)
-carries it, through [spec-0043](../specs/spec-0043-status-client-version.md):
-the `Client` row, read where `--version` reads it.

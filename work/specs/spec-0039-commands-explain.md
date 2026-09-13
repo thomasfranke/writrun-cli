@@ -89,8 +89,7 @@ it is what the test is written against.
 
 ## Proposed technical changes
 
-- `internal/command` — the long description on the command type, and
-  the test that requires it.
+- none — no machinery change.
 
 ## Outcome
 

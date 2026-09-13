@@ -83,8 +83,7 @@ it is what the test is written against.
 
 ## Proposed technical changes
 
-- `internal/command/configcmd` — the call into `doctorcmd`'s checks, and
-  the port that makes it possible without a cycle.
+- none — no machinery change.
 
 ## Outcome
 

@@ -91,10 +91,9 @@ it is what the test is written against.
 
 ## Proposed technical changes
 
-- `internal/screen` — the doctor screen, beside the queue's and the
-  settings'.
-- The embedding of `doctor.md`'s table, and the test that holds it to
-  the checks.
+- [`technical/engineering/coupling.md`](../../docs/technical/engineering/coupling.md)
+  — a fifth rule: a sentence a product doc states is embedded from that
+  doc, never retyped into Go beside it.
 
 ## Outcome
 

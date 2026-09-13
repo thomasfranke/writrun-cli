@@ -83,9 +83,7 @@ it is what the test is written against.
 
 ## Proposed technical changes
 
-- `internal/term` — the per-option description.
-- `internal/screen` — the plan component the four pull-request commands
-  and the two adoption commands share.
+- none — no machinery change.
 
 ## Outcome
 

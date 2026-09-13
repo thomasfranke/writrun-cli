@@ -1,10 +1,10 @@
 ---
 id: report-0035
-status: tracked
-task_ref: [task-0034]
+status: open
+task_ref: []
 doc_ref: product/screens/README.md
 created: 2026-09-13T21:37:40Z
-triaged: 2026-09-13T22:20:00Z
+triaged: null
 ---
 
 # the screens disagree on their header and their way out
@@ -29,6 +29,3 @@ the binary nor what is being read.
 A reader who learns `q` on the entry screen quits; the same key on the
 next screen in takes them back instead.
 
-**Triage — tracked.** [task-0034](../tasks/task-0034-screen-furniture.md)
-carries it, through [spec-0042](../specs/spec-0042-screen-furniture.md):
-one header, one footer, and `q` quitting on every screen.

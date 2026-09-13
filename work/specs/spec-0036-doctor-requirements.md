@@ -100,8 +100,7 @@ it is what the test is written against.
 
 ## Proposed technical changes
 
-- `internal/palette` — the role a met requirement is painted with. The
-  five roles the package has today carry findings only.
+- none — no machinery change.
 
 ## Outcome
 

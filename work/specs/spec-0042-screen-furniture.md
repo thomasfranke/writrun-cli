@@ -94,8 +94,7 @@ it is what the test is written against.
 
 ## Proposed technical changes
 
-- `internal/screen` — the shared header and footer, and the test that
-  keeps a screen from writing its own.
+- none — no machinery change.
 
 ## Outcome
 
