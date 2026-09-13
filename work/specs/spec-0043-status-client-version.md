@@ -48,19 +48,23 @@ Unit, `internal/command/statuscmd`: the row's presence and its source.
 Integration, `tests/integration/status/`: a run naming both the client
 and the kit.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] Both rows print, from the sources `--version` and the kit use.
 - [ ] [report-0034](../reports/report-0034-status-client-version.md)
       closed.
-- [ ] `tasks/status.excalidraw` re-transcribed.
 
 ## Proposed product changes
 
 - [`product/queue/status.md`](../../docs/product/queue/status.md) — the
   row and what it answers.
-- [`product/screens/tasks/status.excalidraw`](../../docs/product/screens/tasks/status.excalidraw)
-  — re-transcribed.
 
 ## Proposed technical changes
 

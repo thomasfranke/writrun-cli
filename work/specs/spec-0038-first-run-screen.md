@@ -67,20 +67,24 @@ Integration, `tests/integration/screen/`: a directory with no kit and a
 fake terminal opens the screen; the same without a terminal prints the
 help.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] The screen opens where the kit is absent, and only there.
 - [ ] `init` is unreachable while any requirement is unmet.
 - [ ] The no-terminal path is unchanged.
-- [ ] `first-run.excalidraw` re-transcribed from a real run.
 
 ## Proposed product changes
 
 - [`product/screens/README.md`](../../docs/product/screens/README.md) —
   the rule that outside an adoption the binary prints the help, replaced
   by the screen.
-- [`product/screens/first-run.excalidraw`](../../docs/product/screens/first-run.excalidraw)
-  — both frames, re-transcribed.
 - [`product/rules.md`](../../docs/product/rules.md) — where a command
   runs.
 

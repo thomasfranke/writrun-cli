@@ -71,8 +71,15 @@ that no screen composes its own header.
 Integration, `tests/integration/screen/`: the rendered frames match the
 drawings, including the pager's.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] Header and footer come from one place; no screen writes its own.
 - [ ] `q` quits on every screen, and `esc` is offered only where there
       is somewhere to go.
@@ -84,10 +91,6 @@ drawings, including the pager's.
 
 - [`product/screens/README.md`](../../docs/product/screens/README.md) —
   the furniture every screen carries, stated as a rule.
-- [`product/screens/entry.excalidraw`](../../docs/product/screens/entry.excalidraw),
-  [`tasks/list.excalidraw`](../../docs/product/screens/tasks/list.excalidraw),
-  [`adoption/config.excalidraw`](../../docs/product/screens/adoption/config.excalidraw)
-  — re-transcribed.
 
 ## Proposed technical changes
 

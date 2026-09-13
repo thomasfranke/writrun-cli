@@ -64,18 +64,22 @@ on a lower; an unreadable check does not block the write.
 Integration, `tests/integration/cli/`: a stage raise with a stubbed `gh`
 shows the requirements and writes on confirmation.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] The preview is doctor's answers, not a second implementation.
 - [ ] No path refuses a declaration.
-- [ ] `adoption/config.excalidraw`'s stage frame re-transcribed.
 
 ## Proposed product changes
 
 - [`product/config.md`](../../docs/product/config.md) — the preview and
   what it never does.
-- [`product/screens/adoption/config.excalidraw`](../../docs/product/screens/adoption/config.excalidraw)
-  — the stage-change frame, re-transcribed.
 
 ## Proposed technical changes
 

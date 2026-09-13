@@ -69,21 +69,21 @@ for the commands that ask.
 Integration, `tests/integration/cli/`: `writrun --help` is grouped;
 `writrun amend` explains before asking; `writrun list` does not.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] Every command carries a long description, checked by a test.
 - [ ] The one-liners are plain, and read from one place.
 - [ ] `--help` is grouped.
-- [ ] `help.excalidraw` and every command drawing's explaining frame
-      re-transcribed.
 
 ## Proposed product changes
 
-- [`product/screens/help.excalidraw`](../../docs/product/screens/help.excalidraw)
-  — both frames, re-transcribed.
-- Every drawing under
-  [`product/screens/`](../../docs/product/screens/README.md) — the
-  explaining frame each one carries.
 - [`product/rules.md`](../../docs/product/rules.md) — how a command
   reports, which today says `--help` restates nothing.
 

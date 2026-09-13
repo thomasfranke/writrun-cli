@@ -71,19 +71,23 @@ the document and the checks in step.
 
 Integration: the rendered frame matches the drawing's rows and footer.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] Every requirement row is selectable and explained.
 - [ ] The table is written, embedded, and covers every name.
 - [ ] A requirement with no row falls back to the check's sentence.
-- [ ] `adoption/doctor.excalidraw`'s two screen frames re-transcribed.
 
 ## Proposed product changes
 
 - [`product/adoption/doctor.md`](../../docs/product/adoption/doctor.md)
   — the table of requirements and their explanations.
-- [`product/screens/adoption/doctor.excalidraw`](../../docs/product/screens/adoption/doctor.excalidraw)
-  — the two screen frames, re-transcribed.
 
 ## Proposed technical changes
 

@@ -77,13 +77,19 @@ exit status ignores the preview; the marks differ without colour.
 Integration, `tests/integration/doctor/`: one fixture per state, and a
 stage-1 fixture whose stage-2 preview is entirely `unread`.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] Every check names a requirement, and every requirement is a row.
 - [ ] The preview runs from the declaration, and never reaches the exit
       status.
 - [ ] Passing and failing fixtures for each mark.
-- [ ] `adoption/doctor.excalidraw`'s report frames re-transcribed from a
       real run of the new binary.
 
 ## Proposed product changes
@@ -91,8 +97,6 @@ stage-1 fixture whose stage-2 preview is entirely `unread`.
 - [`product/adoption/doctor.md`](../../docs/product/adoption/doctor.md)
   — the report's shape, the four marks, the preview and what it never
   affects.
-- [`product/screens/adoption/doctor.excalidraw`](../../docs/product/screens/adoption/doctor.excalidraw)
-  — the two report frames, re-transcribed.
 
 ## Proposed technical changes
 

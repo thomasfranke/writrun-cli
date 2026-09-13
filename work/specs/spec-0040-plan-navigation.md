@@ -63,18 +63,23 @@ Unit, `internal/screen`: the plan component's rows, cursor and footer.
 Integration: `take` with a fake terminal shows the description; without
 one, its output is byte-for-byte what it is today.
 
+The drawing is the assertion. Each frame named above is read out of its
+`.excalidraw` and compared with what the binary renders, and a
+disagreement fails the suite. The drawing is not the thing under test:
+it is what the test is written against.
+
 ## Definition of Done
 
+- [ ] The frames named above are asserted against what the binary
+      renders. Where the two disagree, the binary is what changes.
 - [ ] One question shape, one plan component — no second copy.
 - [ ] The no-terminal output is unchanged, proved by a test.
-- [ ] Every drawing's navigating frame re-transcribed.
 
 ## Proposed product changes
 
-- The navigating frames in
-  [`tasks/`](../../docs/product/screens/tasks/),
-  [`authoring/`](../../docs/product/screens/authoring/) and
-  [`adoption/`](../../docs/product/screens/adoption/) — re-transcribed.
+- none — the drawings already state this, and the code comes to them.
+  A drawing that must itself change is a documentation change of its
+  own, decided by a person before any code answers it.
 
 ## Proposed technical changes
 
