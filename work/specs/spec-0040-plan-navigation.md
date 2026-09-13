@@ -63,10 +63,29 @@ Unit, `internal/screen`: the plan component's rows, cursor and footer.
 Integration: `take` with a fake terminal shows the description; without
 one, its output is byte-for-byte what it is today.
 
-The drawing is the assertion. Each frame named above is read out of its
-`.excalidraw` and compared with what the binary renders, and a
-disagreement fails the suite. The drawing is not the thing under test:
-it is what the test is written against.
+The drawing is the assertion. These are the frames, each found in its
+file by the caption drawn above it:
+
+- [`tasks/take.excalidraw`](../../docs/product/screens/tasks/take.excalidraw)
+  — `writrun take — the available group, a task highlighted`.
+- [`adoption/init.excalidraw`](../../docs/product/screens/adoption/init.excalidraw)
+  — `writrun init — the stage question, a stage highlighted`.
+- [`tasks/finish.excalidraw`](../../docs/product/screens/tasks/finish.excalidraw)
+  — `writrun finish — the summary, one line selected`.
+- [`authoring/author.excalidraw`](../../docs/product/screens/authoring/author.excalidraw)
+  — `writrun author — the composition, one line selected`.
+- [`authoring/amend.excalidraw`](../../docs/product/screens/authoring/amend.excalidraw)
+  — `writrun amend — the amendment, one line selected`.
+- [`adoption/update.excalidraw`](../../docs/product/screens/adoption/update.excalidraw)
+  — `writrun update — the plan, one path selected`.
+- [`adoption/uninstall.excalidraw`](../../docs/product/screens/adoption/uninstall.excalidraw)
+  — `writrun uninstall — the plan, one line selected`.
+- [`tasks/list.excalidraw`](../../docs/product/screens/tasks/list.excalidraw)
+  — `the queue screen — a task selected`.
+
+Each is compared with what the binary renders, and a disagreement
+fails the suite. The drawing is not the thing under test: it is what
+the test is written against.
 
 ## Definition of Done
 

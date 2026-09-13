@@ -67,10 +67,16 @@ Integration, `tests/integration/screen/`: a directory with no kit and a
 fake terminal opens the screen; the same without a terminal prints the
 help.
 
-The drawing is the assertion. Each frame named above is read out of its
-`.excalidraw` and compared with what the binary renders, and a
-disagreement fails the suite. The drawing is not the thing under test:
-it is what the test is written against.
+The drawing is the assertion. These are the frames, each found in its
+file by the caption drawn above it:
+
+- [`first-run.excalidraw`](../../docs/product/screens/first-run.excalidraw)
+  — `writrun — a repository with no kit in it` and `writrun — the
+  environment short, init out of reach`.
+
+Each is compared with what the binary renders, and a disagreement
+fails the suite. The drawing is not the thing under test: it is what
+the test is written against.
 
 ## Definition of Done
 

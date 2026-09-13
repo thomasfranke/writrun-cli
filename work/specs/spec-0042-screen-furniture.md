@@ -28,7 +28,8 @@ Out: what any screen lists — the rows are each screen's own.
    movement, the actions one key each, the way out.
 3. `esc` goes back and `q` quits. A screen with nowhere to go back to —
    the entry screen, the first run — offers `q quit` alone. The config
-   screen's `q back`, which quits nothing, goes
+   screen's footer calls `q` a way back where the key quits, and names
+   no quit at all; it is relabelled
    ([report-0035](../reports/report-0035-screen-furniture.md)).
 4. Wrap a dispatched command's output in the same furniture: the pager
    is a screen. Run from a shell the command prints its own lines and no
@@ -71,10 +72,23 @@ that no screen composes its own header.
 Integration, `tests/integration/screen/`: the rendered frames match the
 drawings, including the pager's.
 
-The drawing is the assertion. Each frame named above is read out of its
-`.excalidraw` and compared with what the binary renders, and a
-disagreement fails the suite. The drawing is not the thing under test:
-it is what the test is written against.
+The drawing is the assertion. These are the frames, each found in its
+file by the caption drawn above it:
+
+- [`entry.excalidraw`](../../docs/product/screens/entry.excalidraw)
+  — `writrun — the entry screen`, `the furniture, on the queue screen as
+  the worked example`, `the same two lines around a command's output`,
+  `a command that asks nothing, while it runs`, `a command that asks,
+  taking the terminal`, and `the queue could not be read`.
+- [`tasks/list.excalidraw`](../../docs/product/screens/tasks/list.excalidraw)
+  — `the queue screen — a task selected` and `the queue with nothing in
+  it`.
+- [`adoption/config.excalidraw`](../../docs/product/screens/adoption/config.excalidraw)
+  — `writrun config` and `the settings could not be read`.
+
+Each is compared with what the binary renders, and a disagreement
+fails the suite. The drawing is not the thing under test: it is what
+the test is written against.
 
 ## Definition of Done
 
@@ -84,8 +98,6 @@ it is what the test is written against.
 - [ ] `q` quits on every screen, and `esc` is offered only where there
       is somewhere to go.
 - [ ] [report-0035](../reports/report-0035-screen-furniture.md) closed.
-- [ ] `entry`, `tasks/list`, `adoption/config` and
-      `adoption/doctor` re-transcribed.
 
 ## Proposed product changes
 

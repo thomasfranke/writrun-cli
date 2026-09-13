@@ -128,7 +128,7 @@ stage block reads `.writrun/settings.json` and writes nothing.
       [`entry.excalidraw`](../../docs/product/screens/entry.excalidraw)
       in rows, groups, order and keys.
 - [ ] The queue screen matches
-      [`queue.excalidraw`](../../docs/product/screens/tasks/list.excalidraw),
+      [`tasks/list.excalidraw`](../../docs/product/screens/tasks/list.excalidraw),
       `esc` included.
 - [ ] No string the screen prints is written twice in the source.
 - [ ] `screens/README.md` states both screens' rules, and states no

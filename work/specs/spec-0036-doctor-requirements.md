@@ -77,10 +77,16 @@ exit status ignores the preview; the marks differ without colour.
 Integration, `tests/integration/doctor/`: one fixture per state, and a
 stage-1 fixture whose stage-2 preview is entirely `unread`.
 
-The drawing is the assertion. Each frame named above is read out of its
-`.excalidraw` and compared with what the binary renders, and a
-disagreement fails the suite. The drawing is not the thing under test:
-it is what the test is written against.
+The drawing is the assertion. These are the frames, each found in its
+file by the caption drawn above it:
+
+- [`adoption/doctor.excalidraw`](../../docs/product/screens/adoption/doctor.excalidraw)
+  — `writrun doctor — stage 2 within reach, exit 0` and `writrun doctor
+  — stage 2 out of reach, exit 0`.
+
+Each is compared with what the binary renders, and a disagreement
+fails the suite. The drawing is not the thing under test: it is what
+the test is written against.
 
 ## Definition of Done
 
@@ -90,7 +96,6 @@ it is what the test is written against.
 - [ ] The preview runs from the declaration, and never reaches the exit
       status.
 - [ ] Passing and failing fixtures for each mark.
-      real run of the new binary.
 
 ## Proposed product changes
 

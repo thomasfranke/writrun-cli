@@ -18,7 +18,7 @@ one set grouped two ways is two answers about one tool.
 |---|---|
 | [Entry](entry.excalidraw) | What the entry screen lists, and how it reaches the rest. |
 | [First run](first-run.excalidraw) | What `writrun` opens where `.writrun/` is absent: the environment answered, and `init`. |
-| [--help and --version](help.excalidraw) | The two answers that run anywhere, and the grouped help proposed in their place. |
+| [--help and --version](help.excalidraw) | The two answers that run anywhere, and the grouping drawn in their place. |
 
 ### Tasks
 
@@ -62,8 +62,9 @@ a command. Which key does what is drawn in
 - Requires a terminal on stdin and stdout; without one, prints what
   `--help` prints instead.
 - Requires an adopted repository; outside one, prints what `--help`
-  prints instead. A screen in its place is drawn, proposed, in
-  [first-run.excalidraw](first-run.excalidraw).
+  prints instead. A screen in its place is drawn in
+  [first-run.excalidraw](first-run.excalidraw), and until the binary
+  opens it the gap is a task.
 - Shows the sections [`list`](../queue/list.md) shows, in the same
   order.
 - Dispatches [`take`](../pull-requests/take.md),
@@ -120,14 +121,22 @@ drawn in [adoption/config.excalidraw](adoption/config.excalidraw).
   [`work/`](../../../work/tasks/README.md), never a second frame. The
   drawing does not soften and the binary does not get the benefit of the
   doubt.
-- **A change that closes a gap re-transcribes the frame** from a real
-  run of the new binary. Its spec names the drawing in *Proposed product
-  changes*, so
+- **A change that closes a gap redraws nothing.** The drawing already
+  states what the binary must render, and the suite is what proves the
+  binary came to it. A frame redrawn to match a run is a reference
+  rewritten by the thing it references.
+- **A drawing that must itself change is a documentation change of its
+  own**, decided by a person before any code answers it. Its spec
+  promises the folder the drawing lives in, written with the trailing
+  slash — `product/screens/tasks/` — because
   [`writrun-check-spec-deltas`](../../../.writrun/skills/writrun-check-spec-deltas/SKILL.md)
-  reads the diff and refuses a merge that left the drawing behind.
-- **Re-transcribed, never relabelled.** Editing a caption to claim the
-  binary prints what the drawing asked for is how a reference stops
-  being one.
+  reads a promise as a `.md` file or a folder and never as a
+  `.excalidraw` file
+  ([report-0038](../../../work/reports/report-0038-docref-markdown-only.md)),
+  and it reads a folder promise as covering everything under it.
+- **Never relabelled.** Editing a caption to claim the binary prints
+  what the drawing asked for is how a reference stops being one. What
+  says the two agree is the suite, never a caption.
 - **A drawing is not a changelog.** The state before a change is in the
   git history, which is where a reader looks for it.
 

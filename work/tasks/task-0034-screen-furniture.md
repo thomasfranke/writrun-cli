@@ -3,7 +3,7 @@ id: task-0034
 status: backlog
 blocked_reason: null
 taken_by: null
-spec_ref: [spec-0042]
+spec_ref: [spec-0038, spec-0040, spec-0042]
 doc_ref: product/screens/README.md
 origin: rule
 priority: high
@@ -18,11 +18,11 @@ provenance: []
 
 # Give every screen its furniture, and every plan a cursor
 
-**References:** [product/screens/README.md](../../docs/product/screens/README.md) · [spec-0042](../specs/spec-0042-screen-furniture.md)
+**References:** [product/screens/README.md](../../docs/product/screens/README.md) · [spec-0038](../specs/spec-0038-first-run-screen.md) · [spec-0040](../specs/spec-0040-plan-navigation.md) · [spec-0042](../specs/spec-0042-screen-furniture.md)
 
 Four screens render their own header and their own way out, and no two
-agree — `q` quits on the entry screen and goes back on the config
-screen, which offers no way to quit at all
+agree — `q` quits on the entry screen, and on the config screen it
+quits under a footer that calls it `back`
 ([report-0035](../reports/report-0035-screen-furniture.md)). Outside an
 adoption there is no screen at all: the binary prints a list of thirteen
 commands, twelve of which refuse to run there. And where there is a

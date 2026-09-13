@@ -71,10 +71,16 @@ the document and the checks in step.
 
 Integration: the rendered frame matches the drawing's rows and footer.
 
-The drawing is the assertion. Each frame named above is read out of its
-`.excalidraw` and compared with what the binary renders, and a
-disagreement fails the suite. The drawing is not the thing under test:
-it is what the test is written against.
+The drawing is the assertion. These are the frames, each found in its
+file by the caption drawn above it:
+
+- [`adoption/doctor.excalidraw`](../../docs/product/screens/adoption/doctor.excalidraw)
+  — `the doctor screen — a requirement that is met` and `the doctor
+  screen — a requirement that is not`.
+
+Each is compared with what the binary renders, and a disagreement
+fails the suite. The drawing is not the thing under test: it is what
+the test is written against.
 
 ## Definition of Done
 

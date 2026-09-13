@@ -5,7 +5,7 @@
 # `writrun config` as a screen, driven through a real terminal.
 #
 # The command listed its keys and returned; the drawing
-# (docs/product/screens/config.excalidraw) shows a screen with a cursor
+# (docs/product/screens/adoption/config.excalidraw) shows a screen with a cursor
 # and `enter change`. The maintainer found the difference by trying to
 # navigate. Only a terminal can be asked whether a screen is there.
 #

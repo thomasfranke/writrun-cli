@@ -3,7 +3,7 @@ id: task-0035
 status: backlog
 blocked_reason: null
 taken_by: null
-spec_ref: [spec-0043]
+spec_ref: [spec-0039, spec-0043]
 doc_ref: product/screens/README.md
 origin: rule
 priority: high
@@ -18,7 +18,7 @@ provenance: []
 
 # Make the binary explain itself to someone who has not read the methodology
 
-**References:** [product/screens/README.md](../../docs/product/screens/README.md) · [spec-0043](../specs/spec-0043-status-client-version.md)
+**References:** [product/screens/README.md](../../docs/product/screens/README.md) · [spec-0039](../specs/spec-0039-commands-explain.md) · [spec-0043](../specs/spec-0043-status-client-version.md)
 
 No command explains itself. Run bare, each either refuses or asks a
 question whose answer only means something to a reader who has already
