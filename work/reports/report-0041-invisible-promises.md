@@ -1,10 +1,10 @@
 ---
 id: report-0041
-status: open
+status: fixed
 task_ref: []
 doc_ref: null
 created: 2026-09-16T19:18:18Z
-triaged: null
+triaged: 2026-09-16T23:42:44Z
 ---
 
 # seven specs promise in a form neither gate can read
@@ -42,3 +42,25 @@ the observation [report-0037](report-0037-technical-section-meaning.md)
 carries. The paths it wrote are correct; what it added around them is
 what the parser cannot read. The template the kit ships shows the bare
 form, and says nothing about a link being one.
+
+**Triage — fixed.** The nine entries in the seven specs now open with
+the path in backticks and nothing before it, which is the form the
+template shows, the form both gates read, and the form WritRun's own
+specs use — `kit/`'s repository writes
+`- \`product/README.md\` — its links follow the renames` and has never
+written a link. Both gates read all nine now; before this change they
+read none.
+
+What is lost is the link the form was carrying, and it is worth naming
+rather than pretending otherwise: a reader of a spec no longer clicks
+through to the chapter it promises. The path is relative to `docs/` and
+resolves by hand, which is the trade the kit's own template already
+made. The alternative — a backticked path followed by a parenthesised
+link — parses, and was rejected as a second spelling of a form that
+already has one.
+
+This was urgent rather than tidy. task-0033, task-0034 and task-0035
+are `ready` and are carried by six of these seven specs. Whoever took
+one would have reached `writrun-check-spec-deltas` at `finish` with an
+empty promise set, and been refused UNDECLARED for touching a document
+their spec had named.

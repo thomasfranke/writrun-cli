@@ -101,7 +101,7 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/screens/README.md`](../../docs/product/screens/README.md) —
+- `product/screens/README.md` —
   the furniture every screen carries, stated as a rule.
 
 ## Proposed technical changes

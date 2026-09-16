@@ -88,10 +88,10 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/screens/README.md`](../../docs/product/screens/README.md) —
+- `product/screens/README.md` —
   the rule that outside an adoption the binary prints the help, replaced
   by the screen.
-- [`product/rules.md`](../../docs/product/rules.md) — where a command
+- `product/rules.md` — where a command
   runs.
 
 ## Proposed technical changes

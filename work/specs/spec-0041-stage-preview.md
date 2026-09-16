@@ -83,7 +83,7 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/config.md`](../../docs/product/config.md) — the preview and
+- `product/config.md` — the preview and
   what it never does.
 
 ## Proposed technical changes

@@ -92,12 +92,12 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/adoption/doctor.md`](../../docs/product/adoption/doctor.md)
+- `product/adoption/doctor.md`
   — the table of requirements and their explanations.
 
 ## Proposed technical changes
 
-- [`technical/engineering/coupling.md`](../../docs/technical/engineering/coupling.md)
+- `technical/engineering/coupling.md`
   — a fifth rule: a sentence a product doc states is embedded from that
   doc, never retyped into Go beside it.
 

@@ -92,7 +92,7 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/rules.md`](../../docs/product/rules.md) — how a command
+- `product/rules.md` — how a command
   reports, which today says `--help` restates nothing.
 
 ## Proposed technical changes

@@ -68,7 +68,7 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/queue/status.md`](../../docs/product/queue/status.md) — the
+- `product/queue/status.md` — the
   row and what it answers.
 
 ## Proposed technical changes

@@ -99,7 +99,7 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/adoption/doctor.md`](../../docs/product/adoption/doctor.md)
+- `product/adoption/doctor.md`
   — the report's shape, the four marks, the preview and what it never
   affects.
 
