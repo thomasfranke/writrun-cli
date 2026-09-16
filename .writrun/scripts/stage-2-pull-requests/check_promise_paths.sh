@@ -30,9 +30,20 @@
 #     `kit/`, `.github/`, `.writrun/` and a leading `docs/` are all
 #     caught this way; `product/` and `technical/` are not root entries,
 #     so a promise into them passes whether or not the file exists yet.
-#   - **Not a document.** The path ends in neither `.md` nor `/` — a
-#     folder promise being the trailing-slash form `check_deltas.sh`
-#     already reads.
+#   - **A folder promise missing its slash.** The path names a directory
+#     that is there, written without the trailing slash `check_deltas.sh`
+#     reads as covering everything beneath — so the comparison would be
+#     against file paths and would never match.
+#
+# **Neither of them is the file's extension**, and one of them used to
+# be. A document is not a file format: a drawing stating what a screen
+# renders, a payload shape, a fixture a rule is written against are each
+# read by a person, state what the implementation must satisfy, and are
+# touched by the diff that changes them. `check_deltas.sh` already reads
+# `docs/` whole and always did, so the extension test here left such a
+# file UNDECLARED at the completion gate and unpromisable at this one —
+# neither touchable nor declarable
+# (docs/technical/decisions/pull-requests/0075-a-document-is-not-a-file-format.md).
 #
 # Both are read off the repository rather than a list, so an adopter
 # whose docs tree is shaped differently is judged by their own tree
@@ -230,13 +241,46 @@ while IFS= read -r spec; do
       continue
     fi
 
-    # Condition two — not a document. A trailing `/` is the folder
-    # promise `check_deltas.sh` reads as covering everything beneath;
-    # anything else must name a Markdown file, or the promise is of
-    # something the doc-delta loop has no use for.
+    # Condition two — a folder promise missing its slash.
+    #
+    # **The extension is not the question, and never was.** This case
+    # read `*/|*.md` and faulted everything else as "not a document",
+    # which made the file format the test for whether something is
+    # documentation. It is not: a drawing that states what a screen must
+    # render, a JSON file stating the shape of a payload, a fixture a
+    # rule is written against — each is read by a person, states what the
+    # implementation must satisfy, and is touched by the diff that
+    # changes it, which is everything this contract asks of a document
+    # except its extension (report-0041, decision 0075).
+    #
+    # The `.md` test was standing in for "is this a documentation path at
+    # all", in a discussion entirely about repository-root paths
+    # (0065). Condition one is what answers that, and it is untouched —
+    # `tests/harness.sh` is still refused, by the segment that names it.
+    # What the extension test cost was the far side: `check_deltas.sh`
+    # reads `docs/` whole, so a non-Markdown file under it was
+    # UNDECLARED at the completion gate and unpromisable here, and could
+    # be neither touched nor declared.
+    #
+    # **What is left is the refusal the widening makes newly available.**
+    # A trailing `/` is the folder promise `check_deltas.sh` reads as
+    # covering everything beneath. Without one, a path that names a
+    # directory that *is there* is a folder promise missing its slash —
+    # `check_deltas.sh` would match it against file paths and never find
+    # it. That is knowable here, and saying so costs one edit where the
+    # completion gate would report a promise that can never be kept.
+    #
+    # Existence is asked about the *directory* only, which is why this
+    # does not reintroduce the test 0065 ruled out: a spec legitimately
+    # promises the file its own change creates, so an absent path stays
+    # legal and is judged by shape alone.
     case "$p" in
-      */|*.md) ;;
-      *) fault resolution "${id} promises \`${p}\`, read as ${as_read} — a promise names a .md file or a folder written with a trailing slash." ;;
+      */) ;;
+      *)
+        if [ -d "$as_read" ]; then
+          fault resolution "${id} promises \`${p}\`, read as ${as_read} — that is a folder, and a folder promise is written with a trailing slash."
+        fi
+        ;;
     esac
 
     # Condition three — not a rule yet. A chapter that declares itself a
@@ -292,4 +336,4 @@ if [ "$read_specs" -eq 0 ]; then
   exit 0
 fi
 
-echo "OK — ${read_specs} promise(s) read; every path resolves under docs/, onto a chapter that is a rule."
+echo "OK — ${read_specs} spec(s) read; every path resolves under docs/, onto a chapter that is a rule."

@@ -18,7 +18,7 @@ bash .writrun/skills/writrun-select-next-task/list_tasks.sh
 ```
 
 Exit 0 means something is available, 1 means nothing is. It prints up to
-five sections, and each asks for a different move:
+six sections, and each asks for a different move:
 
 - **In progress — resume before selecting anything new** — an
   `in-progress` or `in-review` task the forge shows no open pull request
@@ -34,6 +34,15 @@ five sections, and each asks for a different move:
   and the specs it summarizes. Those are gates; being asked for one
   directly does not open it, and a MISMATCH is surfaced loudly, never
   resolved on your own.
+- **Submitted — observations waiting for a report, never selected** — an
+  issue carrying `writrun:submitted` that mirrors no file: somebody
+  routed a finding here and nothing in `work/` can see it yet. **Ask the
+  maintainer to label it** `writrun:report`, which is the only thing
+  that mints a file; applying that label is a triage right and never
+  yours to assume. Naming is not selecting here either — an issue is
+  never in the ordering and never moves the exit code. A run that could
+  not reach the forge says the section went unanswered rather than
+  printing it empty.
 - **Open reports — waiting to be triaged, never selected** — a report
   nobody has routed yet. **Triage it**: read it and give it an end.
   `fixed` and `declined` are yours and ride any change; `authored`

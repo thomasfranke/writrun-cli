@@ -1,12 +1,21 @@
 # Shipped by WritRun — the report form. It shapes a human submission of
 # an observation; an agent routing a finding here shapes its own issue
-# the same way. The shape is a convenience, never the gate: the form
-# sets no label, because the gate is a maintainer applying
-# `writrun:report`, which is the judgement that the observation deserves
-# a file (docs/product/stage-3-github-issues/intake.md).
+# the same way. The shape is a convenience, never the gate: no label
+# this form applies mints anything, because the gate is a maintainer
+# applying `writrun:report`, which is the judgement that the observation
+# deserves a file (docs/product/stage-3-github-issues/intake.md).
+#
+# The label it does apply is `writrun:submitted`, and that distinction is
+# why: it is a marker, not the gate. It carries one claim — *this was
+# meant as an observation* — and its whole job is to make the set waiting
+# for that judgement addressable, so the task lister can name it instead
+# of the ask reaching whoever happens to remember. The intake drops it
+# when the report is minted
+# (intake.md#submitted-and-not-yet-a-report).
 name: Report an observation
 description: Something seen that this project should remember — a defect, a contradiction, a surprise.
 title: "What was observed, in one sentence"
+labels: ["writrun:submitted"]
 body:
   - type: markdown
     attributes:

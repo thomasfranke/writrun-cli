@@ -13,9 +13,15 @@ name: writrun check
 # work: none", naming the pull request an amendment suspends, and saying
 # a task warrants no spec are all body edits — those checks must rerun
 # when one happens, not wait for a push.
+#
+# `ready_for_review` is here for the one rule whose moment it *is*. A
+# draft owes its body nothing; marking it ready is the claim that a
+# reviewer can read it, and without this event the check that holds that
+# claim would run on every event except the one it names
+# (docs/product/stage-2-pull-requests/body.md).
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
 
 permissions:
   contents: read
@@ -172,6 +178,28 @@ jobs:
         run: |
           bash .writrun/scripts/stage-2-pull-requests/check_derived_work.sh \
             "origin/${{ github.base_ref }}...HEAD"
+
+  body:
+    name: the body answers what it carries
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every section this body carries is answered
+        # No fetch-depth: this check reads nothing out of git. The body
+        # comes from the forge rather than through `env:` like the jobs
+        # above, because the draft state has to come with it — and an
+        # event payload's `draft` is the flag at the moment the event
+        # fired, while the question being asked is what the pull request
+        # is now. Both reads are `gh`'s, so they cannot disagree.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .writrun/scripts/stage-2-pull-requests/check_body_answers.sh \
+            "${{ github.repository }}" \
+            "${{ github.event.pull_request.number }}"
 
   amendment:
     name: an amendment names what it suspends

@@ -827,6 +827,20 @@ if [ "$open" = "true" ]; then
   ensure_label "status:proposed" "ededed" "A pull request proposes this task; it is not in the queue yet"
 fi
 
+# The one label declared here and never worn by anything this script
+# writes, and the exception the rule above earns. `writrun:submitted` is
+# applied by the report form and by the kit's routing instruction — two
+# routes with no machinery of their own — and **a form referencing a
+# label the repository does not have drops it silently**. The change
+# would then appear to work everywhere except where it matters. So it is
+# declared on the pass every pull request against the authority branch
+# runs, which is the only machinery this repository points at its own
+# label set. Unconditional, because the merge is the event that must not
+# find the label missing and the open event is the one that gets there
+# first (docs/product/stage-3-github-issues/intake.md#submitted-and-not-yet-a-report).
+ensure_label "writrun:submitted" "fbca04" \
+  "Offered as an observation; not a report until a maintainer says so"
+
 # Every task the diff adds gets a mirror in the right state.
 LIVE_NUMS=""
 

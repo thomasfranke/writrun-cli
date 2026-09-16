@@ -248,4 +248,4 @@ if [ "$read_specs" -eq 0 ]; then
   exit 0
 fi
 
-echo "OK — ${read_specs} promise(s) read; every mandatory companion is present."
+echo "OK — ${read_specs} spec(s) read; every mandatory companion is present."
