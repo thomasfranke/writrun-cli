@@ -2,6 +2,7 @@ package configcmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -281,5 +282,65 @@ func TestTheStageIsHeadedWithoutASection(t *testing.T) {
 	}
 	if got := heading("stage_2"); got != "STAGE 2" {
 		t.Errorf("heading(\"stage_2\") = %q", got)
+	}
+}
+
+// A change chosen on the config screen is asked in a process of its own.
+//
+// The screen hands the terminal over for the question, and a question's
+// input reader can outlive the question: cancelled while already
+// waiting, it keeps a read on the terminal and takes the key pressed
+// next, for a program that has ended (report-0040). `writrun config
+// <key>` is this same path with the key already named, so it can be a
+// process — and a process leaves no reader behind.
+func TestAChangeOnTheScreenIsSpawned(t *testing.T) {
+	root, sc := repo(t)
+	before := readSettings(t, root)
+
+	var got []string
+	ctx := &command.Ctx{
+		Stdout: io.Discard, Stderr: io.Discard,
+		Terminal: &command.FakeTerminal{}, Root: root, Adopted: true,
+		Again: func(args []string) error { got = args; return nil },
+	}
+	path := filepath.Join(root, filepath.FromSlash(kit.Settings))
+	changer(ctx, Deps{Scripts: sc.run, Files: vfs.OS{}}, path)("stage_2.auto_push")
+
+	if strings.Join(got, ",") != "config,stage_2.auto_push" {
+		t.Errorf("spawned %v, want the command and the key it names", got)
+	}
+	if readSettings(t, root) != before {
+		t.Error("the change was made here as well as in its own process")
+	}
+}
+
+// A change with no port, or whose process could not start, is asked
+// here — which is what it always did.
+func TestAChangeFallsBackToAskingHere(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		again func([]string) error
+	}{
+		{"no port", nil},
+		{"the process would not start", func([]string) error { return errors.New("no such binary") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, sc := repo(t)
+			var errb bytes.Buffer
+			ctx := &command.Ctx{
+				Stdout: io.Discard, Stderr: &errb,
+				Terminal: &command.FakeTerminal{}, Root: root, Adopted: true,
+				Again: tc.again,
+			}
+			path := filepath.Join(root, filepath.FromSlash(kit.Settings))
+			changer(ctx, Deps{Scripts: sc.run, Files: vfs.OS{}}, path)("stage_2.auto_push")
+
+			// The fake terminal is not one, so the asking path names the
+			// question it could not ask. Reaching that sentence is the
+			// evidence that the change was asked here at all.
+			if !strings.Contains(errb.String(), "The value for stage_2.auto_push") {
+				t.Errorf("stderr = %q, want the question the asking path opens", errb.String())
+			}
+		})
 	}
 }

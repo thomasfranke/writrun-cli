@@ -1,7 +1,7 @@
 ---
 id: spec-0044
 task_ref: task-0036
-status: approved
+status: implemented
 created: 2026-09-16T19:12:57Z
 ---
 
@@ -113,4 +113,43 @@ Definition of Done.
 
 ## Outcome
 
-_(fill after execution)_
+Built as the steps give it, and the plan was one caller short.
+
+The port is `Frame.Again`, consumed in `internal/command/run.go` where
+the screen's callback returns, wired in `cmd/writrun/main.go` and faked
+everywhere else — so every case that drove the screen before still
+drives the dispatch it was written against. `exec.Cmd.Run` answers an
+error for a child that exited non-zero, and reading that as a failure
+would have run the command a second time in this process having already
+run it once; a `take` would have opened two pull requests. The port
+answers an error only for a process that could not be started, and
+`spawn` is split out from `again` so that distinction is held by a test
+rather than by a comment.
+
+**What the plan did not foresee.** Step 1 says "a command that asks",
+and Scope says "when a key on a screen chooses it" — which is the entry
+screen and the queue, and is not everything that asks. The config screen
+does not choose a command: `internal/screen/settings.go` builds its own
+dispatch and calls `change(key)` here, and that is where its question
+opens. The measurement below is what caught it; the report this closes
+had named that caller in its first sentence, and the spec narrowed it
+away.
+
+The extension needed no new surface. `writrun config <key>` already
+asks for the value and writes it — it is the same path with the key
+named — so the change spawns that. `command.Ctx` carries the port with
+the frame's flags already prepended, which is the form a command wants:
+`config` names a key and never a flag it did not parse.
+
+**Measured on Linux, twenty consecutive runs of both e2e cases, as the
+Definition of Done asks.** The entry-screen case passed twenty of twenty
+the first time — from a baseline that had taken four pull requests red.
+The config case failed three of twenty in that same run, all three
+`q did not leave the screen`, which is the defect exactly. With the
+change spawned as well: twenty of twenty, both cases, no failure.
+
+`report-0040` is answered on both paths it named. What the report says
+outlives it still does: the race in the input library is upstream's,
+open, and unreachable rather than fixed — a future caller that opens a
+question in this process brings the defect back, and nothing here can
+tell it not to.

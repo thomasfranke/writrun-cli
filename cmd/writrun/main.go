@@ -73,6 +73,7 @@ func main() {
 		Getenv:     os.Getenv,
 		Getwd:      os.Getwd,
 		Screen:     openScreen,
+		Again:      again,
 	}, os.Args[1:]))
 }
 
@@ -180,6 +181,44 @@ func openScreen(ctx *command.Ctx, run func(name, arg string, out io.Writer)) err
 		os.Stdin,
 		os.Stdout,
 	)
+}
+
+// again is the frame's spawn port in production: this binary, run a
+// second time, on the terminal this process is holding.
+//
+// It is how a command that asks is kept from leaving a reader behind in
+// this process (decision 0015). The child inherits the streams and the
+// environment rather than being handed new ones — the terminal a
+// question needs is the one already there, and the suite's own
+// `WRITRUN_TTY_IN` has to travel with it.
+//
+// An exit code is not an error here. The child ran, and a command that
+// refuses inside a session is read on the terminal; the session has
+// never read an exit code, and answering one as a failure would run the
+// command a second time, in this process, having already run it once.
+// Only a process that could not be started is reported back.
+func again(args []string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return spawn(self, args)
+}
+
+// spawn is again's half that does not have to ask who it is, which is
+// the half worth holding a test against: what it does with the child's
+// exit code.
+func spawn(self string, args []string) error {
+	c := exec.Command(self, args...)
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := c.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // listing is the lister's output, captured rather than streamed: it is

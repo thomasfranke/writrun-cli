@@ -32,3 +32,4 @@ appending a row.
 | [0012](docs/0012-technical-subjects-are-folders.md) | 2026-09-04 | docs | technical subjects are folders; `architecture.md` alone stays at the root. |
 | [0013](architecture/0013-the-kit-is-read-from-the-kit.md) | 2026-09-06 | architecture | the kit is read from the kit; Go names only what the binary calls. |
 | [0014](runtime/0014-the-product-is-writrun-cli.md) | 2026-09-09 | runtime | the product is `writrun-cli`; the command stays `writrun`. |
+| [0015](runtime/0015-a-command-that-asks-is-a-process.md) | 2026-09-16 | runtime | a command that asks runs as its own process. |
