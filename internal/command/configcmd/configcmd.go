@@ -112,15 +112,36 @@ func browse(ctx *command.Ctx, d Deps, path string) error {
 		return s, nil
 	}
 
-	// The change is the argued path, unchanged: it asks for the value,
-	// writes, and lets the checker judge. Its refusal is its own to
-	// print, on the terminal the screen released for it.
-	change := func(key string) {
+	return screen.OpenSettings(load, changer(ctx, d, path), ctx.Stdin, ctx.Stdout)
+}
+
+// changer is what a key on the config screen runs: the argued path,
+// unchanged in what it does — it asks for the value, writes, and lets
+// the checker judge. Its refusal is its own to print, on the terminal
+// the screen released for it.
+//
+// Where it runs is the part that moved. A change asks, and a question
+// is a terminal program whose input reader can outlive it: cancelled
+// while already waiting on the terminal, it keeps a read and takes the
+// key the reader presses next, for a program that has ended
+// (report-0040). `writrun config <key>` is this same path with the key
+// already named, so the question can be a process of its own and leave
+// nothing behind (decision 0015).
+//
+// Without the port, or where the process could not be started, the
+// change asks here. That is what it always did, and a screen that
+// cannot open a question is worse than one that may swallow a key.
+func changer(ctx *command.Ctx, d Deps, path string) screen.Change {
+	return func(key string) {
+		if ctx.Again != nil {
+			if err := ctx.Again([]string{"config", key}); err == nil {
+				return
+			}
+		}
 		if err := one(ctx, d, path, key); err != nil {
 			fmt.Fprintf(ctx.Stderr, "writrun config: %v\n", err)
 		}
 	}
-	return screen.OpenSettings(load, change, ctx.Stdin, ctx.Stdout)
 }
 
 // one is `writrun config <key>` with no value: ask, then write and be

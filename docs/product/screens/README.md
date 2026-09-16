@@ -76,8 +76,18 @@ a command. Which key does what is drawn in
   it is done.** A command asks through a terminal program of its own,
   and two of those in one process do not share a keyboard: a screen
   still holding the input is a question that answers itself. So the
-  screen is paused and the terminal released — not closed — and reading
-  the next thing is a keypress rather than another `writrun`.
+  screen is paused, the terminal released — not closed — and the command
+  run as a process of its own. Reading the next thing is still a
+  keypress rather than another `writrun`.
+- **A process, because releasing the terminal is not enough.** A
+  terminal program's input reader can outlive the program it reads for:
+  cancelled while already waiting on the terminal, it goes on holding a
+  read, takes the next key the reader presses, and hands it to something
+  that has ended — so the key does nothing, and a screen that ignores a
+  keypress is indistinguishable from one that has hung. Releasing the
+  terminal does not end that reader. Exiting does, and nothing else
+  reliably can, which is what makes *alone* a fact rather than an
+  intention (`work/reports/report-0040-swallowed-key.md`).
 - **A command that asks nothing answers into a screen.** Its output is
   captured and shown scrollable, with the screen saying what is running
   while it waits. The screen never gives up the terminal for such a

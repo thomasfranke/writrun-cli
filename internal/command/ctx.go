@@ -35,6 +35,21 @@ type Ctx struct {
 	// Color is the reporting rule already decided: stdout is a
 	// terminal, NO_COLOR is unset, --no-color was not given.
 	Color bool
+
+	// Again runs this binary again, as a process of its own, with the
+	// arguments given — the frame's own flags already prepended, so a
+	// caller here names the command and nothing else.
+	//
+	// It is for a command that opens a screen and then has to hand the
+	// terminal to a question: a question is a terminal program, and a
+	// terminal program's input reader can outlive it, taking the next
+	// key for something that has ended (decision 0015, report-0040). A
+	// screen whose question is a process has no such reader to leave
+	// behind.
+	//
+	// nil is a frame built without the port. The caller then asks in
+	// this process, which is what it did before the port existed.
+	Again func(args []string) error
 }
 
 // AskConfirm is the confirmation flow: --yes answers it, a terminal

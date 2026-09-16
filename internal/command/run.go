@@ -39,6 +39,28 @@ type Frame struct {
 	// nil is a binary built without a screen: the no-command path then
 	// prints the help, which is what it printed before there was one.
 	Screen func(ctx *Ctx, run func(name, arg string, out io.Writer)) error
+	// Again runs this binary a second time, as a process of its own, on
+	// the terminal this one is holding — and answers when that process
+	// has exited.
+	//
+	// It is what a command chosen on a screen goes through when the
+	// command asks a question. A question is a terminal program, and a
+	// terminal program's input reader can outlive it: cancelled while
+	// already inside its own wait, it goes on holding a read on the
+	// terminal and takes the next key for a program that has ended
+	// (report-0040, decision 0015). Releasing the terminal does not end
+	// that reader; exiting does.
+	//
+	// It answers an error only when the process could not be started. A
+	// command that ran and refused is not this port's failure — a
+	// refusal inside a session is read on the terminal, and the session
+	// has never read a command's exit code.
+	//
+	// nil is a binary that cannot spawn itself, and so is an error back:
+	// the command then runs in this process, which is what every command
+	// did before this port existed. A screen that cannot open a question
+	// is worse than one that may swallow a key.
+	Again func(args []string) error
 }
 
 const docsAddress = "https://github.com/thomasfranke/writrun-cli/tree/main/docs"
@@ -114,6 +136,7 @@ func dispatch(f Frame, noColor, yes bool, name string, rest []string) int {
 		Terminal: f.Terminal,
 		Yes:      yes,
 		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
+		Again:    spawner(f, noColor, yes),
 	}
 
 	if code, failed := resolveNeed(f, cmd.Need, ctx); failed {
@@ -224,6 +247,42 @@ func usage(w io.Writer) {
 // session does not end it and does not decide it: the reader saw the
 // refusal, read it, and came back — leaving the screen is what ends the
 // run, and leaving is not a failure.
+// spawner is the frame's port with the session's flags already on it,
+// which is the form a command wants: `config` names a key and never a
+// flag it did not parse. nil stays nil — a frame without the port hands
+// a command nothing to fall back from.
+func spawner(f Frame, noColor, yes bool) func([]string) error {
+	if f.Again == nil {
+		return nil
+	}
+	return func(args []string) error { return f.Again(withFlags(args, noColor, yes)) }
+}
+
+// sessionArgs is the command line the session would have typed: the
+// frame's flags as this run received them, then the command and the one
+// argument a row may carry.
+//
+// The flags lead because the parser takes the first bare word as the
+// command name, and a session running under `--yes` must not be asked a
+// question the parent had already answered.
+func sessionArgs(name string, rest []string, noColor, yes bool) []string {
+	return withFlags(append([]string{name}, rest...), noColor, yes)
+}
+
+// withFlags prepends the frame's flags to a command line the session is
+// about to hand to a process of its own. It is the one place they are
+// spelled, so a caller naming a command never has to know them.
+func withFlags(args []string, noColor, yes bool) []string {
+	var flags []string
+	if noColor {
+		flags = append(flags, "--no-color")
+	}
+	if yes {
+		flags = append(flags, "--yes")
+	}
+	return append(flags, args...)
+}
+
 func openScreen(f Frame, noColor, yes bool) int {
 	if f.Screen == nil || !f.Terminal.InteractiveIn() || !f.Terminal.InteractiveOut() {
 		help(f)
@@ -251,6 +310,7 @@ func openScreen(f Frame, noColor, yes bool) int {
 		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
 		Root:     root,
 		Adopted:  adopted,
+		Again:    spawner(f, noColor, yes),
 	}
 	// The screen runs each chosen command through this, and the command
 	// reports itself on the terminal the screen released — so nothing is
@@ -261,6 +321,20 @@ func openScreen(f Frame, noColor, yes bool) int {
 		var rest []string
 		if arg != "" {
 			rest = []string{arg}
+		}
+		// A command that asks runs as its own process, so that nothing
+		// of it is left reading this one's terminal when the screen
+		// comes back (spec-0044). A captured command asks nothing, opens
+		// no terminal program, and has no reader to outlive it — it
+		// stays here, where its output can be paged.
+		//
+		// Everything the reader sees is the screen's still: the pause,
+		// the released terminal, the line naming what is running, and
+		// the wait for the return. Only where the command runs changes.
+		if out == nil && f.Again != nil {
+			if err := f.Again(sessionArgs(name, rest, noColor, yes)); err == nil {
+				return
+			}
 		}
 		g := f
 		// A captured command writes where the screen can page it, and

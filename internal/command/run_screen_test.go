@@ -221,3 +221,136 @@ func TestACapturedCommandWritesWhereTheScreenSaid(t *testing.T) {
 		t.Error("a captured command also wrote to the terminal the screen is drawing on")
 	}
 }
+
+// A command that asks runs as its own process.
+//
+// This is the whole of spec-0044 in one assertion: the command chosen on
+// a screen is not called inside this process, it is handed to the spawn
+// port. What it buys is not visible from here — a reader that cannot
+// outlive a process it is not in — so this is the only place the rule
+// can be held at all (report-0040).
+func TestACommandThatAsksIsSpawned(t *testing.T) {
+	ran := false
+	cmd := Command{
+		Name: "report", Summary: "report", Need: NeedAdopted,
+		Run: func(*Ctx, []string) error { ran = true; return nil },
+	}
+	f, _, _ := frame(t, []Command{cmd}, true, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.Screen = chooses("report", "")
+
+	var got []string
+	f.Again = func(args []string) error { got = args; return nil }
+
+	if code := Run(f, nil); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if strings.Join(got, ",") != "report" {
+		t.Errorf("spawned %v, want the command alone", got)
+	}
+	if ran {
+		t.Error("the command ran in this process as well as in its own")
+	}
+}
+
+// The frame's flags travel to the process the question runs in.
+//
+// A session running under `--yes` that spawned a bare command would ask
+// a question its parent had already answered, and the reader would have
+// to answer it twice — or worse, be asked one they had declined.
+func TestTheSpawnedCommandCarriesTheSessionsFlags(t *testing.T) {
+	cmd := Command{Name: "take", Summary: "take", Need: NeedAdopted,
+		Run: func(*Ctx, []string) error { return nil }}
+	f, _, _ := frame(t, []Command{cmd}, true, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.Screen = chooses("take", "task-0021")
+
+	var got []string
+	f.Again = func(args []string) error { got = args; return nil }
+
+	if code := Run(f, []string{"--yes", "--no-color"}); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	want := "--no-color,--yes,take,task-0021"
+	if strings.Join(got, ",") != want {
+		t.Errorf("spawned %v, want %q — flags first, then the command and its argument", got, want)
+	}
+}
+
+// A command that asks nothing is captured here, not spawned.
+//
+// It opens no terminal program, so it has no reader that could outlive
+// it — and the screen keeps the terminal for it precisely so its output
+// can be paged. Spawning it would throw that away.
+func TestACapturedCommandIsNotSpawned(t *testing.T) {
+	f, _, _ := frame(t, []Command{{
+		Name: "status", Summary: "status", Need: NeedAdopted,
+		Run: func(ctx *Ctx, _ []string) error { fmt.Fprint(ctx.Stdout, "read"); return nil },
+	}}, true, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+
+	var page strings.Builder
+	f.Screen = func(_ *Ctx, run func(string, string, io.Writer)) error {
+		run("status", "", &page)
+		return nil
+	}
+	spawned := false
+	f.Again = func([]string) error { spawned = true; return nil }
+
+	if code := Run(f, nil); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if spawned {
+		t.Error("a captured command was spawned")
+	}
+	if page.String() != "read" {
+		t.Errorf("captured %q, want the command's output", page.String())
+	}
+}
+
+// A binary that cannot spawn itself still opens its questions.
+//
+// The port answers an error only when the process could not be started,
+// and the answer to that is the behaviour every command had before the
+// port existed. A screen that refuses to open a question is worse than
+// one that may swallow a key, and a reader cannot tell the two apart
+// from a question that never appeared.
+func TestAFailedSpawnFallsBackToThisProcess(t *testing.T) {
+	ran := false
+	f, _, _ := frame(t, []Command{{
+		Name: "report", Summary: "report", Need: NeedAdopted,
+		Run: func(*Ctx, []string) error { ran = true; return nil },
+	}}, true, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.Screen = chooses("report", "")
+	f.Again = func([]string) error { return errors.New("no such binary") }
+
+	if code := Run(f, nil); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if !ran {
+		t.Error("the command did not run at all after the spawn failed")
+	}
+}
+
+// A frame with no spawn port runs the command where it always ran.
+//
+// The port is production wiring, and a binary built without it — or a
+// suite driving the routing without one — must still dispatch. This is
+// the same fallback as a failed spawn, reached a different way.
+func TestNoSpawnPortRunsTheCommandHere(t *testing.T) {
+	ran := false
+	f, _, _ := frame(t, []Command{{
+		Name: "report", Summary: "report", Need: NeedAdopted,
+		Run: func(*Ctx, []string) error { ran = true; return nil },
+	}}, true, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.Screen = chooses("report", "")
+
+	if code := Run(f, nil); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if !ran {
+		t.Error("the command did not run with no spawn port wired")
+	}
+}
