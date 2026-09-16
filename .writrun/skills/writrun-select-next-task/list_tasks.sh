@@ -26,6 +26,15 @@
 # triage, and `work/reports/` never becomes a second queue
 # (docs/technical/selection/visibility.md#an-open-report-is-named-never-selected).
 #
+# **A submission is named before it is a report**, in a section above the
+# open ones and on the same terms: no ordering, never offered as the
+# thing to take, no effect on the exit code. It is the one section that
+# can be wrong about its own completeness, because the set it names lives
+# on the forge and nowhere else — so a run that could not ask says so
+# rather than printing a heading with nothing under it, which would read
+# as "nothing is waiting"
+# (docs/technical/selection/visibility.md#a-submission-is-named-before-it-is-a-report).
+#
 # The three directories are taken together or not at all — the caller
 # rule `technical/distribution/checks.md#running-the-checks` states for
 # `check_front_matter.sh`, holding here for the same reason. A caller
@@ -319,6 +328,68 @@ EOF
   done
 fi
 
+# --- what was submitted and is not a report yet ---------------------------
+#
+# An issue offered as an observation has no file until a maintainer says
+# it deserves one — arrival writes nothing into `work/`
+# (docs/product/stage-3-github-issues/intake.md#arrival-creates-nothing).
+# So no reader built on the queue can see it, and the ask reaches whoever
+# holds triage rights and remembers. `writrun:submitted` is what makes
+# the waiting set addressable, and this is the reader that names it.
+#
+# Set WRITRUN_SUBMITTED_LIST to bypass `gh` — lines of
+# "number<TAB>title", the same seam and the same degradation the pull
+# request list above has. Absent `gh`, a remote, or authentication, the
+# section is not printed empty: an empty section and an unasked question
+# look identical, and the first one reads as "nothing is waiting".
+
+submitted=""          # number|title
+sub_source="none"
+SUBMITTED_FETCH_LIMIT=200
+
+sub_lines=""
+if [ -n "${WRITRUN_SUBMITTED_LIST:-}" ]; then
+  sub_lines="$WRITRUN_SUBMITTED_LIST"
+  sub_source="supplied"
+elif command -v gh >/dev/null 2>&1; then
+  if sub_lines=$(gh issue list --state open --label writrun:submitted \
+        --limit "$SUBMITTED_FETCH_LIMIT" --json number,title \
+        --jq '.[] | "\(.number)\t\(.title)"' 2>/dev/null); then
+    sub_source="gh"
+  fi
+fi
+
+# mirrors_a_file <number> <title> — has this issue already become some
+# file's mirror? Both halves are asked, because either alone is wrong.
+#
+# The title tag is the forge's own word for a mirror, and the same read
+# intake_report.sh makes before it mints: a marker applied by hand to a
+# `[REPORT-NNNN]` issue must not produce a second listing. And the queue
+# is asked too, because the retitle is the intake's *last* write — a run
+# that died after pushing the file left the issue untagged and still
+# marked, and a title is a stranger's to edit besides. The `Issue #N`
+# line every minted report opens with is the durable answer, which is
+# why the intake's own no-op guard reads it.
+mirrors_a_file() {
+  local f
+  case "$2" in "[REPORT-"*|"[TASK-"*) return 0 ;; esac
+  for f in "$REPORT_DIR"/*.md; do
+    [ -f "$f" ] || continue
+    grep -q "^Issue #${1}[.,]" "$f" 2>/dev/null && return 0
+  done
+  return 1
+}
+
+if [ "$sub_source" != "none" ]; then
+  while IFS="$(printf '\t')" read -r snum stitle; do
+    [ -n "$snum" ] || continue
+    mirrors_a_file "$snum" "${stitle:-}" && continue
+    submitted="${submitted}${snum}|${stitle}"$'\n'
+  done <<EOF
+$sub_lines
+EOF
+fi
+
 taken_by() {
   printf '%s' "$taken" | while IFS='|' read -r id num who; do
     [ "$id" = "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" ] && {
@@ -494,6 +565,15 @@ if [ -n "$held" ]; then
   done
 fi
 
+if [ -n "$submitted" ]; then
+  echo
+  echo "Submitted — observations waiting for a report, never selected:"
+  printf '%s' "$submitted" | sed '/^$/d' | sort -t'|' -k1,1n \
+    | while IFS='|' read -r snum stitle; do
+        printf '  %-12s %s\n' "#${snum}" "$stitle"
+      done
+fi
+
 if [ -n "$open_reports" ]; then
   echo
   echo "Open reports — waiting to be triaged, never selected:"
@@ -529,6 +609,17 @@ elif [ "$pr_source" = "gh" ] \
   echo "Note: the open pull request list hit the fetch limit (${PR_FETCH_LIMIT}),"
   echo "so the in-flight section may be incomplete. Check open pull requests"
   echo "before starting."
+fi
+
+# Its own question, so its own note rather than an arm of the chain
+# above: the pull request list and the submitted list are two calls, and
+# one of them answering says nothing about the other.
+if [ "$sub_source" = "none" ]; then
+  echo
+  echo "Note: could not ask GitHub which observations are submitted and not"
+  echo "yet a report, so that section is missing rather than empty — an empty"
+  echo "one would read as nothing waiting. Check the issues labelled"
+  echo "writrun:submitted before starting."
 fi
 
 [ -n "$available" ]

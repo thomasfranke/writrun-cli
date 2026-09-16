@@ -28,8 +28,9 @@
 # `status: open`, the issue's title as its title and its text as its
 # body, commits it to the authority branch with the same rebase-not-force
 # pattern every queue recording uses, then retitles the issue
-# `[REPORT-NNNN] <title>`, labels it `status:open`, and comments the
-# file's path. From that moment the issue is the report's mirror,
+# `[REPORT-NNNN] <title>`, labels it `status:open`, drops the
+# `writrun:submitted` marker whoever submitted it applied, and comments
+# the file's path. From that moment the issue is the report's mirror,
 # exactly as if the file had come first.
 #
 # Two arrivals it declines by design: a label that is not
@@ -250,6 +251,15 @@ gh api -X POST "repos/${REPO}/labels" \
   -f description="Recorded and awaiting triage" >/dev/null 2>&1 || true
 gh api -X POST "repos/${REPO}/issues/${ISSUE}/labels" \
   -f "labels[]=status:open" >/dev/null
+# And in the same step the marker goes. The issue is a mirror now, and
+# two labels claiming the same fact would start disagreeing the first
+# time one of them was written by hand
+# (docs/product/stage-3-github-issues/intake.md#submitted-and-not-yet-a-report).
+# A removal the issue was never owed — it arrived by neither submission
+# route, so it carries no marker — answers 404, which is not a failure
+# here: this call is the marker's end, never a second gate.
+gh api -X DELETE "repos/${REPO}/issues/${ISSUE}/labels/writrun:submitted" \
+  >/dev/null 2>&1 || true
 gh api -X POST "repos/${REPO}/issues/${ISSUE}/comments" \
   -f "body=Recorded as \`${FILE}\` — the file is the authority from here; triage closes this issue." >/dev/null
 echo "issue #${ISSUE} is now ${RID}'s mirror (${TAG}, status:open)"

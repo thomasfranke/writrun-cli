@@ -130,12 +130,29 @@ assumed from the conduct flags: opening an issue on another repository
 is an outward-facing act. On an explicit yes, open the issue on the
 repository this kit came from —
 <https://github.com/thomasfranke/writrun>, the provenance pointer
-`WRITRUN.md` carries — with `gh issue create`, or the repository's
-report form by hand: the title states the observation, the body carries
-the evidence and the tag in `.writrun/VERSION`. End the local report
-`routed`, its body naming the issue it became. A refused or
-unanswerable ask — no `gh`, no network, no user to answer — leaves the
-report `open`, where a person can route it by hand.
+`WRITRUN.md` carries — with
+`gh issue create --label writrun:submitted`, or the repository's report
+form by hand: the title states the observation, the body carries the
+evidence and the tag in `.writrun/VERSION`. That label is a marker and
+not the gate: it makes the submission addressable where work is picked,
+and it mints nothing. End the local report `routed`, its body naming
+the issue it became. A refused or unanswerable ask — no `gh`, no
+network, no user to answer — leaves the report `open`, where a person
+can route it by hand.
+
+**`routed` records a submission, not an entry in the upstream queue.**
+The issue writes nothing into the upstream `work/` on arrival: a
+maintainer applying `writrun:report` is the gate, and until that label
+lands the observation is an issue and not a report. The local report is
+complete at that meaning and no other —
+[`concepts/report.md`](https://github.com/thomasfranke/writrun/blob/main/docs/product/concepts/report.md#routing-upstream)
+carries the whole of it.
+
+**Nothing is owed locally once the issue is open.** The ask is the
+maintainer's, and this project has no waiting, polling or following up
+to do against a queue it cannot see. A routed finding that goes
+unanswered is raised again by a second report, never by reopening the
+first.
 
 When the doubt is whether the defect is WritRun's or this project's use
 of it, point it at the evidence: reproduced against a clean kit copy it
@@ -164,10 +181,18 @@ is [`writrun/gates.md`](../writrun/gates.md)'s to say.
    the brief.
 2. Update every permanent doc listed in the spec's **Proposed changes** —
    in the same change; touch nothing permanent that isn't listed.
-3. Fill the spec's **Outcome**, set the spec to `implemented`, then run
-   preflight — `writrun-check-front-matter`, `writrun-check-spec-deltas`
-   and `writrun-check-task-state`, in the one order they must run, which
-   is CI's own — and mark the pull request ready on nothing else:
+3. Fill the spec's **Outcome** and set the spec to `implemented`.
+4. Fill the pull request's **body**: every section it carries answered,
+   the instructional comment the template seeded replaced by the answer
+   and no heading left standing over nothing
+   ([`stage-2-pull-requests/body.md`](https://github.com/thomasfranke/writrun/blob/main/docs/product/stage-2-pull-requests/body.md#a-section-the-body-carries-is-a-section-it-answered)).
+   The taking wrote those headings before the work existed, which is why
+   none of them belongs to the taking. Delete a section this change has
+   no use for — a body owes nothing for a heading it does not carry.
+5. Then run preflight — `writrun-check-front-matter`,
+   `writrun-check-spec-deltas` and `writrun-check-task-state`, in the one
+   order they must run, which is CI's own — and mark the pull request
+   ready on nothing else:
 
    ```bash
    bash .writrun/scripts/stage-1-tasks-and-specs/preflight.sh

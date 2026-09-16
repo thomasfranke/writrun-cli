@@ -305,7 +305,19 @@ check_doc_ref() {   # check_doc_ref <file> <block>
   [ "$ref" != "null" ] || return 0
   case "$ref" in
     docs/*) fail "$1" "doc_ref starts with docs/ — paths are written relative to docs/" ;;
-    *.md|*.md#*)
+    /*) fail "$1" "doc_ref '$ref' starts with a slash — paths are written relative to docs/" ;;
+    *)
+      # **Any path under docs/, and not a file format.** This case read
+      # `*.md|*.md#*`, which made the extension the test for whether
+      # something is documentation. It is not — a drawing that states
+      # what a screen must render, a payload shape, a fixture a rule is
+      # written against are each read by a person, state what the
+      # implementation must satisfy, and are touched by the diff that
+      # changes them. The schema said so all along: `doc_ref` is
+      # annotated "any path under docs/", and this line was the only
+      # place that was untrue
+      # (report-0041, technical/schemas/task.md#task-schema).
+      #
       # **The path, never the anchor.** Reverse traceability is only a
       # grep if the file is really there, and a doc_ref pointing at
       # nothing passed every check until now. The anchor is left
@@ -315,8 +327,20 @@ check_doc_ref() {   # check_doc_ref <file> <block>
       # file, not the section — a limit worth stating rather than a gap
       # to close later.
       target="${DOCS_DIR}/${ref%%#*}"
-      [ -f "$target" ] \
-        || fail "$1" "doc_ref '$ref' names no file — ${target} does not exist"
+      # **A folder is refused for being a folder**, not for being absent.
+      # It is right there, so "does not exist" would send the author
+      # hunting a typo that is not in the path — the same reason the
+      # draft refusal below says what it means rather than borrowing the
+      # resolution wording. The extension used to hide half of this: a
+      # folder written without `.md` was caught by the shape rule and one
+      # written as `chapter.md` was reported absent, two messages for one
+      # mistake.
+      if [ -d "$target" ]; then
+        fail "$1" "doc_ref '$ref' names a folder — ${target} is a directory, and a doc_ref names the document itself"
+      else
+        [ -f "$target" ] \
+          || fail "$1" "doc_ref '$ref' names no file — ${target} does not exist"
+      fi
       # **Resolving is no longer the whole question.** A chapter that
       # declares itself a draft is not a rule, and nothing derives from
       # one — so a doc_ref into it is derivation from a rule the project
@@ -345,6 +369,13 @@ check_doc_ref() {   # check_doc_ref <file> <block>
       # are disjoint vocabularies, so one case serves both callers; a
       # status this case does not know is judged live — strict by
       # default, and it already failed the status check on its own.
+      #
+      # **A document that is not Markdown is never a draft.** The marker
+      # is the first line, which a JSON or binary document cannot carry,
+      # so `doc_declares_draft` answers false for it — the strict answer,
+      # and the one an absent declaration has always meant. Widening the
+      # marker to other comment syntaxes is a separate question, and not
+      # one this case asks.
       case "$(get "$2" status)" in
         done|dropped|tracked|authored|fixed|declined|routed) ;;
         *)
@@ -354,7 +385,6 @@ check_doc_ref() {   # check_doc_ref <file> <block>
           ;;
       esac
       ;;
-    *) fail "$1" "doc_ref '$ref' is not null or a .md path (optionally with #anchor)" ;;
   esac
   return 0
 }
