@@ -25,7 +25,7 @@ does not install anything, and `update` is still what fetches the kit.
 1. Read every value through the kit's own
    `.writrun/scripts/stage-2-pull-requests/read_setting.sh`.
 2. Show the keys grouped by the section that owns them, as
-   [`config.excalidraw`](../../docs/product/screens/config.excalidraw)
+   [`config.excalidraw`](../../docs/product/screens/adoption/config.excalidraw)
    draws them.
 3. On a change: write the new value, then run the kit's own
    `.writrun/scripts/stage-2-pull-requests/check_settings.sh`. Keep the

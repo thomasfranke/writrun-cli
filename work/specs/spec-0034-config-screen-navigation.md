@@ -10,7 +10,7 @@ created: 2026-09-09T06:24:00Z
 **References:** [task-0031](../tasks/task-0031-config-screen-navigation.md)
 
 - **Goal:** `writrun config` with no argument opens the screen
-  [`config.excalidraw`](../../docs/product/screens/config.excalidraw)
+  [`config.excalidraw`](../../docs/product/screens/adoption/config.excalidraw)
   draws, instead of printing the keys and returning.
 
 ## Scope
@@ -99,7 +99,7 @@ notice this change.
 ## Definition of Done
 
 - [ ] `writrun config` matches
-      [`config.excalidraw`](../../docs/product/screens/config.excalidraw)
+      [`config.excalidraw`](../../docs/product/screens/adoption/config.excalidraw)
       in rows, movement and footer.
 - [ ] No allowed value is written in Go; the checker remains the only
       authority on what a value may be.
