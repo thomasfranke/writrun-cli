@@ -1,6 +1,6 @@
 ---
 id: task-0035
-status: backlog
+status: ready
 blocked_reason: null
 taken_by: null
 spec_ref: [spec-0039, spec-0043]
@@ -10,7 +10,7 @@ priority: high
 depends_on: []
 milestone: null
 created: 2026-09-13T22:29:21Z
-queued: null
+queued: 2026-09-16T04:17:58Z
 completed: null
 merged: null
 provenance: []
