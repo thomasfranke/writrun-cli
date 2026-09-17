@@ -1,10 +1,10 @@
 ---
 id: report-0030
-status: open
+status: routed
 task_ref: []
 doc_ref: null
 created: 2026-09-09T06:21:17Z
-triaged: null
+triaged: 2026-09-17T12:15:56Z
 ---
 
 # The settings vocabulary is not readable, so no porcelain can offer it
@@ -36,3 +36,20 @@ What would settle it is the schema being readable: a script beside
 `read_setting.sh` that prints a key's allowed values, or the checker
 gaining a mode that lists them. Any shape works as long as the
 vocabulary has exactly one home and it is the kit's.
+
+**Triage — routed.** It became
+[thomasfranke/writrun#268](https://github.com/thomasfranke/writrun/issues/268),
+labelled `writrun:submitted`. The vocabulary is the kit's and the fix
+has to be the kit's: reading it out of `check_settings.sh` by grep from
+this side would be a second parser of the kit's internals, which is
+exactly what `technical/engineering/coupling.md` refuses.
+
+Re-checked against `v0.0.08` before it was sent. `TITLE_STYLES`,
+`SPEC_REQUIRED`, `DECISIONS_STYLES` and `PRODUCT_LAYOUTS` are still bash
+variables at `:76-80`, `HOMES` at `:93`, and `read_setting.sh` still
+reads one value and nothing else.
+
+The config screen shipped under this constraint rather than around it:
+it writes and lets the checker judge, and the reader still learns the
+vocabulary from the refusal. That is the right shape and the late
+sentence is the cost.
