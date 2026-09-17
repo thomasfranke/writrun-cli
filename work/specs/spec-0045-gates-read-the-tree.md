@@ -1,7 +1,7 @@
 ---
 id: spec-0045
 task_ref: task-0037
-status: approved
+status: implemented
 created: 2026-09-17T13:05:47Z
 ---
 
@@ -104,4 +104,49 @@ old range — a case that passes either way holds nothing.
 
 ## Outcome
 
-_(fill after execution)_
+Half of it was reachable, and the half that was not is the half that
+mattered most. Both are here rather than one of them.
+
+**Step 1 reads the tree.** `finish` calls `check_deltas.sh` directly,
+and that call is given the bare range, so a promised document written
+and staged but not committed is judged rather than refused. The twin of
+`a_missing_delta_stops_before_any_write` proves it: same branch, same
+spec, same promised chapter, and the only difference is that the author
+has written it — on the old range the run ends `MISSING`, on this one it
+passes.
+
+**Step 4 does not, and cannot from here.** Step 1's gate is called
+directly; step 4's two later stages are called through `preflight.sh`,
+and `preflight.sh` decides what its arguments are by shape: an argument
+holding `..` is the range, anything else is a task list. A bare range
+therefore arrives as a second task list and the run dies at
+`PREFLIGHT: two task lists given` — which is what happened the first
+time this was built, with the undo correctly putting both completion
+edits back. And no other shape reaches the tree: `origin/main..` and
+`origin/main...` are accepted as ranges and both resolve their head end
+to `HEAD`. **The one shape that reaches the working tree is the one
+shape preflight will not take as a range.** That script is the kit's,
+and a patch here dies at the next `writrun update`.
+[report-0046](../reports/report-0046-preflight-bare-range.md) carries it.
+
+So the acceptance criterion about the two completion edits being seen
+rather than reported as `none` is **not met**, and step 2's "one tree,
+no disagreement" is not either: step 1 now reads the tree and step 4
+still reads the branch. That asymmetry is pinned by a test rather than
+left to be tidied — `TestStepOneReadsTheTreeAndPreflightKeepsItsShape`
+fails if the two calls are made to agree, because making them agree
+kills the command.
+
+**What the plan did not foresee, twice over.**
+
+- **`git diff <ref>` is blind to an untracked file.** The first version
+  of the integration case wrote the promised chapter and left it
+  untracked, and the check still answered MISSING — the range was right
+  and the scenario was wrong. A promised document has to be in the index
+  to be part of the change rather than debris beside it, and the case
+  says so where it stages.
+- **A caller's range must not be reduced.** The first implementation
+  reduced every range, including one given through `--range`, against
+  this spec's own step 3. An existing case —
+  `TestTheEqualsFormOfAFlagIsParsed` — is what caught it. Only the
+  default is reduced now, and `TestACallersRangeIsNotReduced` holds it.
