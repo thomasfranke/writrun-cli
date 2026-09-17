@@ -53,10 +53,6 @@ const keyRerun = "r"
 // blank, the rule, two for the explanation, the blank, the footer.
 const requirementsChrome = 6
 
-// defaultRule is how wide the rule is drawn before a terminal has said
-// how wide it is (docs/product/screens/adoption/doctor.excalidraw).
-const defaultRule = 63
-
 // OpenRequirements runs the doctor screen until the reader leaves it.
 //
 // load is called at the start and again on every `r`, so the screen
@@ -112,8 +108,9 @@ func (m *requirementsModel) fill(r Requirements) {
 	var rows []requirementRow
 	push := func(text string) { rows = append(rows, requirementRow{text: text}) }
 
-	push(" " + r.Header)
-	push(" " + r.Line)
+	for _, line := range (chrome{identity: r.Header, context: r.Line}).lines(contentWidth(m.width)) {
+		push(line)
+	}
 	for _, g := range r.Groups {
 		push("")
 		push(" " + g.Name)
@@ -209,17 +206,10 @@ func (m *requirementsModel) scroll() {
 	}
 }
 
-// ruleWidth is how wide the rule and the explanation are drawn.
-func (m requirementsModel) ruleWidth() int {
-	if m.width > 2 {
-		return m.width - 2
-	}
-	return defaultRule
-}
-
 func (m requirementsModel) View() string {
 	if m.err != nil {
-		return fmt.Sprintf(" the requirements could not be read: %v\n\n esc back · q quit\n", m.err)
+		return fmt.Sprintf(" the requirements could not be read: %v\n\n%s\n", m.err,
+			footer{way: backOrQuit}.line())
 	}
 
 	var b strings.Builder
@@ -229,22 +219,26 @@ func (m requirementsModel) View() string {
 	}
 	for i := m.top; i < end; i++ {
 		line := m.rows[i].text
-		if i == m.cursor && len(line) > 1 {
-			line = line[:1] + "›" + line[2:]
+		if i == m.cursor {
+			line = cursorIn(line)
 		}
 		b.WriteString(line)
 		b.WriteByte('\n')
 	}
 
 	b.WriteByte('\n')
-	b.WriteString(" " + strings.Repeat("─", m.ruleWidth()) + "\n")
+	b.WriteString(rule(contentWidth(m.width)) + "\n")
 	// The list scrolls and the footer stays: a terminal too short for
 	// both is still a terminal the selected row is explained on.
 	for _, line := range m.footer() {
 		b.WriteString(line + "\n")
 	}
 	b.WriteByte('\n')
-	b.WriteString(" ↑↓ move · r re-run · esc back · q quit\n")
+	b.WriteString(footer{
+		movement: "↑↓ move",
+		actions:  []string{"r re-run"},
+		way:      backOrQuit,
+	}.line() + "\n")
 	return b.String()
 }
 
@@ -256,30 +250,5 @@ func (m requirementsModel) footer() []string {
 		return nil
 	}
 	r := m.rows[m.cursor]
-	return wrap(r.name+" — "+r.explain, m.ruleWidth(), " ", "        ")
+	return wrap(r.name+" — "+r.explain, contentWidth(m.width), " ", "        ")
 }
-
-// wrap breaks text on spaces to a width, the first line under one
-// prefix and every line after it under another. Width is columns, not
-// bytes: a glyph and a dash are one column each and several bytes, and
-// counting bytes would wrap a line of them early.
-func wrap(text string, width int, first, hanging string) []string {
-	words := strings.Fields(text)
-	if len(words) == 0 {
-		return nil
-	}
-	var lines []string
-	line := first + words[0]
-	for _, w := range words[1:] {
-		if columns(line)+1+columns(w) > width {
-			lines = append(lines, line)
-			line = hanging + w
-			continue
-		}
-		line += " " + w
-	}
-	return append(lines, line)
-}
-
-// columns is how wide a string is on a terminal, counting characters.
-func columns(s string) int { return len([]rune(s)) }

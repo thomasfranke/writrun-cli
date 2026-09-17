@@ -69,7 +69,7 @@ func TestTheListersLinesAreKeptVerbatim(t *testing.T) {
 // An in-flight task is selectable. The screen judges no task: the
 // command it dispatches to owns the refusal (spec-0020, Edge cases).
 func TestATaskThatCannotBeTakenIsStillSelectable(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	m.move(1)
 	m.move(1)
 	if got := m.selected(); got != "task-0021" {
@@ -91,7 +91,7 @@ func TestEachKeyResolvesToTheCommandTheRuleNames(t *testing.T) {
 		{tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}, Action{"status", ""}},
 		{tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}, Action{}},
 	} {
-		m := newModel(rowsOf(t))
+		m := newModel(testIdentity, rowsOf(t))
 		out, _ := m.Update(tc.key)
 		if got := out.(model).action; got != tc.want {
 			t.Errorf("%s -> %+v, want %+v", tc.key, got, tc.want)
@@ -101,7 +101,7 @@ func TestEachKeyResolvesToTheCommandTheRuleNames(t *testing.T) {
 
 // q leaves and runs nothing; the zero Action is what says so.
 func TestQuitDispatchesNothing(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	out, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	if out.(model).action != (Action{}) {
 		t.Error("q resolved to a command")
@@ -112,7 +112,7 @@ func TestQuitDispatchesNothing(t *testing.T) {
 }
 
 func TestTheSelectionStopsAtTheEndsRatherThanWrapping(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	m.move(-1)
 	if got := m.selected(); got != "task-0020" {
 		t.Errorf("up from the first row moved to %q", got)
@@ -128,7 +128,7 @@ func TestTheSelectionStopsAtTheEndsRatherThanWrapping(t *testing.T) {
 // A queue with nothing to select still opens, says so, and takes s and q
 // (spec-0020, acceptance criteria).
 func TestAQueueWithNothingSelectableStillOpens(t *testing.T) {
-	m := newModel(Parse("Nothing is available.\n\nOrder is a suggestion.\n"))
+	m := newModel(testIdentity, Parse("Nothing is available.\n\nOrder is a suggestion.\n"))
 	if m.selected() != "" {
 		t.Fatal("something was selected in an empty queue")
 	}
@@ -148,7 +148,7 @@ func TestAQueueWithNothingSelectableStillOpens(t *testing.T) {
 // A terminal too short scrolls the selection into view rather than
 // truncating the list silently.
 func TestAShortTerminalScrollsTheSelectionIntoView(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	out, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 5})
 	m = out.(model)
 	for i := 0; i < 5; i++ {
@@ -158,8 +158,11 @@ func TestAShortTerminalScrollsTheSelectionIntoView(t *testing.T) {
 	if !strings.Contains(view, "task-0021") {
 		t.Errorf("the selected row is outside the window:\n%s", view)
 	}
-	if strings.Count(view, "\n") > 6 {
-		t.Errorf("the window rendered more lines than it has:\n%s", view)
+	// The window is one row on a terminal this short, and the furniture
+	// stays: a header the reader needs and a footer they navigate by.
+	// So what is counted is the lister's rows, not the lines.
+	if shown := strings.Count(view, "  task-"); shown != 1 {
+		t.Errorf("the window rendered %d rows, want the one it has room for:\n%s", shown, view)
 	}
 }
 
@@ -224,14 +227,14 @@ func noQueue(t *testing.T) func() (string, error) {
 // Init asks for nothing: the rows arrived already read, so there is no
 // first command to run.
 func TestInitAsksForNothing(t *testing.T) {
-	if cmd := newModel(rowsOf(t)).Init(); cmd != nil {
+	if cmd := newModel(testIdentity, rowsOf(t)).Init(); cmd != nil {
 		t.Error("the screen asked for work on start; the rows are already read")
 	}
 }
 
 // Scrolling back up brings the window with it.
 func TestTheWindowFollowsTheSelectionUpward(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	out, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 4})
 	m = out.(model)
 	for i := 0; i < 5; i++ {
@@ -253,7 +256,7 @@ func TestTheWindowFollowsTheSelectionUpward(t *testing.T) {
 
 // A window of one line still renders, rather than dividing by nothing.
 func TestAWindowTooShortForAnythingStillRenders(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	out, _ := m.Update(tea.WindowSizeMsg{Width: 20, Height: 1})
 	m = out.(model)
 	if got := m.height; got != 1 {
@@ -266,7 +269,7 @@ func TestAWindowTooShortForAnythingStillRenders(t *testing.T) {
 
 // An unknown key changes nothing.
 func TestAnUnknownKeyIsIgnored(t *testing.T) {
-	m := newModel(rowsOf(t))
+	m := newModel(testIdentity, rowsOf(t))
 	out, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}})
 	if out.(model).action != (Action{}) || cmd != nil {
 		t.Error("an unknown key did something")
@@ -278,7 +281,7 @@ func TestAnUnknownKeyIsIgnored(t *testing.T) {
 
 // The queue answers an unknown height the same way the entry screen does.
 func TestTheQueueTreatsAnUnknownHeightAsNoLimit(t *testing.T) {
-	out, _ := newModel(rowsOf(t)).Update(tea.WindowSizeMsg{Width: 80, Height: 0})
+	out, _ := newModel(testIdentity, rowsOf(t)).Update(tea.WindowSizeMsg{Width: 80, Height: 0})
 	m := out.(model)
 	if m.height != 0 {
 		t.Errorf("height = %d, want 0 for a terminal that did not say", m.height)

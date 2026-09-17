@@ -11,8 +11,15 @@ already defines; it never decides in the methodology's place.
 - `init` is the exception: it runs where the kit is absent, and refuses
   where it is already present.
 - `--version` and `--help` always answer, anywhere.
-- `writrun` with no command opens the [screen](screens/README.md),
-  which only dispatches the commands these rules govern.
+- `writrun` with no command opens a [screen](screens/README.md) where
+  stdin and stdout are terminals, and prints what `--help` prints where
+  either is not.
+- Which screen is the kit's answer: the entry screen inside an
+  adoption, and outside one the
+  [first run](screens/README.md#writrun-where-the-kit-is-absent), which
+  offers `init` alone and holds it out of reach while an environment
+  requirement is unmet.
+- A screen only dispatches the commands these rules govern.
 
 ## What no command ever does
 

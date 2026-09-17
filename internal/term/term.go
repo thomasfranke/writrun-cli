@@ -4,6 +4,7 @@ package term
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
@@ -11,6 +12,9 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/huh/spinner"
 	xterm "golang.org/x/term"
+
+	"github.com/thomasfranke/writrun-cli/internal/command"
+	"github.com/thomasfranke/writrun-cli/internal/screen"
 )
 
 // Terminal renders questions with huh and answers TTY probes for the
@@ -79,16 +83,53 @@ func (t Terminal) run(form *huh.Form) error {
 }
 
 // Select renders an arrow-key selection and returns the chosen index.
-func (t Terminal) Select(title string, options []string) (int, error) {
-	choice := 0
-	opts := make([]huh.Option[int], len(options))
-	for i, o := range options {
-		opts[i] = huh.NewOption(o, i)
+//
+// It is the screen component rather than a form, because the drawings
+// put the highlighted option's own sentence under the list and a form
+// puts its one description above it
+// (docs/product/screens/tasks/take.excalidraw, spec-0040).
+func (t Terminal) Select(title string, options []command.Option) (int, error) {
+	rows := make([]screen.Line, 0, len(options))
+	for _, o := range options {
+		rows = append(rows, screen.Line{Text: "  " + o.Label, Detail: o.Detail, Selects: true})
 	}
-	err := t.run(huh.NewForm(huh.NewGroup(
-		huh.NewSelect[int]().Title(title).Description(wayOut).Options(opts...).Value(&choice),
-	)))
-	return choice, err
+	return t.choose(screen.Choice{Title: title, Rows: rows, Verb: "choose"})
+}
+
+// Plan renders a composed plan and answers whether the reader confirmed
+// it. `esc` is the decline, and it is the same key the questions cancel
+// on (docs/product/screens/README.md).
+func (t Terminal) Plan(p command.Plan) (bool, error) {
+	rows := make([]screen.Line, 0, len(p.Rows))
+	for _, r := range p.Rows {
+		rows = append(rows, screen.Line{Text: r.Text, Detail: r.Detail, Selects: r.Selects})
+	}
+	i, err := t.choose(screen.Choice{Rows: rows, Verb: p.Verb})
+	if errors.Is(err, command.ErrDeclined) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return i >= 0, nil
+}
+
+// choose runs the component on this terminal, and reads a cancellation
+// as the decline it is — the frame already knows that word, and a
+// second name for it would be a second answer (command.ErrDeclined).
+func (t Terminal) choose(c screen.Choice) (int, error) {
+	in, out := io.Reader(os.Stdin), io.Writer(os.Stdout)
+	if t.In != nil {
+		in = t.In
+	}
+	if t.Out != nil {
+		out = t.Out
+	}
+	i, err := screen.Choose(c, in, out)
+	if errors.Is(err, screen.ErrCancelled) {
+		return -1, command.ErrDeclined
+	}
+	return i, err
 }
 
 // Confirm renders a yes/no question.
@@ -140,4 +181,28 @@ func (t Terminal) Spin(label string, work func() error) error {
 		return werr
 	}
 	return runErr
+}
+
+// PlanLines and QuestionLines are what the screen draws for a plan and
+// for a question, without a terminal to draw it on.
+//
+// They are here because the shapes are here: a command composes a
+// `command.Plan`, this package turns it into the screen's own, and the
+// suite holds that drawing to the frame it is checked against. A
+// command package reading the screen's types directly would be a second
+// conversion (docs/technical/engineering/boundaries.md).
+func PlanLines(p command.Plan, width, on int) []string {
+	rows := make([]screen.Line, 0, len(p.Rows))
+	for _, r := range p.Rows {
+		rows = append(rows, screen.Line{Text: r.Text, Detail: r.Detail, Selects: r.Selects})
+	}
+	return screen.Draw(screen.Choice{Rows: rows, Verb: p.Verb}, width, on)
+}
+
+func QuestionLines(title string, options []command.Option, width, on int) []string {
+	rows := make([]screen.Line, 0, len(options))
+	for _, o := range options {
+		rows = append(rows, screen.Line{Text: "  " + o.Label, Detail: o.Detail, Selects: true})
+	}
+	return screen.Draw(screen.Choice{Title: title, Rows: rows, Verb: "choose"}, width, on)
 }

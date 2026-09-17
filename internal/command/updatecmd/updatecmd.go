@@ -126,11 +126,14 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	r.render(ctx.Stdout)
+	p := r.plan(d.Tag)
 	if r.empty() {
+		for _, line := range p.Lines() {
+			fmt.Fprintln(ctx.Stdout, line)
+		}
 		return nil
 	}
-	if err := ctx.AskConfirm(fmt.Sprintf("Refresh the kit to WritRun %s?", d.Tag)); err != nil {
+	if err := ctx.AskPlan(p); err != nil {
 		return err
 	}
 	if err := r.apply(); err != nil {

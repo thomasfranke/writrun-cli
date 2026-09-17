@@ -9,6 +9,11 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
 
+// Marker is the directory whose presence beside `.git` says WritRun is
+// adopted. It is named here because resolving that is this package's
+// act (docs/technical/engineering/coupling.md, rule 1).
+const Marker = ".writrun"
+
 // Find walks up from dir to the git toplevel — the directory holding
 // `.git`, a directory or a worktree's file — and reports whether
 // `.writrun/` sits beside it. Running from a subdirectory is the same
@@ -20,7 +25,7 @@ func Find(files vfs.FS, dir string) (root string, adopted bool, err error) {
 	}
 	for {
 		if _, statErr := files.Stat(filepath.Join(d, ".git")); statErr == nil {
-			info, statErr := files.Stat(filepath.Join(d, ".writrun"))
+			info, statErr := files.Stat(filepath.Join(d, Marker))
 			return d, statErr == nil && info.IsDir(), nil
 		}
 		parent := filepath.Dir(d)

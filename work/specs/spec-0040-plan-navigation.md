@@ -1,7 +1,7 @@
 ---
 id: spec-0040
 task_ref: task-0034
-status: approved
+status: implemented
 created: 2026-09-13T22:08:09Z
 ---
 
@@ -91,8 +91,12 @@ the test is written against.
 
 - [ ] The frames named above are asserted against what the binary
       renders. Where the two disagree, the binary is what changes.
-- [ ] One question shape, one plan component — no second copy.
-- [ ] The no-terminal output is unchanged, proved by a test.
+      Six of the eight hold whole. `tasks/take.excalidraw` and
+      `tasks/list.excalidraw` are held by their rows and their keys:
+      their panes name a task's spec, which the lister's row does not
+      carry ([report-0045](../reports/report-0045-panes-unread-facts.md)).
+- [x] One question shape, one plan component — no second copy.
+- [x] The no-terminal output is unchanged, proved by a test.
 
 ## Proposed product changes
 
@@ -106,4 +110,45 @@ the test is written against.
 
 ## Outcome
 
-_(fill after execution)_
+Built, as one component. `internal/screen/choose.go` renders a list of
+rows with a cursor, the selected row's own sentence under them, and a
+footer ending `esc cancels`. A question and a plan are the same screen
+because they are the same act, so there is one of them and not two:
+`internal/term` turns a `command.Option` and a `command.Plan` into it,
+and the two questions — the stage in `init`, the task in `take` — went
+with it off `huh`, whose field renders its one description above the
+options where every drawing puts the highlighted option's own sentence
+below them.
+
+Every plan goes through `Ctx.AskPlan`. Five commands compose rows
+where they printed lines — `finish`, `author`, `amend`, `update`,
+`uninstall` — and `take` hands over what `take_task.sh` composed,
+line for line, because which line means what is the script's answer
+and not this binary's. The no-terminal path prints those same rows and
+asks the same yes/no, so its bytes are what they were.
+
+All eight frames are asserted, each beside the command that composes
+it (`internal/command/*/frames_test.go`), through `drawing.Screen` and
+`drawing.Compare` — one reader and one comparison for seven packages.
+
+**What the plan did not foresee.**
+
+`Plan` carries two forms, not one. `author`'s screen counts the body
+where the printed form quotes it, and `uninstall`'s rows name a path
+where the printed rows carry the clause about it — both because the
+drawings state the short form and step 5 states the printed one. A
+`Printed` field beside `Rows` is what keeps those from being two
+compositions; where a command needs only one form it gives only `Rows`.
+
+Two frames explain a row with facts the row does not carry.
+`tasks/take.excalidraw` says a task's spec is approved and its priority
+is medium, and `tasks/list.excalidraw` adds `no spec`; the lister's own
+line — `printf '  %-10s %-7s %s'` — carries the id, the priority and
+the title, and nothing else. Those two are asserted by their rows and
+their keys, and the difference is
+[report-0045](../reports/report-0045-panes-unread-facts.md).
+
+`authoring/author.excalidraw` disagrees with itself by one column: its
+selected row sits one column right of the three rows above it. The
+three are the authority and the case reconciles it, as the doctor
+screen's case already reconciles a word.

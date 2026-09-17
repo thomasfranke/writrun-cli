@@ -7,12 +7,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// testIdentity is the line every screen opens with, in the one shape
+// the caller composes it in.
+const testIdentity = "writrun-cli v0.1.0 · pins WritRun v0.0.07 · branch main"
+
 // sample is the shape the caller hands over: groups of commands, each
 // carrying the summary the command table already holds.
 func sample() Entry {
 	return Entry{
-		Header: "writrun-cli v0.1.0 · pins WritRun v0.0.07 · branch main",
-		Stage:  []string{"STAGE 3", "  commit ask · push auto · pull request ask"},
+		Identity: testIdentity,
+		Context:  "STAGE 3 · GitHub issues",
+		Source:   "writrun/settings.json",
+		Conduct:  []string{"  commit ask · push auto · pull request ask"},
 		Groups: []Group{
 			{Name: "tasks", Rows: []Command{
 				// `list` opens the queue rather than running, and
@@ -119,7 +125,7 @@ func TestQuitLeavesTheEntryScreenWithNothing(t *testing.T) {
 // esc on the queue is the way back: it is not an action and not a
 // departure, so the caller shows the entry screen again.
 func TestEscOnTheQueueGoesBack(t *testing.T) {
-	m := newModel(Parse("Available — any of these may be taken:\n  task-0020  A thing\n"))
+	m := newModel(testIdentity, Parse("Available — any of these may be taken:\n  task-0020  A thing\n"))
 	out, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	q := out.(model)
 	if !q.back {

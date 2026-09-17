@@ -28,9 +28,21 @@ const (
 	keyQuit   = "q"
 )
 
+// nothingToSelect is what the movement group says where no row moves.
+const nothingToSelect = "nothing to select"
+
+// emptyQueue is the explanation an empty queue carries. It is the
+// screen's own sentence because no row is there to explain, and it
+// names the key that answers instead of the row
+// (docs/product/screens/tasks/list.excalidraw).
+const emptyQueue = "Nothing is available means every task is done, in flight, " +
+	"or held back — not that there is nothing to do. `s` shows where the " +
+	"current branch stands; a held-back row names what it waits on."
+
 // model is the screen. It holds no repository state: the rows arrived
 // already read, and nothing here writes.
 type model struct {
+	chrome chrome
 	rows   []Row
 	cursor int
 	// height is the rows the viewport can show, 0 until the terminal
@@ -38,6 +50,7 @@ type model struct {
 	// truncated, so a queue longer than the window still reaches its
 	// end.
 	height int
+	width  int
 	top    int
 	action Action
 	// back says `esc` was pressed: the reader came from the entry
@@ -48,8 +61,17 @@ type model struct {
 	left bool
 }
 
-func newModel(rows []Row) model {
-	return model{rows: rows, cursor: firstSelectable(rows)}
+// queueChrome is the lines the screen keeps around the rows: the two
+// header lines, the blank under them, the two blanks over the
+// explanation, its two lines, the blank, the footer.
+const queueChrome = 9
+
+func newModel(identity string, rows []Row) model {
+	return model{
+		chrome: chrome{identity: identity, context: queueContext(rows)},
+		rows:   rows,
+		cursor: firstSelectable(rows),
+	}
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -57,7 +79,7 @@ func (m model) Init() tea.Cmd { return nil }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Two lines are the footer and the blank above it.
+		m.width = msg.Width
 		// A height of zero is a terminal that has not said how tall it
 		// is, not a terminal with no room: it gets no limit, and the
 		// rows all render. A terminal that did say, and said something
@@ -65,8 +87,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case msg.Height == 0:
 			m.height = 0
-		case msg.Height > 2:
-			m.height = msg.Height - 2
+		case msg.Height > queueChrome:
+			m.height = msg.Height - queueChrome
 		default:
 			m.height = 1
 		}
@@ -145,24 +167,56 @@ func (m *model) scroll() {
 
 func (m model) View() string {
 	var b strings.Builder
-	end := len(m.rows)
-	if m.height > 0 && m.top+m.height < end {
-		end = m.top + m.height
-	}
-	for i := m.top; i < end; i++ {
-		if i == m.cursor {
-			b.WriteString("›")
-		} else {
-			b.WriteByte(' ')
-		}
-		b.WriteString(m.rows[i].Text)
-		b.WriteByte('\n')
+	width := contentWidth(m.width)
+	for _, line := range m.chrome.lines(width) {
+		b.WriteString(line + "\n")
 	}
 	b.WriteByte('\n')
-	if m.cursor < 0 {
-		b.WriteString("nothing to select · s status · esc back · q quit\n")
-	} else {
-		b.WriteString("↑↓ move · enter take · w work · s status · esc back · q quit\n")
+
+	end := window(len(m.rows), m.top, m.height)
+	for i := m.top; i < end; i++ {
+		b.WriteString(cursorBefore(i == m.cursor) + m.rows[i].Text + "\n")
 	}
+
+	// The queue draws no rule over its explanation: its rows are the
+	// lister's own, and a rule under them would read as the lister's
+	// (docs/product/screens/tasks/list.excalidraw).
+	b.WriteString("\n\n")
+	for _, line := range wrap(m.explain(), width, " ", "        ") {
+		b.WriteString(line + "\n")
+	}
+	b.WriteByte('\n')
+	b.WriteString(m.footer().line() + "\n")
 	return b.String()
+}
+
+// footer names the keys that can act on the row under the cursor, and
+// drops the ones that cannot where there is no row
+// (docs/product/screens/tasks/list.excalidraw).
+func (m model) footer() footer {
+	if m.cursor < 0 {
+		return footer{
+			movement: nothingToSelect,
+			actions:  []string{"s status"},
+			way:      backOrQuit,
+		}
+	}
+	return footer{
+		movement: "↑↓ move",
+		actions:  []string{"enter take", "w work", "s status"},
+		way:      backOrQuit,
+	}
+}
+
+// explain is the selected row named, with the act the next key performs
+// on it — never only what the row is (spec-0040).
+func (m model) explain() string {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return emptyQueue
+	}
+	r := m.rows[m.cursor]
+	return r.ID + " — " + r.State + ". `enter` takes it: the branch is cut " +
+		"from a fresh origin/main, given its first commit, pushed, and a " +
+		"draft pull request opened. `w` launches the configured agent on " +
+		"it instead."
 }

@@ -19,7 +19,7 @@ func longOutput(n int) string {
 // sized is a pager over n lines in a window of h.
 func sized(t *testing.T, n, h int) pager {
 	t.Helper()
-	p := newPager("status", longOutput(n))
+	p := newPager(testIdentity, "status", longOutput(n))
 	out, _ := p.Update(tea.WindowSizeMsg{Width: 80, Height: h})
 	return out.(pager)
 }
@@ -96,14 +96,20 @@ func TestThePagerNamesWhatWasAskedOfIt(t *testing.T) {
 // A command that wrote nothing still says so, rather than showing a
 // blank screen the reader has to interpret.
 func TestSilenceIsSaidRatherThanShown(t *testing.T) {
-	if !strings.Contains(newPager("doctor", "").View(), "said nothing") {
+	if !strings.Contains(newPager(testIdentity, "doctor", "").View(), "said nothing") {
 		t.Error("an empty answer rendered as an empty screen")
 	}
 }
 
-// The heading names the command, because the answer alone does not.
+// The context line names the command, because the answer alone does
+// not — and the identity line is above it, because the pager is a
+// screen like the others (spec-0042).
 func TestThePagerNamesTheCommand(t *testing.T) {
-	if !strings.Contains(newPager("doctor", "all clear\n").View(), "doctor") {
-		t.Error("the answer does not say what it answers for")
+	view := newPager(testIdentity, "doctor", "all clear\n").View()
+	if !strings.Contains(view, "DOCTOR · run from the screen") {
+		t.Errorf("the answer does not say what it answers for:\n%s", view)
+	}
+	if !strings.Contains(view, testIdentity) {
+		t.Errorf("the pager opens without the identity line:\n%s", view)
 	}
 }

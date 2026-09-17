@@ -72,11 +72,17 @@ type session struct {
 	frame   int
 	pending *Action
 
+	// identity is the header's first line, the one fact every screen in
+	// this session opens with.
+	identity string
+
 	// cameFromQueue says which screen the pager will hand back to.
 	cameFromQueue bool
-	// height is the window's, kept so a pager built mid-session is born
-	// the right size rather than waiting for the next resize.
+	// height and width are the window's, kept so a pager built
+	// mid-session is born the right size rather than waiting for the
+	// next resize.
 	height int
+	width  int
 }
 
 // where is the screen the reader is looking at.
@@ -131,9 +137,13 @@ type dispatch struct {
 	// settings screen for a change — and the discipline of doing so is
 	// the thing worth having in one place.
 	label string
-	run   func()
-	in    io.Reader
-	out   io.Writer
+	// identity is the header's first line, so the terminal the command
+	// is handed opens with the same two lines every screen opens with
+	// (docs/product/screens/entry.excalidraw).
+	identity string
+	run      func()
+	in       io.Reader
+	out      io.Writer
 }
 
 // The alternate screen, entered and left by hand.
@@ -160,6 +170,16 @@ const (
 
 func (d dispatch) Run() error {
 	fmt.Fprint(d.out, altOn)
+	// The furniture first: the terminal a command is handed is a screen
+	// like the others, and it opens with the same two lines
+	// (spec-0042).
+	c := chrome{
+		identity: d.identity,
+		context:  strings.ToUpper(d.label) + " · running — the terminal is the command's now",
+	}
+	for _, line := range c.lines(defaultWidth) {
+		fmt.Fprintln(d.out, line)
+	}
 	// What is running, said before it runs. A command that reaches the
 	// forge takes seconds, and the screen it replaced is gone by then —
 	// an empty terminal is indistinguishable from a hung one.
@@ -169,7 +189,13 @@ func (d dispatch) Run() error {
 	// command owns the terminal, and a spinner would be a second writer
 	// interleaving with its output. The same reason a screen cannot
 	// stay open behind a question.
-	fmt.Fprintf(d.out, "  running %s…\n\n", d.label)
+	fmt.Fprintf(d.out, "\n   running %s…\n\n", d.label)
+	for _, line := range wrap(d.label+" has questions to ask, so it takes the whole "+
+		"terminal rather than answering into this screen — a question asked into a "+
+		"screen is a question nobody can see.", defaultWidth, "   ", "   ") {
+		fmt.Fprintln(d.out, line)
+	}
+	fmt.Fprintln(d.out)
 	d.run()
 	fmt.Fprint(d.out, "\n— enter to return to the screen —")
 	waitForLine(d.in)
@@ -209,7 +235,14 @@ func (d dispatch) SetStdout(io.Writer) {}
 func (d dispatch) SetStderr(io.Writer) {}
 
 func newSession(e Entry, listing func() (string, error), run Runner, in io.Reader, out io.Writer) session {
-	return session{entry: newEntry(e), listing: listing, run: run, in: in, out: out}
+	return session{
+		entry:    newEntry(e),
+		identity: e.Identity,
+		listing:  listing,
+		run:      run,
+		in:       in,
+		out:      out,
+	}
 }
 
 func (s session) Init() tea.Cmd { return nil }
@@ -225,7 +258,7 @@ func (s session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.queue = q.(model)
 		pg, _ := s.pager.Update(msg)
 		s.pager = pg.(pager)
-		s.height = s.pager.height
+		s.height, s.width = s.pager.height, msg.Width
 		return s, nil
 	case ranMsg:
 		// A command that owned the terminal has been read there already,
@@ -240,7 +273,7 @@ func (s session) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// A captured command answers into a screen of its own.
 		s.where = atPager
 		s.running = ""
-		s.pager = newPager(msg.command, msg.output)
+		s.pager = newPager(s.identity, msg.command, msg.output)
 		s.pager.height = s.height
 		s.pager.clamp()
 		return s, nil
@@ -358,10 +391,11 @@ func (s *session) exec(a Action) tea.Cmd {
 	}
 	run := s.run
 	d := dispatch{
-		label: a.Command,
-		run:   func() { run(a, nil) },
-		in:    s.in,
-		out:   s.out,
+		label:    a.Command,
+		identity: s.identity,
+		run:      func() { run(a, nil) },
+		in:       s.in,
+		out:      s.out,
 	}
 	return tea.Exec(d, func(error) tea.Msg { return ranMsg{} })
 }
@@ -416,12 +450,12 @@ func (s *session) loadQueue() {
 	listing, err := s.listing()
 	if err != nil {
 		s.err = err
-		s.queue = newModel(nil)
+		s.queue = newModel(s.identity, nil)
 		return
 	}
 	s.err = nil
 	cursor, top, height := s.queue.cursor, s.queue.top, s.queue.height
-	s.queue = newModel(Parse(listing))
+	s.queue = newModel(s.identity, Parse(listing))
 	s.queue.height = height
 	// The rows may be fewer than they were, so the old place is only
 	// kept where it still exists.
@@ -434,15 +468,59 @@ func (s *session) loadQueue() {
 func (s session) View() string {
 	switch s.where {
 	case atRunning:
-		return fmt.Sprintf("\n  %s running %s…\n",
-			spinnerFrames[s.frame], s.running)
+		return s.runningView()
 	case atPager:
 		return s.pager.View()
 	case atQueue:
 		if s.err != nil {
-			return fmt.Sprintf(" the queue could not be read: %v\n\n esc back · q quit\n", s.err)
+			return s.unreadableView()
 		}
 		return s.queue.View()
 	}
 	return s.entry.View()
+}
+
+// runningView is the screen while a captured command works: the same
+// two lines, the spinner, and a footer saying there is nothing to press
+// (docs/product/screens/entry.excalidraw).
+func (s session) runningView() string {
+	var b strings.Builder
+	c := chrome{
+		identity: s.identity,
+		context:  strings.ToUpper(s.running) + " · running — its output opens here when it ends",
+	}
+	for _, line := range c.lines(contentWidth(s.width)) {
+		b.WriteString(line + "\n")
+	}
+	fmt.Fprintf(&b, "\n  %s  running %s…\n\n", spinnerFrames[s.frame], s.running)
+	b.WriteString(footer{
+		movement: "nothing to press",
+		actions:  []string{"the output opens when the command ends"},
+		way:      silent,
+	}.line() + "\n")
+	return b.String()
+}
+
+// unreadableView is the queue that could not be read: the failure
+// marked as `doctor` marks one, and the commands that answer it named
+// — an error alone says what broke and not what to do (spec-0042).
+func (s session) unreadableView() string {
+	var b strings.Builder
+	width := contentWidth(s.width)
+	for _, line := range (chrome{identity: s.identity, context: "QUEUE · unreadable"}).lines(width) {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n  ✗  the queue could not be read\n")
+	for _, line := range wrap(fmt.Sprint(s.err), width, "      ", "      ") {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n\n")
+	for _, line := range wrap("The script that reads the queue is the kit's, and it is "+
+		"not where it should be. `writrun doctor` says what else is missing; "+
+		"`writrun update` puts the kit back.", width, " ", "        ") {
+		b.WriteString(line + "\n")
+	}
+	b.WriteByte('\n')
+	b.WriteString(footer{movement: "↑↓ move", way: backOrQuit}.line() + "\n")
+	return b.String()
 }

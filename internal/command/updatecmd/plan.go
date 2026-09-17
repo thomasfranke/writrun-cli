@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kitpaths"
 	"github.com/thomasfranke/writrun-cli/internal/kittag"
@@ -204,52 +205,133 @@ func (r *refresh) empty() bool {
 	return len(r.changes) == 1 && r.changes[0].rel == kittag.Rel
 }
 
-// render prints what will change before anything changes.
-func (r *refresh) render(w io.Writer) {
-	fmt.Fprintf(w, "writrun update — WritRun %s → %s; nothing is written before the confirmation:\n\n", r.from, r.to)
+// plan is what will change, as the rows of one screen. Printing every
+// row is what a run with no terminal writes — the same bytes, in the
+// same order, as before there was a screen (spec-0040).
+func (r *refresh) plan(tag string) command.Plan {
+	p := command.Plan{
+		Verb:     "refresh",
+		Question: fmt.Sprintf("Refresh the kit to WritRun %s?", tag),
+	}
+	line := func(format string, args ...any) {
+		p.Rows = append(p.Rows, command.PlanRow{Text: fmt.Sprintf(format, args...)})
+	}
+	row := func(text, detail string) {
+		p.Rows = append(p.Rows, command.PlanRow{Text: text, Detail: detail, Selects: true})
+	}
+
+	line("writrun update — WritRun %s → %s; nothing is written before the confirmation:", r.from, r.to)
+	line("")
 	if r.empty() {
-		fmt.Fprintf(w, "  Only the recorded tag differs; every kit-owned file already matches %s.\n\n", r.to)
-		return
+		line("  Only the recorded tag differs; every kit-owned file already matches %s.", r.to)
+		line("")
+		return p
 	}
 	for _, m := range r.moves {
-		fmt.Fprintf(w, "  move         %s → %s — yours, and it leaves the kit's home\n", m.from, m.to)
+		row(fmt.Sprintf("  move         %s → %s — yours, and it leaves the kit's home", m.from, m.to),
+			m.from+" — yours, and it leaves the kit's home for the project's at "+
+				m.to+". It is carried across byte for byte, once, and never read at "+
+				"the old address again.")
 	}
 	for _, m := range r.stranded {
-		fmt.Fprintf(w, "  left         %s — %s already answers; nothing is merged\n", m.from, m.to)
+		row(fmt.Sprintf("  left         %s — %s already answers; nothing is merged", m.from, m.to),
+			m.from+" — "+m.to+" already answers, so nothing is merged and nothing "+
+				"is moved. Two answers about one setting are yours to reconcile.")
 	}
 	if len(r.moves) > 0 || len(r.stranded) > 0 {
-		fmt.Fprintln(w)
+		line("")
 	}
-	tops := map[string]map[verb]int{}
+	tops := map[string][]change{}
 	var order []string
 	for _, c := range r.changes {
 		top := group(c.rel)
 		if _, there := tops[top]; !there {
-			tops[top] = map[verb]int{}
 			order = append(order, top)
 		}
-		tops[top][c.verb]++
+		tops[top] = append(tops[top], c)
 	}
 	sort.Strings(order)
 	for _, top := range order {
+		counts := map[verb]int{}
+		for _, c := range tops[top] {
+			counts[c.verb]++
+		}
 		parts := make([]string, 0, 4)
 		for _, v := range []verb{added, changed, removed, seeded} {
-			if n := tops[top][v]; n > 0 {
+			if n := counts[v]; n > 0 {
 				parts = append(parts, fmt.Sprintf("%d to %s", n, v))
 			}
 		}
-		fmt.Fprintf(w, "  %-34s %s\n", top, strings.Join(parts, ", "))
+		row(fmt.Sprintf("  %-34s %s", top, strings.Join(parts, ", ")), groupDetail(top, tops[top]))
 	}
 	for _, rel := range r.kept {
-		fmt.Fprintf(w, "  %-34s yours; this tag ships one and it is left alone\n", rel)
+		row(fmt.Sprintf("  %-34s yours; this tag ships one and it is left alone", rel),
+			rel+" — yours. This tag ships one and the refresh leaves the one you "+
+				"have alone: a seeded file is written once, at adoption.")
 	}
 	if r.legacy {
-		fmt.Fprintln(w, "\n  AGENTS.md still carries a writrun:begin/writrun:end section. From")
-		fmt.Fprintf(w, "  WritRun %s the flow lives in %s and that file is yours,\n", r.to, pointer.Target)
-		fmt.Fprintln(w, "  whole — so this refresh does not touch it. Cutting the stale section")
-		fmt.Fprintln(w, "  is yours to do.")
+		line("")
+		line("  AGENTS.md still carries a writrun:begin/writrun:end section. From")
+		line("  WritRun %s the flow lives in %s and that file is yours,", r.to, pointer.Target)
+		line("  whole — so this refresh does not touch it. Cutting the stale section")
+		line("  is yours to do.")
 	}
-	fmt.Fprintf(w, "\n  untouched    %s\n\n", strings.Join(kitpaths.Untouchable, ", "))
+	line("")
+	line("  untouched    %s", strings.Join(kitpaths.Untouchable, ", "))
+	line("")
+	return p
+}
+
+// verbPhrase is what one change does to one file, in the words a
+// sentence takes.
+var verbPhrase = map[verb]string{
+	added:   "is added",
+	changed: "is rewritten",
+	removed: "is removed",
+	seeded:  "is seeded",
+}
+
+// groupDetail names the files one row counts, and says what decides the
+// set — which is the tag, never this binary
+// (docs/product/screens/adoption/update.excalidraw).
+func groupDetail(top string, files []change) string {
+	said := make([]string, 0, len(files))
+	for _, c := range files {
+		said = append(said, path.Base(c.rel)+" "+verbPhrase[c.verb])
+	}
+	detail := top + " — " + list(said) + ". "
+	for _, dir := range kitpaths.NamespacedDirs() {
+		if strings.HasPrefix(top, dir+"/") {
+			each := "Each carries"
+			if len(files) == 2 {
+				each = "Both carry"
+			}
+			return detail + each + " the `writrun-` prefix, so " + theirs(len(files)) +
+				" the kit's; a workflow you wrote is never in this list. The tag " +
+				"decides the set, not this binary."
+		}
+	}
+	return detail + "The tag decides the set, not this binary."
+}
+
+func theirs(n int) string {
+	if n == 2 {
+		return "both are"
+	}
+	return "each is"
+}
+
+// list joins clauses the way a sentence does: the last one after `and`.
+func list(parts []string) string {
+	switch len(parts) {
+	case 0:
+		return ""
+	case 1:
+		return parts[0]
+	case 2:
+		return parts[0] + " and " + parts[1]
+	}
+	return strings.Join(parts[:len(parts)-1], ", ") + " and " + parts[len(parts)-1]
 }
 
 // group is the heading a change is counted under: the first two path

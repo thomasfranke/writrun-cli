@@ -8,6 +8,8 @@ type FakeTerminal struct {
 
 	SelectIndex   int
 	SelectErr     error
+	PlanAnswer    bool
+	PlanErr       error
 	ConfirmAnswer bool
 	ConfirmErr    error
 	InputAnswer   string
@@ -15,14 +17,25 @@ type FakeTerminal struct {
 
 	// Asked records every question rendered, in order.
 	Asked []string
+	// Offered and Planned are the last question's options and the last
+	// plan navigated — what a case asserts the descriptions against.
+	Offered []Option
+	Planned Plan
 }
 
 func (f *FakeTerminal) InteractiveIn() bool  { return f.In }
 func (f *FakeTerminal) InteractiveOut() bool { return f.Out }
 
-func (f *FakeTerminal) Select(title string, options []string) (int, error) {
+func (f *FakeTerminal) Select(title string, options []Option) (int, error) {
 	f.Asked = append(f.Asked, title)
+	f.Offered = options
 	return f.SelectIndex, f.SelectErr
+}
+
+func (f *FakeTerminal) Plan(p Plan) (bool, error) {
+	f.Asked = append(f.Asked, p.Question)
+	f.Planned = p
+	return f.PlanAnswer, f.PlanErr
 }
 
 func (f *FakeTerminal) Confirm(question string) (bool, error) {

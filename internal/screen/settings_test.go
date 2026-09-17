@@ -13,7 +13,10 @@ import (
 // answered.
 func settings() Settings {
 	return Settings{
-		Header: "CONFIG · writrun/settings.json   checked by check_settings.sh",
+		Identity: testIdentity,
+		Context:  "CONFIG · writrun/settings.json",
+		Source:   "checked by check_settings.sh",
+		Checker:  "check_settings.sh",
 		Groups: []SettingGroup{
 			{Name: "THE STAGE", Rows: []Setting{
 				{Name: "stage", Key: "stage", Value: "3"},

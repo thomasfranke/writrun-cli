@@ -61,10 +61,9 @@ a command. Which key does what is drawn in
 
 - Requires a terminal on stdin and stdout; without one, prints what
   `--help` prints instead.
-- Requires an adopted repository; outside one, prints what `--help`
-  prints instead. A screen in its place is drawn in
-  [first-run.excalidraw](first-run.excalidraw), and until the binary
-  opens it the gap is a task.
+- Inside an adoption it opens the entry screen, and outside one the
+  first run ([below](#writrun-where-the-kit-is-absent)). Which of the
+  two is the kit's answer, never a flag's.
 - Shows the sections [`list`](../queue/list.md) shows, in the same
   order.
 - Dispatches [`take`](../pull-requests/take.md),
@@ -103,6 +102,56 @@ a command. Which key does what is drawn in
 - The screen offers no action a command does not already provide.
 - The screen reads only; every change goes through the dispatched
   command.
+
+## `writrun` where the kit is absent
+
+Opens the screen drawn in [first-run.excalidraw](first-run.excalidraw):
+the wordmark, what the environment answers, and `init`.
+
+- Requires a terminal on stdin and stdout; without one, prints what
+  `--help` prints instead.
+- Answers the four environment requirements with the probe
+  [`doctor`](../adoption/doctor.md)'s stage 0 uses, marked the same way.
+- Offers `init` as the one adoption row, and holds it out of reach
+  while any requirement is unmet: the row says why, and `enter` is not
+  offered.
+- Offers `r` while a requirement is unmet, which reads the `PATH`
+  again.
+- Opens where the directory is not a git repository too;
+  [`init`](../adoption/init.md)'s own refusal is the answer.
+- Names `--version` and `--help`, the two answers that run anywhere.
+- The wordmark is drawn here and on no other screen.
+
+## The furniture every screen carries
+
+Composed in one place and never by a screen
+([report-0035](../../../work/reports/report-0035-screen-furniture.md)).
+
+- **Two lines of header.** The identity line — the product, its
+  version, the tag it pins, the branch — then a context line naming
+  what this screen reads. Where a screen was read from a file, that
+  file is named at the right of the context line.
+- **One line of footer, in three groups, in this order:** movement, the
+  actions one key each, the way out.
+- **`esc` goes back and `q` quits.** A screen with nowhere to go back
+  to — the entry screen, the first run — offers `q quit` alone and no
+  `esc`. No footer calls `q` a way back.
+- **A screen with nothing selectable drops the keys that cannot act**
+  and says `nothing to select` in the movement group's place.
+- **A command's output is a screen.** The pager carries the same two
+  lines and the same way out, and so does the terminal a command that
+  asks is handed.
+- **A question carries no header and no `q`**, because `q` over a list
+  of options is a value, and ends `esc cancels`.
+- **A plan is a question.** Its rows take a cursor, the pane under them
+  names the selected row and the act the next key performs on it, and
+  its footer ends `esc cancels`.
+- **A failed read names the command that answers it**, not only the
+  error.
+- **A terminal narrower than the header truncates it.** A header never
+  wraps into the rows.
+- Run from a shell a command prints its own lines and no header, as
+  [rules](../rules.md) requires of plain output.
 
 ## `writrun config`
 

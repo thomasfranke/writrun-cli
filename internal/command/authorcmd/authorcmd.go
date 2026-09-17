@@ -171,10 +171,8 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err := observe(ctx, d, c.title, c.body, ch.rng); err != nil {
 		return err
 	}
-	show(ctx.Stdout, c)
-
 	// 4 — the question, then the forge, and nothing before it.
-	if err := ctx.AskConfirm("Push the branch and open the pull request ready for review?"); err != nil {
+	if err := ctx.AskPlan(authorPlan(c)); err != nil {
 		return err
 	}
 	return open(ctx, d, ch, c)
@@ -257,6 +255,75 @@ func show(w io.Writer, c composition) {
 		fmt.Fprintf(w, "  %s\n", f)
 	}
 	fmt.Fprintln(w)
+}
+
+// authorPlan is the composition as the rows of one screen: what is
+// about to be pushed, and what each line of it is.
+//
+// The screen counts the body where the printed form quotes it — a
+// reader deciding on a terminal is looking at four facts, and a reader
+// reading a transcript wants the bytes. Both forms are here, so neither
+// is a second composition (spec-0040).
+func authorPlan(c composition) command.Plan {
+	var printed bytes.Buffer
+	show(&printed, c)
+
+	lines := strings.Split(strings.TrimRight(c.body, "\n"), "\n")
+	rows := []command.PlanRow{
+		{Text: ""},
+		{
+			Text:    "branch: " + c.branch,
+			Selects: true,
+			Detail: "branch — " + c.branch + ", composed from this project's own " +
+				"branch convention. It is cut after the question and not before: a " +
+				"refusal leaves no branch behind.",
+		},
+		{
+			Text:    "title:  " + c.title,
+			Selects: true,
+			Detail: "title — the pull request's, in the style this project declared. " +
+				"An authoring pull request carries no `[TASK-NNNN]` tag, because its " +
+				"tasks are born in it.",
+		},
+		{
+			Text:    fmt.Sprintf("body:   %d lines, the template's own", len(lines)),
+			Selects: true,
+			Detail: fmt.Sprintf("body — %d lines, the template's own. Every section "+
+				"the template seeded is answered here, and a heading standing over "+
+				"nothing is what the observance check refuses.", len(lines)),
+		},
+		{
+			Text:    fmt.Sprintf("files:  %d", len(c.files)),
+			Selects: true,
+			Detail: "files — the " + numeral(len(c.files)) + " this branch carries, " +
+				"read from the diff. A change that is not authoring is refused before " +
+				"this point: an authoring pull request carries the rule and the work " +
+				"it derived, and nothing else.",
+		},
+	}
+	for _, f := range c.files {
+		rows = append(rows, command.PlanRow{Text: "          " + f})
+	}
+	rows = append(rows, command.PlanRow{Text: ""})
+
+	return command.Plan{
+		Rows:     rows,
+		Printed:  command.Written(printed.String()),
+		Verb:     "open the pull request",
+		Question: "Push the branch and open the pull request ready for review?",
+	}
+}
+
+// numeral is a small count in words, which is how a sentence says it.
+// Past ten the figure reads better than the word, and that is where
+// this stops.
+func numeral(n int) string {
+	words := []string{"none", "one", "two", "three", "four", "five",
+		"six", "seven", "eight", "nine", "ten"}
+	if n >= 0 && n < len(words) {
+		return words[n]
+	}
+	return fmt.Sprint(n)
 }
 
 // open performs exactly the act that was shown. The forge is verified

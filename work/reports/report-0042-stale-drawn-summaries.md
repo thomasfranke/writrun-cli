@@ -1,10 +1,10 @@
 ---
 id: report-0042
-status: open
-task_ref: []
+status: fixed
+task_ref: [task-0034]
 doc_ref: product/screens/README.md
 created: 2026-09-17T03:35:15Z
-triaged: null
+triaged: 2026-09-17T13:03:19Z
 ---
 
 # two drawings state the one-liners the help drawing replaced
@@ -37,3 +37,24 @@ moved to the 66 the drawing's own window gives.
 Two drawings of one field now state two different answers, and
 `screens/README.md` says a drawing that must itself change is a
 documentation change of its own, decided by a person.
+
+**Triage — fixed.** Both drawings now state the strings the command
+table holds, and `entry.excalidraw` draws the `config` row the entry
+screen's own grouping lists. The rows are the 66 columns the window
+gives them, which no summary in the table reaches.
+
+Three smaller corrections rode the same edit, each the same kind of
+staleness. The entry screen's context line named
+`.writrun/settings.json`, which the two homes moved to
+`writrun/settings.json` (spec-0033). Its explanation pane quoted the
+replaced one-liner a second time. And two rows sat one column right of
+the rows above them — the worked example's second task, and the four
+flag rows of both first-run frames — which is the drawing disagreeing
+with itself rather than with the binary.
+
+What stops it recurring is a case rather than a habit.
+`cmd/writrun/screens_test.go` reads the rows out of both drawings and
+fails naming the command whose summary drifted, or the command the
+entry screen groups and the drawing draws no row for. A summary edited
+in the table and nowhere else is a red build, not a screen that
+disagrees with the reference it is checked against.

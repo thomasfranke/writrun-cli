@@ -59,7 +59,7 @@ func TestTheTaskIsArrowSelectedWhenNoneIsGiven(t *testing.T) {
 	if got := h.argsOf(t, 1); got != "task-0008 --title "+title {
 		t.Errorf("args = %q; want the selected task", got)
 	}
-	if len(h.term.Asked) != 2 || !strings.Contains(h.term.Asked[0], "which task") {
+	if len(h.term.Asked) != 2 || !strings.Contains(strings.ToLower(h.term.Asked[0]), "which task") {
 		t.Errorf("asked %v; want the selection then the title", h.term.Asked)
 	}
 }

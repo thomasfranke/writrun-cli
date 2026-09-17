@@ -1,7 +1,7 @@
 ---
 id: spec-0038
 task_ref: task-0034
-status: approved
+status: implemented
 created: 2026-09-13T22:08:05Z
 ---
 
@@ -80,19 +80,17 @@ the test is written against.
 
 ## Definition of Done
 
-- [ ] The frames named above are asserted against what the binary
+- [x] The frames named above are asserted against what the binary
       renders. Where the two disagree, the binary is what changes.
-- [ ] The screen opens where the kit is absent, and only there.
-- [ ] `init` is unreachable while any requirement is unmet.
-- [ ] The no-terminal path is unchanged.
+- [x] The screen opens where the kit is absent, and only there.
+- [x] `init` is unreachable while any requirement is unmet.
+- [x] The no-terminal path is unchanged.
 
 ## Proposed product changes
 
-- [`product/screens/README.md`](../../docs/product/screens/README.md) —
-  the rule that outside an adoption the binary prints the help, replaced
-  by the screen.
-- [`product/rules.md`](../../docs/product/rules.md) — where a command
-  runs.
+- `product/screens/README.md` — the rule that outside an adoption the
+  binary prints the help, replaced by the screen.
+- `product/rules.md` — where a command runs.
 
 ## Proposed technical changes
 
@@ -100,4 +98,43 @@ the test is written against.
 
 ## Outcome
 
-_(fill after execution)_
+Built. `internal/screen/firstrun.go` is the screen: the wordmark and
+WritRun's own line, the identity and context lines every other screen
+opens with, the four environment requirements answered by
+`internal/requirements` and marked with `doctor`'s own glyphs, `init`
+as the one adoption row, and `--version` and `--help` under it.
+`command.Frame` gained a `FirstRun` port beside `Screen`, wired in
+`cmd/writrun/main.go`, and `openScreen` now asks the terminal first and
+the kit second: a terminal at both ends opens a screen, and which
+screen is whether `.writrun/` is there.
+
+`enter` is refused while any requirement is unmet — the screen's own
+gate, and the row is emptied of its command besides — and the footer
+offers `r re-check` in `enter`'s place. `r` reads the `PATH` again
+through the same probe, so a requirement installed while the screen is
+open is met the moment it is asked for.
+
+Both frames are asserted line for line
+(`internal/screen/screens_frames_test.go`), and the screen is opened on
+a pty in `tests/e2e/screen/the_first_run_screen_test.sh`. The
+no-terminal path is unchanged and proved so in
+`tests/integration/screen/the_screen_needs_a_terminal_test.sh`.
+
+**What the plan did not foresee.**
+
+The command a key chooses runs **after** the screen closes, not inside
+it. The session pauses for a command because it has more to offer
+afterwards; this screen's whole offer is one command, so closing it is
+enough — and the spawn port is still used where it is wired, for the
+reason decision 0015 gives.
+
+The four requirements needed a sentence each, and `doctor`'s are the
+document's table, which is not readable where no repository has been
+adopted. `requirements.Reason` carries one clause per binary beside the
+list that names them — the same fact, not a second one — and the screen
+composes the rest.
+
+`init`'s row shows the command table's own summary rather than a line
+written for this screen. The drawing stated a third wording of one
+field, which is what report-0042 recorded; the row now reads from the
+table like every other row on every other screen.
