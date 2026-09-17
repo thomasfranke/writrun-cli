@@ -24,6 +24,19 @@ Shows the adopter's settings, and changes one.
   command line.
 - **Shows the key, the old value and the new one, then asks**
   ([rules](rules.md)).
+- **A raised stage is previewed before the question**
+  ([adoption/config.excalidraw](screens/adoption/config.excalidraw)):
+  the target stage's requirements, marked as
+  [`doctor`](adoption/doctor.md) marks them, and the count of what is
+  met, unmet and unread.
+- **The preview is `doctor`'s answers.** `config` runs that stage's
+  checks through `doctor` and shows them; it holds no copy of a check
+  and judges none of them.
+- **The preview never refuses.** A check that could not be read is
+  `unread`, not unmet, and the write is still offered — an adopter with
+  no network can raise a stage.
+- **Nothing is previewed where the stage is lowered or unchanged.**
+  Nothing new is required of the repository.
 - Writes, then hands the file to the kit's checker. The change is kept
   only where the checker accepts it.
 - **A refused change restores the file byte for byte** and prints the

@@ -32,6 +32,6 @@ check "a settings file the readers cannot see is named" 0 \
 check "the settings check's own words are carried" 0 "REJECTED" -- cat "$WORK/settings.out"
 
 settings 1
-check "both checks passing leaves stage 1 clear" 0 "Stage 1 — files: all clear." -- "$WRITRUN" doctor
+check "both checks passing leaves stage 1 clear" 0 "Stage 1 — files: 9 of 9 met." -- "$WRITRUN" doctor
 
 finish

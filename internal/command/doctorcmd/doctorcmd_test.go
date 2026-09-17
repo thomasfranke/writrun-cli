@@ -13,7 +13,10 @@ import (
 func runDoctor(t *testing.T, f *fixture, args ...string) (string, error) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	ctx := &command.Ctx{Stdout: &stdout, Stderr: &stderr, Root: f.root, Adopted: true}
+	// No terminal: the report is what a run without one prints, and it
+	// is what these cases are about (spec-0037).
+	ctx := &command.Ctx{Stdout: &stdout, Stderr: &stderr, Root: f.root, Adopted: true,
+		Terminal: &command.FakeTerminal{}}
 	err := run(ctx, f.deps(), args)
 	if stderr.Len() != 0 {
 		t.Errorf("stderr = %q; the report is one stream", stderr.String())
@@ -54,12 +57,13 @@ func TestEveryAssumptionHoldingExitsZero(t *testing.T) {
 		t.Fatalf("run = %v (exit %d), want 0", err, exitCode(err))
 	}
 	for _, want := range []string{
-		"Stage 3 is declared — stages 0–3 examined.",
-		"Stage 0 — environment: all clear.",
-		"Stage 1 — files: all clear.",
-		"Stage 2 — the forge: all clear.",
-		"Stage 3 — Issues: all clear.",
+		"Stage 3 is declared — stages 0–3 examined; there is no rung above it.",
+		"Stage 0 — environment: 4 of 4 met.",
+		"Stage 1 — files: 9 of 9 met.",
+		"Stage 2 — the forge: 6 of 6 met.",
+		"Stage 3 — Issues: 1 of 1 met.",
 		"Every assumption up to stage 3 holds.",
+		"Stage 3 is the top rung — there is nothing above it to preview.",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)
@@ -74,10 +78,10 @@ func TestAFindingThatBreaksAFlowExitsNonZero(t *testing.T) {
 	if exitCode(err) != 1 {
 		t.Fatalf("exit = %d, want 1", exitCode(err))
 	}
-	if !strings.Contains(out, "sed is not on the PATH") {
+	if !strings.Contains(out, "✗  sed — not on the PATH") {
 		t.Errorf("output does not name the missing requirement:\n%s", out)
 	}
-	if !strings.Contains(out, "1 finding(s): 1 breaking a flow") {
+	if !strings.Contains(out, "1 finding at stage 1: 1 breaking a flow") {
 		t.Errorf("the summary does not agree with the exit status:\n%s", out)
 	}
 }
@@ -90,7 +94,7 @@ func TestARecommendationAloneExitsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run = %v (exit %d), want 0 for a recommendation", err, exitCode(err))
 	}
-	if !strings.Contains(out, "advises  main is governed by no ruleset") {
+	if !strings.Contains(out, "!  main is governed by a ruleset — no ruleset governs it") {
 		t.Errorf("the recommendation is not reported as one:\n%s", out)
 	}
 	if !strings.Contains(out, "none breaking a flow") {
@@ -105,25 +109,28 @@ func TestAnUnreadableForgeIsSaidAndExitsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run = %v (exit %d), want 0 for an unreachable forge", err, exitCode(err))
 	}
-	if !strings.Contains(out, "unread   gh is not authenticated") {
+	if !strings.Contains(out, "?  gh authenticated — run `gh auth login`") {
 		t.Errorf("the stand-down is not reported:\n%s", out)
 	}
-	if !strings.Contains(out, "unread   whether Issues are enabled was not read") {
+	if !strings.Contains(out, "?  Issues are enabled — the forge did not answer") {
 		t.Errorf("stage 3 does not say what it could not check:\n%s", out)
 	}
 }
 
-// A stage above the declared one is named all the same: a clean report
-// and an unexamined one must not read alike (spec-0004, edge cases).
-func TestTheStandDownAboveTheDeclaredStageIsSaid(t *testing.T) {
+// The rung above the declaration is previewed and the one above that
+// says it is not — a clean report and an unexamined one must not read
+// alike (spec-0036).
+func TestTheRungAboveTheDeclarationIsPreviewed(t *testing.T) {
 	f := newFixture(t, "1")
 	out, err := runDoctor(t, f)
 	if err != nil {
 		t.Fatalf("run = %v, want 0", err)
 	}
 	for _, want := range []string{
-		"Stage 2 — the forge: not examined — the repository declares stage 1.",
-		"Stage 3 — Issues: not examined — the repository declares stage 1.",
+		"Stage 1 is declared — stages 0–1 examined, stage 2 previewed.",
+		"Stage 2 — the forge, previewed: 6 of 6 met.",
+		"Stage 3 — Issues: not previewed — one rung at a time.",
+		"Stage 2 is within reach: its 6 requirements are met.",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)
@@ -150,8 +157,8 @@ func TestAWrappedChecksOwnWordsAreCarriedUnderTheFinding(t *testing.T) {
 		t.Fatalf("exit = %d, want 1", exitCode(err))
 	}
 	for _, want := range []string{
-		"           | REJECTED: work/tasks/task-0001.md",
-		"           | REJECTED: work/specs/spec-0001.md",
+		"        REJECTED: work/tasks/task-0001.md",
+		"        REJECTED: work/specs/spec-0001.md",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)

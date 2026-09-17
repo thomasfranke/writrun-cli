@@ -1,7 +1,7 @@
 ---
 id: spec-0041
 task_ref: task-0033
-status: approved
+status: implemented
 created: 2026-09-13T22:08:11Z
 ---
 
@@ -83,8 +83,7 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/config.md`](../../docs/product/config.md) — the preview and
-  what it never does.
+- `product/config.md` — the preview and what it never does.
 
 ## Proposed technical changes
 
@@ -92,4 +91,41 @@ the test is written against.
 
 ## Outcome
 
-_(fill after execution)_
+`internal/command/configcmd/preview.go` runs the target stage's checks
+through `doctorcmd.Preview` — a port `config` is handed, so the answers
+are doctor's and no check is copied. A raise prints the stage, the rows
+in doctor's own marks, and the counts: `3 of 6 met, 1 unmet, 2 unread`,
+then what declaring it writes and what it does not install. A lower or
+an unchanged value previews nothing and reaches no forge. Nothing
+refuses: a preview that could not be run says so and the write is still
+offered.
+
+The preview block of `adoption/config.excalidraw` is asserted line for
+line against what the binary prints
+(`internal/command/configcmd/preview_test.go`).
+
+**What the plan did not foresee.**
+
+- **The drawing puts the preview on the settings screen; it is built on
+  the command path.** A change chosen on that screen already runs as
+  `writrun config <key>` in a process of its own — decision 0015, so
+  that no reader is left behind on the terminal — and the preview
+  belongs to that process, where the question is. The block a reader
+  sees is the drawn one; the furniture around it is the command's.
+- **`d open doctor` is not built.** The question is a `huh` confirm,
+  which binds `enter` and `esc` and has no third key to give. A third
+  answer needs either a navigated selection — which `--yes` could not
+  answer, and rules.md requires a flag that answers every question — or
+  a terminal program of its own. Neither is in this spec's scope, and
+  the reader reaches the same answers with `writrun doctor --at 2`. The
+  Definition of Done's first item is met for the rows and the counts and
+  unmet for that one key.
+- **"Without a terminal, write the value" is read as today's rule, not a
+  new one.** The preview is printed and the existing confirmation still
+  stands: `--yes` answers it, and without a terminal an unanswered
+  question aborts (rules.md). This spec adds no gate and removes none.
+- **The two drawings name one requirement differently.**
+  `config.excalidraw` shortens `no rule over main refuses the recording
+  push` to `...refuses the push` to fit its column. The rows are
+  doctor's answers, so `doctor.excalidraw`'s full name is what the
+  binary prints; the case says so where it reconciles the line.

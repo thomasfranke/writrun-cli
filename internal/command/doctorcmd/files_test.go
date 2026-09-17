@@ -19,7 +19,7 @@ func TestAMissingRequirementIsNamed(t *testing.T) {
 		t.Run(bin, func(t *testing.T) {
 			f := newFixture(t, "1")
 			f.path[bin] = false
-			only(t, f.findings(), 0, breaks, bin+" is not on the PATH")
+			only(t, f.findings(), 0, breaks, bin+" — not on the PATH")
 		})
 	}
 }
@@ -45,9 +45,9 @@ func TestTheFilesTheMethodologyRequiresAreNamedWhenAbsent(t *testing.T) {
 		{"the About file", "docs/about.md", "docs/about.md — an About file is required"},
 		{"a real product chapter", "docs/product/rules.md", "docs/product/ — at least one real product doc"},
 		{"a technical doc", "docs/technical/boundaries.md", "docs/technical/ — at least one real technical doc"},
-		{"the tasks folder", "work/tasks", "work/tasks/ — the docs/ and work/ split"},
-		{"the specs folder", "work/specs", "work/specs/ — the docs/ and work/ split"},
-		{"the reports folder", "work/reports", "work/reports/ — the docs/ and work/ split"},
+		{"the tasks folder", "work/tasks", "work/tasks/ missing, and the docs/ and work/ split"},
+		{"the specs folder", "work/specs", "work/specs/ missing, and the docs/ and work/ split"},
+		{"the reports folder", "work/reports", "work/reports/ missing, and the docs/ and work/ split"},
 		{"AGENTS.md", "AGENTS.md", "AGENTS.md — the agents' entry point is missing"},
 		{"the recorded tag", ".writrun/VERSION", ".writrun/VERSION — the kit's tag is not recorded"},
 	}
@@ -73,7 +73,7 @@ func TestAReadmeAloneIsNotAChapter(t *testing.T) {
 func TestALegacyFencedSectionAdvises(t *testing.T) {
 	f := newFixture(t, "1")
 	write(t, f.root, "AGENTS.md", legacyAgents)
-	only(t, f.findings(), 1, advises, "a writrun:begin/writrun:end section is still there")
+	only(t, f.findings(), 1, advises, "AGENTS.md — a writrun:begin/writrun:end section is stale")
 }
 
 func TestAnAgentsFileWithNoWritRunSectionIsNotAFinding(t *testing.T) {
@@ -106,7 +106,7 @@ func TestAnUnansweredGateIsNamed(t *testing.T) {
 			f := newFixture(t, "1")
 			write(t, f.root, "writrun/gates.md",
 				strings.Replace(gatesDoc, c.was, "<!-- TODO — default: someone -->", 1))
-			only(t, f.findings(), 1, breaks, "the gate for "+c.expect+" is unanswered")
+			only(t, f.findings(), 1, breaks, "unanswered: "+c.expect)
 		})
 	}
 }
@@ -119,7 +119,7 @@ func TestAGateThisBinaryHasNeverSeenIsJudgedTheSameWay(t *testing.T) {
 	f := newFixture(t, "1")
 	write(t, f.root, "writrun/gates.md",
 		gatesDoc+"| Something no tag has shipped yet | <!-- TODO --> |\n")
-	only(t, f.findings(), 1, breaks, "the gate for Something no tag has shipped yet is unanswered")
+	only(t, f.findings(), 1, breaks, "unanswered: Something no tag has shipped yet")
 }
 
 func TestAMissingGatesFileIsNamed(t *testing.T) {
@@ -143,7 +143,7 @@ func TestATableInAgentsDoesNotAnswerAGate(t *testing.T) {
 		"\n## Skills\n\n| Trigger | Skill |\n|---|---|\n| Writing markdown under `docs/` | The docs skill. |\n")
 	write(t, f.root, "writrun/gates.md",
 		strings.Replace(gatesDoc, "The maintainer reviews before merge.", "<!-- TODO -->", 1))
-	only(t, f.findings(), 1, breaks, "the gate for Writing or changing anything under docs/ is unanswered")
+	only(t, f.findings(), 1, breaks, "unanswered: Writing or changing anything under docs/")
 }
 
 func TestAnUnreadableTagIsNamed(t *testing.T) {
@@ -176,7 +176,7 @@ func TestARefusingCheckIsNamedWithItsOwnWords(t *testing.T) {
 			found := f.findings()
 			only(t, found, 1, breaks, c.expect)
 			for _, got := range found {
-				if strings.Contains(got.text, c.expect) && !strings.Contains(got.detail, "REJECTED: work/tasks/task-0001.md line 4") {
+				if strings.Contains(got.text(), c.expect) && !strings.Contains(got.detail, "REJECTED: work/tasks/task-0001.md line 4") {
 					t.Errorf("detail = %q; want the script's own reporting", got.detail)
 				}
 			}
@@ -191,7 +191,7 @@ func TestTheDeclaredStageComesFromTheRepositorysOwnReader(t *testing.T) {
 		t.Errorf("stage = %d, want 2", stage)
 	}
 	if len(unreadable) != 0 {
-		t.Errorf("findings = %v, want none", unreadable)
+		t.Errorf("requirements = %v, want none", unreadable)
 	}
 	if len(f.scripts.ran) != 1 || f.scripts.ran[0] != settingsReader+" stage" {
 		t.Errorf("ran = %v; want the settings reader asked for the stage", f.scripts.ran)
@@ -220,9 +220,6 @@ func TestAnUnreadableStageIsNamedAndStandsDownToStageOne(t *testing.T) {
 			c.set(f)
 			found := f.findings()
 			only(t, found, 1, breaks, c.expect)
-			if len(f.forge.calls) != 0 {
-				t.Errorf("forge calls = %v; want none once the stage stands down to 1", f.forge.calls)
-			}
 		})
 	}
 }

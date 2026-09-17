@@ -123,7 +123,7 @@ func TestTheBypassFindingNamesOnlyTheRulesetThatEnablesTheRule(t *testing.T) {
 	bypass(f, "43", "Integration")
 	found := f.findings()
 	for _, got := range found {
-		if strings.Contains(got.text, "ruleset 42 governs main") {
+		if strings.Contains(said(got), "ruleset 42 governs main") {
 			t.Errorf("ruleset 42 was named for a rule ruleset 43 enables:\n%s", texts(found))
 		}
 	}
@@ -225,8 +225,8 @@ func TestThisRepositoryHasNoStageTwoFinding(t *testing.T) {
 	if !reachable {
 		t.Fatal("the forge was reported unreachable")
 	}
-	if len(found) != 0 {
-		t.Errorf("findings = %d, want none against this repository:\n%s", len(found), texts(found))
+	if got := counted(found, met); got != len(forgeChecks) {
+		t.Errorf("met = %d of %d against this repository:\n%s", got, len(forgeChecks), texts(found))
 	}
 }
 
@@ -288,7 +288,7 @@ func TestAnUnprotectedMainIsARecommendation(t *testing.T) {
 	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "\n"
 	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "\n"
 	found := f.findings()
-	only(t, found, 2, advises, "main is governed by no ruleset")
+	only(t, found, 2, advises, "main is governed by a ruleset — no ruleset governs it")
 	if breaking(found) != 0 {
 		t.Errorf("a recommendation broke a flow:\n%s", texts(found))
 	}
@@ -315,11 +315,14 @@ func TestAnUnusableGhReportsWhatItCouldNotCheck(t *testing.T) {
 		name   string
 		set    func(*fixture)
 		expect string
+		// unread is how many requirements the stand-down leaves unread:
+		// the forge rows from the one that failed downwards, and Issues.
+		unread int
 	}{
-		{"gh absent", func(f *fixture) { f.path["gh"] = false }, "gh is not on the PATH"},
+		{"gh absent", func(f *fixture) { f.path["gh"] = false }, "gh on the PATH — not on the PATH", 7},
 		{"gh unauthenticated", func(f *fixture) {
 			f.forge.fails["auth status"] = errors.New("gh auth status: not logged in")
-		}, "gh is not authenticated"},
+		}, "gh authenticated — run `gh auth login`", 6},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -327,12 +330,14 @@ func TestAnUnusableGhReportsWhatItCouldNotCheck(t *testing.T) {
 			c.set(f)
 			found := f.findings()
 			only(t, found, 2, unread, c.expect)
-			only(t, found, 3, unread, "whether Issues are enabled was not read")
+			only(t, found, 3, unread, "Issues are enabled — the forge did not answer")
 			if breaking(found) != 0 {
 				t.Errorf("an unreachable forge failed a check:\n%s", texts(found))
 			}
-			if len(found) != 2 {
-				t.Errorf("findings = %d, want the two stand-downs and no piled-on reads:\n%s", len(found), texts(found))
+			// Every requirement from the one that failed downwards is a
+			// row a reader can count, not a silence (spec-0036).
+			if len(found) != c.unread {
+				t.Errorf("unread requirements = %d, want %d:\n%s", len(found), c.unread, texts(found))
 			}
 		})
 	}
@@ -342,7 +347,7 @@ func TestAReadThatFailsIsNotAFailedCheck(t *testing.T) {
 	cases := []struct{ name, key, expect string }{
 		{"squash merging",
 			"api repos/{owner}/{repo} --jq .allow_squash_merge",
-			"whether squash merging is on could not be read"},
+			"squash merging is on — it could not be read"},
 		{"workflow permissions",
 			"api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions",
 			"the Actions workflow permissions could not be read"},
@@ -354,10 +359,10 @@ func TestAReadThatFailsIsNotAFailedCheck(t *testing.T) {
 			"the rulesets governing main could not be read"},
 		{"a bypass list",
 			"api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type",
-			"the bypass list of ruleset 42 could not be read"},
+			"no rule over main refuses the recording push — the bypass list of ruleset 42 could not be read"},
 		{"Issues",
 			"api repos/{owner}/{repo} --jq .has_issues",
-			"whether Issues are enabled could not be read"},
+			"Issues are enabled — it could not be read"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -378,20 +383,20 @@ func TestAFailedReadKeepsOnlyTheLineThatNamesTheCause(t *testing.T) {
 	f := newFixture(t, "3")
 	f.forge.fails["api repos/{owner}/{repo} --jq .has_issues"] = errors.New("gh api: HTTP 403\nyou lack permission")
 	found := f.findings()
-	only(t, found, 3, unread, "whether Issues are enabled could not be read: gh api: HTTP 403")
+	only(t, found, 3, unread, "Issues are enabled — it could not be read gh api: HTTP 403")
 	for _, got := range found {
-		if strings.Contains(got.text, "you lack permission") {
-			t.Errorf("text = %q; want only the first line of the error", got.text)
+		if strings.Contains(said(got), "you lack permission") {
+			t.Errorf("text = %q; want only the first line of the error", said(got))
 		}
 	}
 }
 
 // stageOf is the stage the finding matching want was reported at — the
 // forge reads all sit at stage 2 except the Issues one.
-func stageOf(found []finding, want string) int {
-	for _, f := range found {
-		if strings.Contains(f.text, want) {
-			return f.stage
+func stageOf(found []requirement, want string) int {
+	for _, r := range found {
+		if strings.Contains(said(r), want) {
+			return r.stage
 		}
 	}
 	return 2

@@ -32,6 +32,7 @@ var (
 	headingStyle  = lipgloss.NewStyle().Bold(true)
 	declaredStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	dimStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	metStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	breaksStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	advisesStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	unreadStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
@@ -56,9 +57,10 @@ func (p Palette) Declared(text string) string { return p.paint(declaredStyle, te
 // lister appended, the detail beneath a selection.
 func (p Palette) Dim(text string) string { return p.paint(dimStyle, text) }
 
-// Breaks, Advises and Unread are `doctor`'s three levels, which the
-// report already prints as words in their own column
+// Met, Breaks, Advises and Unread are `doctor`'s four states, which the
+// report already prints as four different glyphs in their own column
 // (docs/product/adoption/doctor.md).
+func (p Palette) Met(text string) string     { return p.paint(metStyle, text) }
 func (p Palette) Breaks(text string) string  { return p.paint(breaksStyle, text) }
 func (p Palette) Advises(text string) string { return p.paint(advisesStyle, text) }
 func (p Palette) Unread(text string) string  { return p.paint(unreadStyle, text) }

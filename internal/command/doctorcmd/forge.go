@@ -22,17 +22,33 @@ const (
 // is the second way the recording push gets the right to write.
 const workflowsDir = ".github/workflows"
 
+// The six requirements stage 2 makes, named once each. A run that never
+// reaches the forge still reports all of them, unread: a check that
+// could not be made is not a check that failed, and a reader has to be
+// told which is which (spec-0036).
+const (
+	ghOnPath      = "gh on the PATH"
+	ghAuthed      = "gh authenticated"
+	squashOn      = "squash merging is on"
+	pushCanWrite  = "the recording push can write to main"
+	mainGoverned  = "main is governed by a ruleset"
+	noRuleRefuses = "no rule over main refuses the recording push"
+)
+
+// issuesOn is stage 3's one requirement.
+const issuesOn = "Issues are enabled"
+
 // blocker is one ruleset rule that stops the recording push the
-// workflows make, and how the finding names it.
+// workflows make, and how the row names it.
 type blocker struct {
 	rule  string
 	names string
 }
 
 // blockers are the four rules that refuse the recording push, in the
-// order a finding prefers them. Whether the Actions bot is past one is
-// the enabling ruleset's bypass list and the repository's owner to
-// answer, never the rule's (product/adoption/doctor.md).
+// order a row prefers them. Whether the Actions bot is past one is the
+// enabling ruleset's bypass list and the repository's owner to answer,
+// never the rule's (product/adoption/doctor.md).
 var blockers = []blocker{
 	{rule: "update", names: "restrict updates"},
 	{rule: "required_signatures", names: "require signed commits"},
@@ -46,25 +62,48 @@ var blockers = []blocker{
 // not answer has told doctor nothing about the repository (spec-0004,
 // acceptance criteria).
 //
-// An unusable gh is the one finding that stands alone. Every read after
-// it would restate the same fault, so the reads stop and the bool says
-// the forge never answered, which is also stage 3's answer.
-func stage2(root string, d Deps) ([]finding, bool) {
+// An unusable gh is the one fault that stands alone. Every read after it
+// would restate it, so the reads stop and every requirement below is
+// unread — which is also stage 3's answer.
+func stage2(root string, d Deps) ([]requirement, bool) {
 	if _, err := d.LookPath("gh"); err != nil {
-		return []finding{{stage: 2, level: unread,
-			text: "gh is not on the PATH — from stage 2 the flows ask the forge through it, so no forge check was made"}}, false
+		return silent(ghOnPath, "not on the PATH — from stage 2 the flows ask the forge through it"), false
 	}
 	if _, err := d.Gh("auth", "status"); err != nil {
-		return []finding{{stage: 2, level: unread,
-			text: "gh is not authenticated — run `gh auth login`; no forge check was made"}}, false
+		return silent(ghAuthed, "run `gh auth login`"), false
 	}
 
-	var found []finding
-	found = append(found, want(d, "whether squash merging is on", repoAPI, ".allow_squash_merge", "true",
-		"squash merging is off — the methodology lands every pull request as one commit")...)
-	found = append(found, canWrite(root, d)...)
+	found := []requirement{{stage: 2, name: ghOnPath}, {stage: 2, name: ghAuthed}}
+	found = append(found, want(d, squashOn, repoAPI, ".allow_squash_merge", "true",
+		"squash merging is off — the methodology lands every pull request as one commit"))
+	found = append(found, canWrite(root, d))
 	found = append(found, mainReachable(d)...)
 	return found, true
+}
+
+// forgeChecks are stage 2's requirements in the order the report lists
+// them, which is also the order a forge read would have made them.
+var forgeChecks = []string{ghOnPath, ghAuthed, squashOn, pushCanWrite, mainGoverned, noRuleRefuses}
+
+// silent is the whole of stage 2 when the forge never answered: the
+// requirement that says why, and every one below it unread because no
+// read was attempted. A stage nobody could examine is six rows a reader
+// can count, not a silence.
+func silent(cause, why string) []requirement {
+	var found []requirement
+	past := false
+	for _, name := range forgeChecks {
+		r := requirement{stage: 2, name: name}
+		switch {
+		case name == cause:
+			past = true
+			r.mark, r.note = unread, why
+		case past:
+			r.mark, r.note = unread, "no forge check was made"
+		}
+		found = append(found, r)
+	}
+	return found
 }
 
 // canWrite answers whether the recording push has the right to write,
@@ -74,21 +113,29 @@ func stage2(root string, d Deps) ([]finding, bool) {
 // off the workflows that never push — the tighter of the two, so it
 // passes (spec-0019). A workflow that pushes and raises nothing is the
 // one arrangement in which the push cannot land.
-func canWrite(root string, d Deps) []finding {
+func canWrite(root string, d Deps) requirement {
+	r := requirement{stage: 2, name: pushCanWrite}
 	got, err := d.Gh("api", workflowAPI, "--jq", ".default_workflow_permissions")
 	if err != nil {
-		return []finding{{stage: 2, level: unread,
-			text: "the Actions workflow permissions could not be read: " + firstLine(err.Error())}}
+		r.mark = unread
+		r.note = "the Actions workflow permissions could not be read"
+		r.detail = firstLine(err.Error())
+		return r
 	}
 	if strings.TrimSpace(got) == "write" {
-		return nil
+		return r
 	}
-	var found []finding
-	for _, rel := range silentPushers(root, d) {
-		found = append(found, finding{stage: 2, level: breaks,
-			text: rel + " pushes to main and raises no `contents: write` of its own — the Actions workflow permissions default to read, so that push has no right to write"})
+	silent := silentPushers(root, d)
+	if len(silent) == 0 {
+		return r
 	}
-	return found
+	r.mark = breaks
+	var lines []string
+	for _, rel := range silent {
+		lines = append(lines, rel+" pushes to main and raises no `contents: write` of its own")
+	}
+	r.detail = strings.Join(lines, "\n")
+	return r
 }
 
 // silentPushers are the workflow files that push to main without
@@ -143,8 +190,8 @@ func pushesToMain(doc string) bool {
 
 // toMain reads a `git push` argument list and reports whether main can
 // be where it lands: the refspec's right-hand side, or the ref after
-// the remote. A destination holding `$` is a variable this file does
-// not resolve, and main is one of the values it takes; a push with no
+// the remote. A destination holding `$` is a variable this file does not
+// resolve, and main is one of the values it takes; a push with no
 // destination at all lands wherever the branch tracks.
 func toMain(args string) bool {
 	var refs []string
@@ -204,36 +251,39 @@ func value(s string) string {
 
 // stage3 is Issues: the mirror has to have somewhere to land. A forge
 // that never answered leaves it unread, not failed.
-func stage3(d Deps, reachable bool) []finding {
+func stage3(d Deps, reachable bool) []requirement {
 	if !reachable {
-		return []finding{{stage: 3, level: unread,
-			text: "whether Issues are enabled was not read — the forge did not answer"}}
+		return []requirement{{stage: 3, name: issuesOn, mark: unread,
+			note: "the forge did not answer"}}
 	}
-	found := want(d, "whether Issues are enabled", repoAPI, ".has_issues", "true",
+	r := want(d, issuesOn, repoAPI, ".has_issues", "true",
 		"Issues are disabled — the mirror the flows keep needs somewhere to land")
-	for i := range found {
-		found[i].stage = 3
-	}
-	return found
+	r.stage = 3
+	return []requirement{r}
 }
 
 // want reads one forge setting and compares it with what the
 // methodology expects. A read that fails is a check that could not be
-// made; a value that differs is the finding, named with the setting.
-func want(d Deps, what, path, jq, expected, breakage string) []finding {
+// made; a value that differs is the fault, named with the setting.
+func want(d Deps, name, path, jq, expected, breakage string) requirement {
+	r := requirement{stage: 2, name: name}
 	got, err := d.Gh("api", path, "--jq", jq)
 	if err != nil {
-		return []finding{{stage: 2, level: unread,
-			text: what + " could not be read: " + firstLine(err.Error())}}
+		r.mark = unread
+		r.note = "it could not be read"
+		r.detail = firstLine(err.Error())
+		return r
 	}
 	if strings.TrimSpace(got) != expected {
-		return []finding{{stage: 2, level: breaks, text: breakage}}
+		r.mark = breaks
+		r.detail = breakage
 	}
-	return nil
+	return r
 }
 
-// mainReachable answers the question the recording push depends on: can
-// the Actions bot write to main.
+// mainReachable answers the two questions the recording push depends on:
+// whether main is governed at all, and whether any rule over it refuses
+// the push.
 //
 // No ruleset over main leaves the branch unprotected with nothing in the
 // bot's way, which is a recommendation. Every ruleset that does govern
@@ -244,46 +294,62 @@ func want(d Deps, what, path, jq, expected, breakage string) []finding {
 // deletion, creation, non_fast_forward or required_linear_history, so a
 // ruleset enabling only those is no finding whatever its bypass list
 // holds (spec-0024).
-func mainReachable(d Deps) []finding {
+func mainReachable(d Deps) []requirement {
+	governed := requirement{stage: 2, name: mainGoverned}
+	refuses := requirement{stage: 2, name: noRuleRefuses}
+
 	types, err := lines(d, mainRulesAPI, ".[].type")
 	if err != nil {
-		return []finding{{stage: 2, level: unread,
-			text: "the rules governing main could not be read: " + firstLine(err.Error())}}
+		return unreadPair(governed, refuses, "the rules governing main could not be read")
 	}
 	ids, err := lines(d, mainRulesAPI, ".[].ruleset_id")
 	if err != nil {
-		return []finding{{stage: 2, level: unread,
-			text: "the rulesets governing main could not be read: " + firstLine(err.Error())}}
+		return unreadPair(governed, refuses, "the rulesets governing main could not be read")
 	}
 	if len(ids) == 0 {
-		return []finding{{stage: 2, level: advises,
-			text: "main is governed by no ruleset — the methodology recommends protecting it; nothing blocks the recording push meanwhile"}}
+		governed.mark = advises
+		governed.note = "no ruleset governs it — the methodology recommends protecting it; nothing blocks the recording push meanwhile"
+		return []requirement{governed, refuses}
 	}
 
 	owner := &ownership{d: d}
-	var found []finding
+	var refusals []string
 	for _, id := range distinct(ids) {
 		actors, err := lines(d, "repos/{owner}/{repo}/rulesets/"+id, "(.bypass_actors // [])[].actor_type")
 		if err != nil {
-			found = append(found, finding{stage: 2, level: unread,
-				text: fmt.Sprintf("the bypass list of ruleset %s could not be read: %s", id, firstLine(err.Error()))})
+			refuses.mark = unread
+			refuses.note = fmt.Sprintf("the bypass list of ruleset %s could not be read", id)
+			refuses.detail = firstLine(err.Error())
 			continue
 		}
-		b, refuses := firstOf(rulesOf(types, ids, id))
-		if !refuses {
+		b, refused := firstOf(rulesOf(types, ids, id))
+		if !refused {
 			continue
 		}
-		// A bypass actor clears the rule only where the forge offers
-		// one the Actions token resolves to. Which of the actors it
-		// resolves to stays the forge's answer, and deciding it here
-		// would be a second authority on it.
+		// A bypass actor clears the rule only where the forge offers one
+		// the Actions token resolves to. Which of the actors it resolves
+		// to stays the forge's answer, and deciding it here would be a
+		// second authority on it.
 		if len(actors) > 0 && !owner.userOwned() {
 			continue
 		}
-		found = append(found, finding{stage: 2, level: breaks,
-			text: refusal(id, b, owner.userOwned())})
+		refusals = append(refusals, refusal(id, b, owner.userOwned()))
 	}
-	return found
+	if len(refusals) > 0 {
+		refuses.mark = breaks
+		refuses.note = ""
+		refuses.detail = strings.Join(refusals, "\n")
+	}
+	return []requirement{governed, refuses}
+}
+
+// unreadPair is both rules requirements where the one read they share
+// did not answer. The reason sits under the second of them, once: it is
+// the pair's, and printing it twice would read as two faults.
+func unreadPair(governed, refuses requirement, why string) []requirement {
+	governed.mark = unread
+	refuses.mark, refuses.detail = unread, why
+	return []requirement{governed, refuses}
 }
 
 // refusal is the one sentence a ruleset that stops the recording push
@@ -315,8 +381,8 @@ func rulesOf(types, ids []string, id string) []string {
 }
 
 // firstOf is the first rule among rules that refuses the recording push,
-// in the order blockers states them — the one a finding names where
-// several are on at once.
+// in the order blockers states them — the one a row names where several
+// are on at once.
 func firstOf(rules []string) (blocker, bool) {
 	for _, b := range blockers {
 		if contains(rules, b.rule) {
@@ -329,7 +395,7 @@ func firstOf(rules []string) (blocker, bool) {
 // ownership is who owns the repository, read from the forge at most once
 // per run: the answer is the same for every ruleset, and it is asked
 // once per ruleset that refuses the push. It is asked only where it
-// changes a finding, so a repository no ruleset refuses costs no read.
+// changes a row, so a repository no ruleset refuses costs no read.
 type ownership struct {
 	d      Deps
 	asked  bool
@@ -338,7 +404,7 @@ type ownership struct {
 
 // userOwned reports whether the repository belongs to a person rather
 // than an organization. An owner type the forge will not answer is read
-// as a person's: that is the reading under which the finding stands, and
+// as a person's: that is the reading under which the refusal stands, and
 // staying silent about a rule that does block is a broken flow nobody
 // was told about.
 func (o *ownership) userOwned() bool {

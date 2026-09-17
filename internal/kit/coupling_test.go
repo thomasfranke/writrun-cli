@@ -65,6 +65,14 @@ func TestAdopterPathsAreNamedInThisPackageAlone(t *testing.T) {
 			if !ok || lit.Kind != token.STRING {
 				return true
 			}
+			// A literal that is a line of a markdown table is a copy of a
+			// document, not an address: nothing dereferences it, and a tag
+			// that moved the file turns the lookup's own test red rather
+			// than leaving a stale address compiled in
+			// (docs/technical/engineering/coupling.md, rule 5).
+			if strings.HasPrefix(strings.Trim(lit.Value, "`\""), "|") {
+				return true
+			}
 			for _, name := range adopterNames {
 				if strings.Contains(lit.Value, name) {
 					rel, _ := filepath.Rel(root, path)

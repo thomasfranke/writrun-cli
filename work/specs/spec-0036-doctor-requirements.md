@@ -1,7 +1,7 @@
 ---
 id: spec-0036
 task_ref: task-0033
-status: approved
+status: implemented
 created: 2026-09-13T22:08:01Z
 ---
 
@@ -99,9 +99,8 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/adoption/doctor.md`](../../docs/product/adoption/doctor.md)
-  — the report's shape, the four marks, the preview and what it never
-  affects.
+- `product/adoption/doctor.md` — the report's shape, the four marks,
+  the preview and what it never affects.
 
 ## Proposed technical changes
 
@@ -109,4 +108,45 @@ the test is written against.
 
 ## Outcome
 
-_(fill after execution)_
+Every check now answers a `requirement` — a stage, a stable name, one
+of four marks, what the row adds after the name, and a wrapped
+script's own words under it. `internal/command/doctorcmd/report.go`
+renders them: a heading per stage counting its rows, `✓ ✗ ! ?` in place
+of the level words, the rung above the declaration previewed, and two
+closing lines — what the declaration answers for, and whether the next
+stage is within reach. The preview runs `examine` at `declared + 1`,
+the same call `--at` makes, so no check is written twice; the exit
+status still reads `upTo(declared)` alone.
+
+Both frames of `adoption/doctor.excalidraw` are asserted line for line
+against what the binary renders
+(`internal/command/doctorcmd/report_frames_test.go`). The harness reads
+the `.excalidraw` JSON and reconstructs a captioned frame's lines from
+each text element's position — there was none before, and one was
+built.
+
+**What the plan did not foresee.**
+
+- **Four things the drawing settles that the spec did not state**: the
+  report's lines carry a one-space inset, rows sit at three, a
+  wrapped script's words at eight, and the pipe the old report drew
+  before them is gone. All four are the frames', and the binary came to
+  them.
+- **A tenth stage-1 row exists, conditionally.** Reading the declared
+  stage is a check like any other, but the frames draw nine rows. It is
+  reported as a `writrun/settings.json` requirement only where the read
+  fails, so a healthy repository counts nine and a broken one counts
+  ten. The alternative — always a row — would have put the binary a row
+  out from its own drawing.
+- **`mainReachable` became two requirements**, `main is governed by a
+  ruleset` and `no rule over main refuses the recording push`, because
+  the frames draw two rows for one read. Where that read fails the
+  reason sits under the second of them, once: printing it twice would
+  read as two faults.
+- **The frames wrap a long detail to fit the canvas** and the binary
+  writes it whole. The case unwraps both sides, which is the one
+  difference between them that is the canvas's.
+- **At stage 1 the preview is now the first forge read a run makes.**
+  `stage_one_reaches_no_forge_test.sh` asserted the opposite and was
+  rewritten: what it guards now is that the rung above the preview is
+  not reached.

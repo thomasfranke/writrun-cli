@@ -306,40 +306,68 @@ func (f *fixture) deps() Deps {
 	}
 }
 
-// findings is the whole examination this fixture produces, the declared
-// stage read the way the command reads it.
-func (f *fixture) findings() []finding {
+// all is every requirement the declared stage makes of this fixture's
+// repository, the stage read the way the command reads it. The rung
+// above it is not previewed here: what the preview adds is its own
+// cases' subject (doctorcmd_test.go).
+func (f *fixture) all() []requirement {
 	stage, unreadable := declaredStage(f.root, f.deps())
-	return examine(f.root, stage, f.deps(), unreadable)
+	return append(unreadable, examine(f.root, stage, f.deps())...)
 }
 
-// texts is every finding's sentence, joined — what a case greps.
-func texts(found []finding) string {
+// previewed is one whole run, the rung above the declaration included.
+func (f *fixture) previewed() (declared, examined, preview int, found []requirement) {
+	return examineAll(f.root, f.deps(), 0)
+}
+
+// findings is every requirement that does not hold. A requirement that
+// holds is a row and not a fault, so a case about a fault asks for the
+// faults (spec-0036).
+func (f *fixture) findings() []requirement {
+	var faults []requirement
+	for _, r := range f.all() {
+		if r.mark != met {
+			faults = append(faults, r)
+		}
+	}
+	return faults
+}
+
+// said is everything one requirement states: the row's own text and
+// whatever a script or the forge said under it. A case greps this,
+// because which of the two carries a sentence is the row's business.
+func said(r requirement) string {
+	return r.text() + " " + strings.ReplaceAll(r.detail, "\n", " ")
+}
+
+// texts is every requirement's line, joined — what a case prints when it
+// fails.
+func texts(found []requirement) string {
 	var b strings.Builder
-	for _, f := range found {
-		fmt.Fprintf(&b, "%d %s %s\n", f.stage, labels[f.level], f.text)
+	for _, r := range found {
+		fmt.Fprintf(&b, "%d %s %s\n", r.stage, words[r.mark], said(r))
 	}
 	return b.String()
 }
 
-// only fails unless exactly one finding matches want, at the level and
+// only fails unless exactly one requirement says want, at the mark and
 // stage named — the shape every failing fixture asserts.
-func only(t *testing.T, found []finding, stage int, lvl level, want string) {
+func only(t *testing.T, found []requirement, stage int, m mark, want string) {
 	t.Helper()
 	hits := 0
-	for _, f := range found {
-		if strings.Contains(f.text, want) {
+	for _, r := range found {
+		if strings.Contains(said(r), want) {
 			hits++
-			if f.stage != stage {
-				t.Errorf("stage = %d, want %d for %q", f.stage, stage, want)
+			if r.stage != stage {
+				t.Errorf("stage = %d, want %d for %q", r.stage, stage, want)
 			}
-			if f.level != lvl {
-				t.Errorf("level = %s, want %s for %q", labels[f.level], labels[lvl], want)
+			if r.mark != m {
+				t.Errorf("mark = %s, want %s for %q", words[r.mark], words[m], want)
 			}
 		}
 	}
 	if hits != 1 {
-		t.Errorf("findings matching %q = %d, want 1:\n%s", want, hits, texts(found))
+		t.Errorf("requirements saying %q = %d, want 1:\n%s", want, hits, texts(found))
 	}
 }
 

@@ -4,7 +4,8 @@
 change, beside a `writrun/` directory that is the project's and that the
 binary never writes on the kit's behalf. Every fact about either stated
 in Go is a fact a WritRun tag can invalidate, and the binary pins one
-tag at a time. Four rules decide which of those facts may exist.
+tag at a time. Four rules decide which of those facts may exist, and a
+fifth says the same thing about this project's own documents.
 
 ## 1. A kit path enters Go only where the binary calls it
 
@@ -85,6 +86,28 @@ before `v0.0.04` left behind.
 
 > `internal/pointer` is the only package that knows the shape of a file
 > it does not call.
+
+## 5. A sentence a product doc states is read from that doc
+
+A product doc states what the binary must say. Where the binary says it
+too, it reads the doc's own words rather than carrying a second copy of
+them beside the code.
+
+| The sentences | The doc that states them | Not |
+|---|---|---|
+| what each requirement is, why its stage makes it, what clears it | the table in [`product/adoption/doctor.md`](../../product/adoption/doctor.md#the-requirements) | an explanation per check in Go |
+
+- **A name the doc does not carry falls back to the check's own
+  sentence.** A check a newer kit adds is explained by what the check
+  says, never by a guess.
+- **`//go:embed` reads only at or under its own package**, and the docs
+  are above every package. Where the two cannot be one file, the block
+  is held line for line in Go and a unit test fails unless the doc still
+  carries it, in order — so a sentence edited on one side and not the
+  other is a red build.
+
+> A sentence corrected in the product doc reaches the screen, and needs
+> no second edit to do it.
 
 ## What these rules are not
 
