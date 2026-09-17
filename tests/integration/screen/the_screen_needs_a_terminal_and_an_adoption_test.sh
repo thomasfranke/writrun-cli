@@ -11,7 +11,7 @@ make_repo
 task task-0001 ready medium "[]" "A thing to do"
 cd "$TARGET" || exit 1
 
-check "no terminal prints what --help prints" 0 "the porcelain for WritRun" \
+check "no terminal prints what --help prints" 0 "run a project by WritRun" \
   -- "$WRITRUN"
 
 check "and it names the commands, as the help does" 0 "take " \
@@ -29,7 +29,7 @@ check "the run changed nothing in the working tree" 0 "" \
 
 cd "$WORK" || exit 1
 mkdir -p bare && cd bare || exit 1
-check "outside an adoption it prints the help too" 0 "the porcelain for WritRun" \
+check "outside an adoption it prints the help too" 0 "run a project by WritRun" \
   -- "$WRITRUN"
 
 finish

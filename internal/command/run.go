@@ -93,8 +93,14 @@ func Run(f Frame, args []string) int {
 			fmt.Fprintf(f.Stdout, "%s %s (pins WritRun %s)\n", Product, f.Version, f.WritRunTag)
 			return 0
 		case a == "--help" || a == "-h":
-			help(f)
-			return 0
+			// Before the command's name the flag is the frame's own
+			// question; after it, it is that command's, and the answer
+			// is what the command is for (spec-0039).
+			if name == "" {
+				help(f)
+				return 0
+			}
+			return commandHelp(f, name)
 		case a == "--yes":
 			yes = true
 		case a == "--no-color":
@@ -136,11 +142,33 @@ func dispatch(f Frame, noColor, yes bool, name string, rest []string) int {
 		Terminal: f.Terminal,
 		Yes:      yes,
 		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
+		Version:  f.Version,
 		Again:    spawner(f, noColor, yes),
 	}
 
 	if code, failed := resolveNeed(f, cmd.Need, ctx); failed {
 		return code
+	}
+
+	// A command run with nothing to go on says what it is for before it
+	// asks its first question (spec-0039). A command that does its work
+	// bare — `list`, `status`, `doctor`, `work` — is run daily, and a
+	// daily explanation is noise; `Daily` is where that set is declared.
+	//
+	// It was `AsksNothing` until `doctor` became a screen, and the two
+	// sets came apart there: `doctor` reads the terminal, so the screen
+	// may not capture it, and it is still run every day. Printing into
+	// the normal buffer before entering the alternate one would not even
+	// be noise — the screen wipes it, and the reader meets it on the way
+	// out (report-0044).
+	//
+	// The terminal that decides it is stdin's, because the description
+	// precedes a question and a question is asked there. Without one
+	// nothing is printed: a script reading this output keeps reading
+	// what it read before.
+	if len(rest) == 0 && !cmd.Daily && !cmd.About.Empty() && f.Terminal.InteractiveIn() {
+		writeAbout(f.Stdout, cmd.Name, cmd.About)
+		fmt.Fprintln(f.Stdout)
 	}
 
 	if err := cmd.Run(ctx, rest); err != nil {
@@ -214,24 +242,96 @@ func lookup(cmds []Command, name string) (Command, bool) {
 // (decisions/runtime/0014-the-product-is-writrun-cli.md).
 const Product = "writrun-cli"
 
-// help is one line per command plus the docs' address — it restates
-// nothing (product/rules.md).
+// helpGroups is --help's grouping: what a person is doing, in the order
+// docs/product/screens/help.excalidraw draws it. Thirteen rows in table
+// order name every command and teach none of them.
+//
+// It is not the entry screen's grouping, which is the queue's own
+// sections (cmd/writrun/main.go). Two surfaces, two questions: the
+// screen lists the work, and this list is read by someone meeting the
+// commands for the first time.
+var helpGroups = []struct {
+	name  string
+	names []string
+}{
+	{"GETTING STARTED", []string{"init", "doctor", "config"}},
+	{"DOING THE WORK", []string{"list", "take", "work", "status", "finish"}},
+	{"WRITING THE RULES", []string{"author", "amend", "report"}},
+	{"KEEPING IT CURRENT", []string{"update", "uninstall"}},
+}
+
+// help is the grouped table plus the docs' address. Every row's text is
+// the command table's own summary — the string the entry screen shows,
+// so the two surfaces cannot drift (spec-0039).
 func help(f Frame) {
-	fmt.Fprintln(f.Stdout, Product+" — the porcelain for WritRun.")
-	if len(f.Commands) > 0 {
-		fmt.Fprintln(f.Stdout)
-		width := 0
-		for _, c := range f.Commands {
-			if len(c.Name) > width {
-				width = len(c.Name)
-			}
-		}
-		for _, c := range f.Commands {
-			fmt.Fprintf(f.Stdout, "  %-*s  %s\n", width, c.Name, c.Summary)
+	fmt.Fprintln(f.Stdout, Product+" — run a project by WritRun, from the command line.")
+	fmt.Fprintln(f.Stdout, "What is written, runs.")
+
+	width := 0
+	for _, c := range f.Commands {
+		if len(c.Name) > width {
+			width = len(c.Name)
 		}
 	}
+	grouped := map[string]bool{}
+	for _, g := range helpGroups {
+		var rows []Command
+		for _, n := range g.names {
+			if c, ok := lookup(f.Commands, n); ok {
+				rows = append(rows, c)
+				grouped[n] = true
+			}
+		}
+		if len(rows) == 0 {
+			continue
+		}
+		fmt.Fprintln(f.Stdout)
+		fmt.Fprintln(f.Stdout, g.name)
+		for _, c := range rows {
+			helpRow(f, width, c)
+		}
+	}
+	// A command no group names is listed anyway, under no heading: the
+	// help answers for the table it was handed, and a command missing
+	// from the grouping is a gap a test names rather than one a reader
+	// has to notice by its absence.
+	var ungrouped []Command
+	for _, c := range f.Commands {
+		if !grouped[c.Name] {
+			ungrouped = append(ungrouped, c)
+		}
+	}
+	if len(ungrouped) > 0 {
+		fmt.Fprintln(f.Stdout)
+		for _, c := range ungrouped {
+			helpRow(f, width, c)
+		}
+	}
+
 	fmt.Fprintln(f.Stdout)
+	fmt.Fprintln(f.Stdout)
+	fmt.Fprintln(f.Stdout, "Run any command with no arguments and it explains itself first.")
 	fmt.Fprintln(f.Stdout, "Docs: "+docsAddress)
+}
+
+// helpRow is one command's row: its name and the table's own summary.
+func helpRow(f Frame, width int, c Command) {
+	fmt.Fprintf(f.Stdout, "  %-*s   %s\n", width, c.Name, c.Summary)
+}
+
+// commandHelp answers `writrun <command> --help`: the long description
+// and nothing else. It answers anywhere — the need is the command's to
+// enforce when it runs, and what a command is for is readable outside
+// an adopted repository.
+func commandHelp(f Frame, name string) int {
+	cmd, ok := lookup(f.Commands, name)
+	if !ok {
+		fmt.Fprintf(f.Stderr, "writrun: unknown command %q\n", name)
+		usage(f.Stderr)
+		return 2
+	}
+	writeAbout(f.Stdout, cmd.Name, cmd.About)
+	return 0
 }
 
 func usage(w io.Writer) {
@@ -308,6 +408,7 @@ func openScreen(f Frame, noColor, yes bool) int {
 		Terminal: f.Terminal,
 		Yes:      yes,
 		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
+		Version:  f.Version,
 		Root:     root,
 		Adopted:  adopted,
 		Again:    spawner(f, noColor, yes),

@@ -54,7 +54,7 @@ func TestTheScreenOpensOnlyWhereTheRuleSaysItCan(t *testing.T) {
 			if opened != tc.wantOpened {
 				t.Errorf("screen opened = %v, want %v", opened, tc.wantOpened)
 			}
-			if !tc.wantOpened && !strings.Contains(out.String(), "the porcelain for WritRun") {
+			if !tc.wantOpened && !strings.Contains(out.String(), "run a project by WritRun") {
 				t.Error("the help was not printed where the rule asks for it")
 			}
 		})

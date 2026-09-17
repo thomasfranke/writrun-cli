@@ -8,7 +8,7 @@ cd "$WORK/nowhere" || exit 1
 
 check "writrun --help answers outside any repository" 0 "Docs: https://" \
   -- "$WRITRUN" --help
-check "a bare writrun answers with the same help" 0 "porcelain for WritRun" \
+check "a bare writrun answers with the same help" 0 "run a project by WritRun" \
   -- "$WRITRUN"
 
 finish

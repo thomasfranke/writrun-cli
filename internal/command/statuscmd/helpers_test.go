@@ -14,6 +14,10 @@ import (
 // root is the repository every case reads.
 const root = "/repo"
 
+// version is what the frame handed this run — the string `--version`
+// printed on its way here.
+const version = "v0.0.2"
+
 // taskFile and specFile are one queue entry as the methodology writes
 // it — front matter, then the title the task line carries.
 const taskFile = `---

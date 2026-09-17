@@ -68,13 +68,13 @@ expect {
 # The cursor moves, and the detail line follows it.
 send -- "\033\[B"
 expect {
-  "take — begin a task" {}
+  "take — start work on a task" {}
   timeout { puts "\nFAIL: down did not move to take"; exit 12 }
   eof     { puts "\nFAIL: down did not move to take (the screen left first)"; exit 12 }
 }
 send -- "\033\[A"
 expect {
-  "list — the queue" {}
+  "list — see what work is waiting" {}
   timeout { puts "\nFAIL: up did not move back to list"; exit 13 }
   eof     { puts "\nFAIL: up did not move back to list (the screen left first)"; exit 13 }
 }

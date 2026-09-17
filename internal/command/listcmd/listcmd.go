@@ -33,10 +33,36 @@ type Deps struct {
 // New returns the list command wired with its dependencies.
 func New(d Deps) command.Command {
 	return command.Command{
-		Name:        "list",
-		Summary:     "the queue: available, held back, untriaged",
+		Name:    "list",
+		Summary: "see what work is waiting, and what is blocked",
+		About: command.About{
+			Sentence: []string{
+				"see what work is waiting, and what is blocked",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You want to know what to pick up next without",
+					"opening the queue files and working out",
+					"eligibility by hand.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Runs the methodology's own selection script and",
+					"prints its five sections, in its own order.",
+				}},
+				{Label: "what it leaves", Lines: []string{
+					"Everything. It reads; nothing about the queue",
+					"changes.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"`take` begins one of them, `work` hands one to",
+					"your agent, `status` says where the current one",
+					"stands.",
+				}},
+			},
+		},
 		Need:        command.NeedAdopted,
 		AsksNothing: true,
+		Daily:       true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

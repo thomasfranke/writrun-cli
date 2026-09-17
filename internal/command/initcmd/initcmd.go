@@ -51,8 +51,35 @@ func New(d Deps) command.Command {
 	}
 	return command.Command{
 		Name:    "init",
-		Summary: "install the WritRun kit into this repository",
-		Need:    command.NeedAbsent,
+		Summary: "install WritRun into this repository",
+		About: command.About{
+			Sentence: []string{
+				"install WritRun into this repository",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You want this project to use the methodology:",
+					"its scripts, its checks, its queue of tasks and",
+					"specs.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Copies the kit at the version this binary pins,",
+					"reads your existing conventions rather than",
+					"imposing its own, and asks which stage you are",
+					"adopting.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Overwrites what is yours. An existing AGENTS.md",
+					"gains one section; your docs are left alone.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"It runs that stage's checks and names what is",
+					"missing. Nothing is fixed for you, and nothing",
+					"blocks the adoption.",
+				}},
+			},
+		},
+		Need: command.NeedAbsent,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

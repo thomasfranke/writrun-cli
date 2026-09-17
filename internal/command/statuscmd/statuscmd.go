@@ -40,10 +40,36 @@ type Deps struct {
 // New returns the status command wired with its dependencies.
 func New(d Deps) command.Command {
 	return command.Command{
-		Name:        "status",
-		Summary:     "where the work stands, from this branch",
+		Name:    "status",
+		Summary: "where does the work on this branch stand?",
+		About: command.About{
+			Sentence: []string{
+				"where does the work on this branch stand?",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You are on a branch and want to know what it",
+					"carries, and what would stop you from",
+					"finishing.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Names the task and its spec, runs the",
+					"completion checks without writing anything,",
+					"counts the open reports, and compares the",
+					"installed kit with the one this binary pins.",
+				}},
+				{Label: "what it leaves", Lines: []string{
+					"Everything. Nothing changes, here or on GitHub.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"`finish` when the checks pass; the failing one",
+					"is named here first.",
+				}},
+			},
+		},
 		Need:        command.NeedAdopted,
 		AsksNothing: true,
+		Daily:       true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},
@@ -83,8 +109,18 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	}
 
 	say(ctx.Stdout, "Reports", openReports(d.Files, ctx.Root))
+	say(ctx.Stdout, "Client", clientLine(ctx.Version))
 	say(ctx.Stdout, "Kit", kitLine(d.Files, ctx.Root, d.Tag))
 	return nil
+}
+
+// clientLine names the binary that answered: the product and the
+// version `--version` prints, read from the frame rather than from a
+// source of this command's own, so the two cannot disagree about what
+// is running (spec-0043, report-0034). A build that is not a release
+// says so — `dev` is what it reports, and that is what prints.
+func clientLine(version string) string {
+	return command.Product + " " + version
 }
 
 // say prints one labelled line; an empty label continues the line above

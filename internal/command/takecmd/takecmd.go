@@ -40,8 +40,36 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "take",
-		Summary: "begin a task: branch pushed, draft PR opened",
-		Need:    command.NeedAdopted,
+		Summary: "start work on a task, in one act",
+		About: command.About{
+			Sentence: []string{
+				"start work on a task: branch, first commit and draft",
+				"pull request, in one act",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"Starting by hand means cutting a branch, naming",
+					"it the way this project names branches, writing",
+					"the first commit and opening a draft. This does",
+					"all four.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Composes the branch, the commit and the pull",
+					"request body from this project's own",
+					"conventions, shows them, and asks.",
+				}},
+				{Label: "what it leaves", Lines: []string{
+					"Nothing, until you say yes. A refusal leaves no",
+					"branch and no half-written status.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"The draft is what tells the machinery you have",
+					"started; it writes `in-progress` and your name",
+					"on the task.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

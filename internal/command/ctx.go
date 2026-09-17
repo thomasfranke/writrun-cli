@@ -30,6 +30,12 @@ type Ctx struct {
 	Root    string
 	Adopted bool
 
+	// Version is the client's own version, the string `--version`
+	// prints. It is handed down rather than read again so that a
+	// command naming the binary and `--version` naming it cannot
+	// disagree about what is running (spec-0043).
+	Version string
+
 	// Yes is --yes: every question already answered.
 	Yes bool
 	// Color is the reporting rule already decided: stdout is a

@@ -34,8 +34,34 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "uninstall",
-		Summary: "remove the kit, keeping the project's record",
-		Need:    command.NeedAdopted,
+		Summary: "remove WritRun, keep everything it helped you write",
+		About: command.About{
+			Sentence: []string{
+				"remove WritRun, and keep everything it helped you",
+				"write",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"The methodology is not for this project after",
+					"all, or you are moving it somewhere else.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Removes the kit's own files \u2014 it knows them by",
+					"the `writrun-` prefix they carry \u2014 and shows",
+					"both what goes and what stays before it asks.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Touches your tasks, your specs, your reports or",
+					"your docs. Those are your record, not the",
+					"tool's.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"The repository keeps working; it simply has no",
+					"kit in it, and `init` can put one back.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

@@ -52,5 +52,13 @@ already defines; it never decides in the methodology's place.
   `--no-color` given disables it.
 - `--version` names the product — `writrun-cli` — its own version, and
   the WritRun tag it pins. The command a person types stays `writrun`.
-- `--help` prints one line per command and where the docs live; it
-  restates nothing.
+- `--help` prints one line per command, grouped by what a person is
+  doing, and where the docs live. Each row's text is the command's own
+  summary, and the entry screen shows that same string.
+- `writrun <command> --help` prints that command's long description:
+  one sentence naming it, then why you would reach for it, what it
+  does, what it leaves alone, and what comes next.
+- A command that asks something prints its long description before its
+  first question, where it was run with no arguments and stdin is a
+  terminal. `list`, `status`, `doctor` and `work` print none: they do
+  their work bare, and a daily explanation is noise.

@@ -55,8 +55,37 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "doctor",
-		Summary: "what the methodology assumes, checked",
-		Need:    command.NeedAdopted,
+		Summary: "check this repository still satisfies WritRun",
+		About: command.About{
+			Sentence: []string{
+				"check this repository still satisfies what WritRun",
+				"assumes",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"Something stopped working, or you want to know",
+					"whether you are ready to move up a stage.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Reads every requirement the stages make \u2014",
+					"programs on your PATH, documents in place,",
+					"GitHub settings \u2014 and marks each one met or",
+					"not.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Repairs. It names the file or the setting and",
+					"what is expected of it; the change is yours to",
+					"make.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"A stage above yours is previewed, so you can",
+					"see what declaring it would ask of this",
+					"repository.",
+				}},
+			},
+		},
+		Need:  command.NeedAdopted,
+		Daily: true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

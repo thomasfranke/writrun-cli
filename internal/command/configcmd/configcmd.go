@@ -37,8 +37,36 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "config",
-		Summary: "the adopter's settings, and one changed",
-		Need:    command.NeedAdopted,
+		Summary: "read and change the settings WritRun reads",
+		About: command.About{
+			Sentence: []string{
+				"read and change the settings WritRun reads",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You want to see how this project is set up \u2014",
+					"which stage, who presses commit and push \u2014 or",
+					"change one of those.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Lists every key the settings declare, under the",
+					"section that owns it, and changes the one you",
+					"choose.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Keeps a list of its own. The keys are the",
+					"settings file's and the allowed values are the",
+					"kit checker's; a value it refuses is restored",
+					"byte for byte.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"Nothing is installed by a setting. The stage is",
+					"a declaration; `update` is what fetches, and",
+					"`doctor` is what checks.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},
