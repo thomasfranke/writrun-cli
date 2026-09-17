@@ -1,10 +1,10 @@
 ---
 id: report-0046
-status: open
+status: routed
 task_ref: []
 doc_ref: product/pull-requests/finish.md
 created: 2026-09-17T18:40:33Z
-triaged: null
+triaged: 2026-09-17T19:32:48Z
 ---
 
 # preflight refuses the only range shape that reaches the working tree
@@ -49,3 +49,20 @@ does read the tree; step 4 is behind this.
 
 A patch here would not survive: `preflight.sh` is the kit's and the
 next `writrun update` replaces it.
+
+**Triage — routed.** It became
+[thomasfranke/writrun#269](https://github.com/thomasfranke/writrun/issues/269),
+labelled `writrun:submitted`. `preflight.sh` is the kit's and the next
+`writrun update` replaces it, so nothing here can reach it.
+
+The issue names three shapes that would settle it and leaves the choice
+upstream: accept a bare ref as the range once one argument is already a
+task list, take the range through a named flag instead of by shape, or
+have `preflight.sh` reduce a two-ended range itself for the stages that
+should read the tree — the last needing no caller to change at all.
+
+The half this repository could reach shipped with task-0037: step 1
+calls `check_deltas.sh` directly and is given the bare range, so a
+promised document written and staged is judged rather than refused.
+`product/pull-requests/finish.md` says which gate reads the tree and
+which does not, rather than claiming both do.
