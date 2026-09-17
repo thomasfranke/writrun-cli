@@ -33,3 +33,4 @@ appending a row.
 | [0013](architecture/0013-the-kit-is-read-from-the-kit.md) | 2026-09-06 | architecture | the kit is read from the kit; Go names only what the binary calls. |
 | [0014](runtime/0014-the-product-is-writrun-cli.md) | 2026-09-09 | runtime | the product is `writrun-cli`; the command stays `writrun`. |
 | [0015](runtime/0015-a-command-that-asks-is-a-process.md) | 2026-09-16 | runtime | a command that asks runs as its own process. |
+| [0016](docs/0016-a-command-explains-itself.md) | 2026-09-17 | docs | a command explains itself; `--help` stays one line each. Supersedes 0010. |
