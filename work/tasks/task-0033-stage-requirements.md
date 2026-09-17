@@ -1,8 +1,8 @@
 ---
 id: task-0033
-status: ready
+status: in-progress
 blocked_reason: null
-taken_by: null
+taken_by: thomasfranke
 spec_ref: [spec-0036, spec-0037, spec-0041]
 doc_ref: product/adoption/doctor.md
 origin: rule
