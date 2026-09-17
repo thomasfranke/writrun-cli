@@ -1,10 +1,10 @@
 ---
 id: report-0041
-status: open
+status: fixed
 task_ref: []
 doc_ref: null
 created: 2026-09-16T19:18:18Z
-triaged: null
+triaged: 2026-09-17T13:03:19Z
 ---
 
 # seven specs promise in a form neither gate can read
@@ -42,3 +42,17 @@ the observation [report-0037](report-0037-technical-section-meaning.md)
 carries. The paths it wrote are correct; what it added around them is
 what the parser cannot read. The template the kit ships shows the bare
 form, and says nothing about a link being one.
+
+**Triage — fixed.** Two specs still carried the form when this was
+read again: spec-0038 and spec-0042. Both are rewritten to the bare
+one the kit's template shows, and no bullet under a Proposed-changes
+heading in `work/specs/` opens with `[` any more. The other five were
+corrected before this report was triaged; what is left of the
+observation is the count it gave, and the count is zero.
+
+The gates are not what changed. `extract_paths` and
+`promised_written` are the kit's, and teaching either of them to read
+a link is a change to a repository this one cannot write
+([AGENTS.md](../../AGENTS.md)). The template already shows the form
+both can read, so the specs came to it rather than the other way
+round.

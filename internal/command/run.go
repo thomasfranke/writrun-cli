@@ -56,6 +56,16 @@ type Frame struct {
 	// refusal inside a session is read on the terminal, and the session
 	// has never read a command's exit code.
 	//
+	// FirstRun opens the screen `writrun` shows where `.writrun/` is
+	// absent, and answers the command a key chose there — empty where
+	// the reader left without choosing one. It is a field for the same
+	// reason Screen is: the frame keeps no dependency on the screen's
+	// engine (screens/README.md, spec-0038).
+	//
+	// nil is a binary built without that screen: the path then prints
+	// the help, which is what it printed before there was one.
+	FirstRun func(ctx *Ctx) (string, error)
+
 	// nil is a binary that cannot spawn itself, and so is an error back:
 	// the command then runs in this process, which is what every command
 	// did before this port existed. A screen that cannot open a question
@@ -339,9 +349,10 @@ func usage(w io.Writer) {
 }
 
 // openScreen answers `writrun` with no command. The screen needs a
-// terminal at both ends and an adopted repository; without either there
-// is no screen to open, and the help is what the rule prescribes rather
-// than a fallback this invented (screens/README.md).
+// terminal at both ends; without one there is no screen to open, and
+// the help is what the rule prescribes rather than a fallback this
+// invented. Where the terminal is there and the kit is not, the screen
+// is the first run's (screens/README.md, spec-0038).
 //
 // It returns the process's exit code. A command that refuses inside the
 // session does not end it and does not decide it: the reader saw the
@@ -383,13 +394,56 @@ func withFlags(args []string, noColor, yes bool) []string {
 	return append(flags, args...)
 }
 
-func openScreen(f Frame, noColor, yes bool) int {
-	if f.Screen == nil || !f.Terminal.InteractiveIn() || !f.Terminal.InteractiveOut() {
+// openFirstRun answers `writrun` with no command where `.writrun/` is
+// absent: the screen that says what this is, what the environment
+// answers, and what to do next. A binary built without that screen
+// prints the help, as it did before there was one (spec-0038).
+//
+// The command a key chose runs after the screen has closed, not inside
+// it: `init` asks questions, and a terminal program's input reader can
+// outlive the program it reads for (decision 0015, report-0040). There
+// is no session here — the screen's whole offer is one command — so
+// closing it is enough, and the spawn is what makes *alone* a fact
+// where the port is wired.
+func openFirstRun(f Frame, noColor, yes bool, root string) int {
+	if f.FirstRun == nil {
 		help(f)
 		return 0
 	}
-	// Adoption is read rather than enforced: outside one the rule asks
-	// for the help, not for the refusal NeedAdopted would print. This is
+	ctx := &Ctx{
+		Stdout:   f.Stdout,
+		Stderr:   f.Stderr,
+		Stdin:    f.Stdin,
+		Terminal: f.Terminal,
+		Yes:      yes,
+		Color:    colorEnabled(f.Terminal.InteractiveOut(), noColor, f.Getenv),
+		Version:  f.Version,
+		Root:     root,
+		Again:    spawner(f, noColor, yes),
+	}
+	name, err := f.FirstRun(ctx)
+	if err != nil {
+		fmt.Fprintf(f.Stderr, "writrun: %v\n", err)
+		return 1
+	}
+	if name == "" {
+		return 0
+	}
+	if f.Again != nil {
+		if err := f.Again(sessionArgs(name, nil, noColor, yes)); err == nil {
+			return 0
+		}
+	}
+	return dispatch(f, noColor, yes, name, nil)
+}
+
+func openScreen(f Frame, noColor, yes bool) int {
+	if !f.Terminal.InteractiveIn() || !f.Terminal.InteractiveOut() {
+		help(f)
+		return 0
+	}
+	// Adoption is read rather than enforced: outside one the screen is
+	// the first run's, not the refusal NeedAdopted would print. This is
 	// the one caller that wants the fact without the verdict.
 	wd, err := f.Getwd()
 	if err != nil {
@@ -398,6 +452,9 @@ func openScreen(f Frame, noColor, yes bool) int {
 	}
 	root, adopted, err := f.FindRepo(wd)
 	if err != nil || !adopted {
+		return openFirstRun(f, noColor, yes, root)
+	}
+	if f.Screen == nil {
 		help(f)
 		return 0
 	}

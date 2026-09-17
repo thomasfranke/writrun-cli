@@ -17,10 +17,18 @@ import (
 // would be a second authority that drifts
 // (docs/product/screens/README.md).
 type Settings struct {
-	// Header is the line above the sections, composed by the caller
-	// from facts it already holds.
-	Header string
-	Groups []SettingGroup
+	// Identity is the first line: the product, its version, the tag it
+	// pins, the branch. Context names the file the sections were read
+	// from, and Source the check that judges a change to it — drawn at
+	// the right of the same line. The caller composes all three from
+	// facts it already holds.
+	Identity string
+	Context  string
+	Source   string
+	// Checker is the check named in the explanation under the rule. It
+	// is the same check Source names, without the words around it.
+	Checker string
+	Groups  []SettingGroup
 }
 
 // SettingGroup is one section and the keys under it.
@@ -72,10 +80,16 @@ func OpenSettings(load func() (Settings, error), change Change, in io.Reader, w 
 }
 
 type settingsModel struct {
-	rows   []settingRow
-	cursor int
-	height int
-	top    int
+	chrome chrome
+	// checker is the check named in the explanation, which is the one
+	// named in the header: a reader is told what judges a change where
+	// they are about to make one.
+	checker string
+	rows    []settingRow
+	cursor  int
+	height  int
+	width   int
+	top     int
 
 	load   func() (Settings, error)
 	change Change
@@ -105,11 +119,17 @@ func newSettings(s Settings, load func() (Settings, error), change Change, in io
 	return m
 }
 
+// settingsChrome is the lines the screen keeps around the rows: the two
+// header lines, the blank, the rule, the explanation's two lines, the
+// blank, the footer.
+const settingsChrome = 8
+
 func (m *settingsModel) fill(s Settings) {
 	var rows []settingRow
 	push := func(text string) { rows = append(rows, settingRow{text: text}) }
 
-	push(" " + s.Header)
+	m.chrome = chrome{identity: s.Identity, context: s.Context, source: s.Source}
+	m.checker = s.Checker
 
 	width := 0
 	for _, g := range s.Groups {
@@ -121,10 +141,10 @@ func (m *settingsModel) fill(s Settings) {
 	}
 	for _, g := range s.Groups {
 		push("")
-		push(" " + g.Name)
+		push(g.Name)
 		for _, r := range g.Rows {
 			rows = append(rows, settingRow{
-				text:  "   " + pad(r.Name, width) + "  " + r.Value,
+				text:  "  " + pad(r.Name, width) + "    " + r.Value,
 				name:  r.Name,
 				key:   r.Key,
 				value: r.Value,
@@ -154,13 +174,12 @@ func (m settingsModel) Init() tea.Cmd { return nil }
 func (m settingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Four lines are the separator, the detail's two, and the
-		// footer; one more is the blank above them.
+		m.width = msg.Width
 		switch {
 		case msg.Height == 0:
 			m.height = 0
-		case msg.Height > 5:
-			m.height = msg.Height - 5
+		case msg.Height > settingsChrome:
+			m.height = msg.Height - settingsChrome
 		default:
 			m.height = 1
 		}
@@ -198,10 +217,11 @@ type changedMsg struct{}
 func (m settingsModel) exec(key string) tea.Cmd {
 	change := m.change
 	d := dispatch{
-		label: "config " + key,
-		run:   func() { change(key) },
-		in:    m.in,
-		out:   m.out,
+		label:    "config " + key,
+		identity: m.chrome.identity,
+		run:      func() { change(key) },
+		in:       m.in,
+		out:      m.out,
 	}
 	return tea.Exec(d, func(error) tea.Msg { return changedMsg{} })
 }
@@ -245,31 +265,61 @@ func (m *settingsModel) scroll() {
 }
 
 func (m settingsModel) View() string {
+	width := contentWidth(m.width)
 	if m.err != nil {
-		return fmt.Sprintf(" the settings could not be read: %v\n\n q back\n", m.err)
+		return m.unreadableView(width)
 	}
 
 	var b strings.Builder
-	end := len(m.rows)
-	if m.height > 0 && m.top+m.height < end {
-		end = m.top + m.height
+	for _, line := range m.chrome.lines(width) {
+		b.WriteString(line + "\n")
 	}
+
+	end := window(len(m.rows), m.top, m.height)
 	for i := m.top; i < end; i++ {
-		if i == m.cursor {
-			b.WriteString("›")
-		} else {
-			b.WriteByte(' ')
-		}
-		b.WriteString(m.rows[i].text)
-		b.WriteByte('\n')
+		b.WriteString(cursorBefore(i == m.cursor) + m.rows[i].text + "\n")
 	}
 
 	b.WriteByte('\n')
+	b.WriteString(rule(width) + "\n")
 	if m.cursor >= 0 && m.cursor < len(m.rows) {
 		r := m.rows[m.cursor]
-		b.WriteString(" " + r.name + " — " + r.value + "\n")
+		for _, line := range wrap(r.name+" — "+r.value+". Every key above sits where "+
+			m.checker+" says it lives; nothing here is a list this binary keeps.",
+			width, " ", "        ") {
+			b.WriteString(line + "\n")
+		}
 	}
 	b.WriteByte('\n')
-	b.WriteString("↑↓ move · enter change · q back\n")
+	b.WriteString(footer{
+		movement: "↑↓ move",
+		actions:  []string{"enter change"},
+		way:      backOrQuit,
+	}.line() + "\n")
+	return b.String()
+}
+
+// unreadableView is the settings that could not be read: the failure
+// marked as `doctor` marks one, and the command that writes the file
+// named — an error alone says what broke and not what to do
+// (spec-0042).
+func (m settingsModel) unreadableView(width int) string {
+	var b strings.Builder
+	for _, line := range (chrome{identity: m.chrome.identity, context: "CONFIG · unreadable"}).lines(width) {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n  ✗  the settings could not be read\n")
+	for _, line := range wrap(fmt.Sprint(m.err), width, "      ", "      ") {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n\n")
+	for _, line := range wrap("The settings file is the project's own, and writing it "+
+		"is `init`'s act, never this screen's. The kit's reader documents its "+
+		"defaults and keeps working without one, so this is a repository that was "+
+		"never adopted — or one whose home was moved.", width, " ", "        ") {
+		b.WriteString(line + "\n")
+	}
+	b.WriteByte('\n')
+	b.WriteString(footer{way: backOrQuit}.line() + "\n")
 	return b.String()
 }

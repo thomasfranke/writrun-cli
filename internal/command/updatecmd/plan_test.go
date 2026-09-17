@@ -192,10 +192,9 @@ func TestRenderSaysWhenOnlyTheTagMoved(t *testing.T) {
 	if !r.empty() {
 		t.Fatal("a refresh with nothing but the tag is not empty()")
 	}
-	var out strings.Builder
-	r.render(&out)
-	if !strings.Contains(out.String(), "Only the recorded tag differs") {
-		t.Errorf("the stand-down is not said:\n%s", out.String())
+	out := strings.Join(r.plan(newTag).Lines(), "\n")
+	if !strings.Contains(out, "Only the recorded tag differs") {
+		t.Errorf("the stand-down is not said:\n%s", out)
 	}
 }
 

@@ -231,9 +231,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err := observe(ctx, d, plan.title, plan.body); err != nil {
 		return err
 	}
-	show(ctx, plan, tasks, susp, forgeRead)
-	if err := ctx.AskConfirm(fmt.Sprintf(
-		"Return %s to draft, push %s and open the amendment pull request?", specID, branch)); err != nil {
+	if err := ctx.AskPlan(amendPlan(plan, tasks, susp, forgeRead)); err != nil {
 		return err
 	}
 	return act(ctx, d, plan)
@@ -253,28 +251,110 @@ type plan struct {
 // show prints the whole act: what is edited, who waits, and the branch,
 // the title and the body exactly as they will be opened
 // (product/pull-requests/shape.md).
-func show(ctx *command.Ctx, p plan, tasks []string, susp []suspension, forgeRead bool) {
-	fmt.Fprintf(ctx.Stdout, "\namendment:\n")
-	fmt.Fprintf(ctx.Stdout, "  spec       %s → draft (%s)\n", p.specID, p.relPath)
-	switch {
-	case len(tasks) == 0:
-		fmt.Fprintf(ctx.Stdout, "  suspends   nothing — no task referencing %s is in flight\n", p.specID)
-	default:
-		for _, s := range susp {
-			if s.number > 0 {
-				fmt.Fprintf(ctx.Stdout, "  suspends   %s on #%d\n", s.task, s.number)
-			} else if forgeRead {
-				fmt.Fprintf(ctx.Stdout, "  suspends   %s — no open pull request works it\n", s.task)
-			} else {
-				fmt.Fprintf(ctx.Stdout, "  suspends   %s — the forge did not name its pull request\n", s.task)
-			}
+func show(w io.Writer, p plan, tasks []string, susp []suspension, forgeRead bool) {
+	fmt.Fprintf(w, "\namendment:\n")
+	fmt.Fprintf(w, "  spec       %s → draft (%s)\n", p.specID, p.relPath)
+	for _, line := range suspends(p.specID, tasks, susp, forgeRead) {
+		fmt.Fprintln(w, line)
+	}
+	fmt.Fprintf(w, "  branch     %s\n", p.branch)
+	fmt.Fprintf(w, "  commit     %s\n", p.subject)
+	fmt.Fprintf(w, "  title      %s\n", p.title)
+	fmt.Fprintf(w, "  body:\n%s\n", indent(p.body, 4))
+	fmt.Fprintf(w, "  The pull request opens ready for review: an amendment announces no work.\n\n")
+}
+
+// suspends are the rows naming what this amendment puts on hold, in one
+// place: the printed form and the screen say the same thing about the
+// same work.
+func suspends(specID string, tasks []string, susp []suspension, forgeRead bool) []string {
+	if len(tasks) == 0 {
+		return []string{fmt.Sprintf("  suspends   nothing — no task referencing %s is in flight", specID)}
+	}
+	out := make([]string, 0, len(susp))
+	for _, s := range susp {
+		switch {
+		case s.number > 0:
+			out = append(out, fmt.Sprintf("  suspends   %s on #%d", s.task, s.number))
+		case forgeRead:
+			out = append(out, fmt.Sprintf("  suspends   %s — no open pull request works it", s.task))
+		default:
+			out = append(out, fmt.Sprintf("  suspends   %s — the forge did not name its pull request", s.task))
 		}
 	}
-	fmt.Fprintf(ctx.Stdout, "  branch     %s\n", p.branch)
-	fmt.Fprintf(ctx.Stdout, "  commit     %s\n", p.subject)
-	fmt.Fprintf(ctx.Stdout, "  title      %s\n", p.title)
-	fmt.Fprintf(ctx.Stdout, "  body:\n%s\n", indent(p.body, 4))
-	fmt.Fprintf(ctx.Stdout, "  The pull request opens ready for review: an amendment announces no work.\n\n")
+	return out
+}
+
+// amendPlan is the amendment as the rows of one screen. The screen
+// leaves the body out where the printed form quotes it: a reader
+// deciding is looking at what changes, and the body is read in the
+// pull request (spec-0040).
+func amendPlan(p plan, tasks []string, susp []suspension, forgeRead bool) command.Plan {
+	var printed bytes.Buffer
+	show(&printed, p, tasks, susp, forgeRead)
+
+	rows := []command.PlanRow{
+		{Text: ""},
+		{Text: "amendment:"},
+		{
+			Text:    fmt.Sprintf("  spec       %s → draft", p.specID),
+			Selects: true,
+			Detail: "spec — " + p.specID + " is returned to draft in " + p.relPath +
+				". The approval it held is what this amendment withdraws, and no " +
+				"task may be worked against it until it is approved again.",
+		},
+	}
+	for i, line := range suspends(p.specID, tasks, susp, forgeRead) {
+		row := command.PlanRow{Text: line, Selects: true}
+		if len(tasks) == 0 {
+			row.Detail = "suspends — nothing. No task referencing " + p.specID +
+				" is in flight, so this amendment stops no work."
+		} else {
+			row.Detail = "suspends — " + suspendDetail(susp[i])
+		}
+		rows = append(rows, row)
+	}
+	rows = append(rows,
+		command.PlanRow{
+			Text:    fmt.Sprintf("  branch     %s", p.branch),
+			Selects: true,
+			Detail: "branch — " + p.branch + ", cut from a fresh authority branch " +
+				"and carrying the one queue edit this amendment is.",
+		},
+		command.PlanRow{
+			Text:    fmt.Sprintf("  commit     %s", p.subject),
+			Selects: true,
+			Detail: "commit — the one commit the branch carries, in this project's " +
+				"own commit convention.",
+		},
+		command.PlanRow{
+			Text:    fmt.Sprintf("  title      %s", p.title),
+			Selects: true,
+			Detail: "title — the pull request's, in the style this project declared. " +
+				"It opens ready for review: an amendment announces no work.",
+		},
+		command.PlanRow{Text: ""},
+	)
+
+	return command.Plan{
+		Rows:    rows,
+		Printed: command.Written(printed.String()),
+		Verb:    "open the amendment",
+		Question: fmt.Sprintf("Return %s to draft, push %s and open the amendment pull request?",
+			p.specID, p.branch),
+	}
+}
+
+// suspendDetail says why one task waits, and what the reviewer is told.
+func suspendDetail(s suspension) string {
+	if s.number > 0 {
+		return fmt.Sprintf("%s is in flight on pull request #%d, and this amendment "+
+			"reopens the spec that pull request implements. The body names #%d, so a "+
+			"reviewer reads why the work is waiting rather than finding out at the "+
+			"merge.", s.task, s.number, s.number)
+	}
+	return s.task + " references this spec and no open pull request could be read " +
+		"for it. The body says so, so a reviewer is told what could not be looked up."
 }
 
 // act performs exactly what show printed: the branch cut from a fresh

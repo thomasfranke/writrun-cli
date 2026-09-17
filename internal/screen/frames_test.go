@@ -1,147 +1,34 @@
 package screen
 
 import (
-	"encoding/json"
-	"math"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
+
+	"github.com/thomasfranke/writrun-cli/internal/drawing"
 )
 
-// The drawing is the assertion, and this is how a frame is read back out
-// of one.
+// The drawing is the assertion, and `internal/drawing` is how a frame
+// is read back out of one.
 //
 // An `.excalidraw` file is JSON. A frame is a rectangle, its caption is
-// the text element inside its title bar, and its content is every text
+// the text element in its title bar, and its content is every text
 // element inside it — each at a position the font's own metrics turn
 // back into a line and a column. So a frame reconstructs to the lines a
 // terminal would show, and a case can hold the binary to them
 // (docs/product/screens/README.md — where the two disagree, the binary
 // is what changes).
-const (
-	// charWidth and lineHeight are the drawing's monospace metrics at
-	// font size 14: every text element in these frames is at that size,
-	// and every one of them measures exactly this.
-	charWidth  = 8.4
-	lineHeight = 17.5
-	// framePad is the inset the frames draw their content at, and
-	// titleBar is the height of the strip the caption sits in.
-	framePad = 8.0
-	titleBar = 30.0
-)
-
-type drawing struct {
-	Elements []element `json:"elements"`
-}
-
-type element struct {
-	Type         string  `json:"type"`
-	X            float64 `json:"x"`
-	Y            float64 `json:"y"`
-	Width        float64 `json:"width"`
-	Height       float64 `json:"height"`
-	Text         string  `json:"text"`
-	OriginalText string  `json:"originalText"`
-}
-
-func (e element) content() string {
-	if e.OriginalText != "" {
-		return e.OriginalText
-	}
-	return e.Text
-}
-
-// frame is the lines one captioned frame of a drawing shows, top and
-// bottom blanks trimmed.
+//
+// The reading used to live here, in a copy of the package below it.
+// One reader is what keeps two frames of one screen from being read by
+// two rules.
 func frame(t *testing.T, file, caption string) []string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(file)))
+	lines, err := drawing.Screen(filepath.Join("..", "..", filepath.FromSlash(file)), caption)
 	if err != nil {
 		t.Fatalf("the drawing could not be read: %v", err)
 	}
-	var d drawing
-	if err := json.Unmarshal(raw, &d); err != nil {
-		t.Fatalf("%s is not readable JSON: %v", file, err)
-	}
-
-	var cap *element
-	for i, e := range d.Elements {
-		if e.Type == "text" && strings.TrimSpace(e.content()) == caption {
-			cap = &d.Elements[i]
-			break
-		}
-	}
-	if cap == nil {
-		t.Fatalf("%s draws no frame captioned %q", file, caption)
-	}
-	var rect *element
-	for i, e := range d.Elements {
-		if e.Type != "rectangle" {
-			continue
-		}
-		if e.X <= cap.X && cap.X <= e.X+e.Width && e.Y <= cap.Y && cap.Y <= e.Y+e.Height {
-			if rect == nil || e.Height > rect.Height {
-				rect = &d.Elements[i]
-			}
-		}
-	}
-	if rect == nil {
-		t.Fatalf("the caption %q sits in no frame", caption)
-	}
-
-	top := rect.Y + titleBar
-	rows := map[int][]struct {
-		col  int
-		text string
-	}{}
-	for _, e := range d.Elements {
-		if e.Type != "text" {
-			continue
-		}
-		if e.X < rect.X || e.X >= rect.X+rect.Width || e.Y < top || e.Y >= rect.Y+rect.Height {
-			continue
-		}
-		col := int(math.Round((e.X - rect.X - framePad) / charWidth))
-		for i, line := range strings.Split(e.content(), "\n") {
-			row := int(math.Round((e.Y + float64(i)*lineHeight - top) / lineHeight))
-			rows[row] = append(rows[row], struct {
-				col  int
-				text string
-			}{col, line})
-		}
-	}
-
-	last := 0
-	for row := range rows {
-		if row > last {
-			last = row
-		}
-	}
-	var out []string
-	for row := 0; row <= last; row++ {
-		pieces := rows[row]
-		sort.Slice(pieces, func(i, j int) bool { return pieces[i].col < pieces[j].col })
-		// Columns are characters, not bytes: a glyph and a dash are one
-		// column each and several bytes, so the line is assembled as
-		// runes or every element after the first `✓` lands short.
-		var line []rune
-		for _, p := range pieces {
-			for len(line) < p.col {
-				line = append(line, ' ')
-			}
-			line = append(line[:p.col], []rune(p.text)...)
-		}
-		out = append(out, strings.TrimRight(string(line), " "))
-	}
-	for len(out) > 0 && out[0] == "" {
-		out = out[1:]
-	}
-	for len(out) > 0 && out[len(out)-1] == "" {
-		out = out[:len(out)-1]
-	}
-	return out
+	return lines
 }
 
 // sameLines fails naming the first line the two disagree on, which is
@@ -163,8 +50,8 @@ func sameLines(t *testing.T, got, want []string) {
 	}
 }
 
-// lines is rendered output as the frames are: trailing spaces gone, and
-// the blanks at either end with them.
+// rendered is output as the frames are: trailing spaces gone, and the
+// blanks at either end with them.
 func rendered(out string) []string {
 	var trimmed []string
 	for _, l := range strings.Split(out, "\n") {
@@ -179,4 +66,71 @@ func rendered(out string) []string {
 	return trimmed
 }
 
-const doctorDrawing = "docs/product/screens/adoption/doctor.excalidraw"
+// sameFrame holds a rendered screen to a drawn one.
+//
+// The rows are compared column for column: where a row sits is the
+// screen's own answer. The explanation and the key line are compared as
+// sentences, because where a sentence breaks is the terminal's width
+// and the canvas's — the words are the binary's and the wrapping is
+// not. The doctor screen's cases settled that, and this is the same
+// rule applied to every screen.
+func sameFrame(t *testing.T, got, want []string) {
+	t.Helper()
+	gotRows, gotSays, gotKeys := parts(got)
+	wantRows, wantSays, wantKeys := parts(want)
+	sameLines(t, gotRows, wantRows)
+	if gotSays != wantSays {
+		t.Errorf("the explanation differs\n  drawn:    %q\n  rendered: %q", wantSays, gotSays)
+	}
+	if gotKeys != wantKeys {
+		t.Errorf("the keys differ\n  drawn:    %q\n  rendered: %q", wantKeys, gotKeys)
+	}
+}
+
+// parts cuts a frame into the rows, the explanation and the key line.
+//
+// The key line is the last line; the explanation is the block of lines
+// above it, up to the blank or the rule that separates it from the
+// rows.
+func parts(lines []string) (rows []string, says, keys string) {
+	if len(lines) == 0 {
+		return nil, "", ""
+	}
+	keys = strings.TrimSpace(lines[len(lines)-1])
+	body := lines[:len(lines)-1]
+	for len(body) > 0 && body[len(body)-1] == "" {
+		body = body[:len(body)-1]
+	}
+	var said []string
+	for len(body) > 0 {
+		last := body[len(body)-1]
+		if last == "" || isRule(last) {
+			break
+		}
+		said = append([]string{strings.TrimSpace(last)}, said...)
+		body = body[:len(body)-1]
+	}
+	for len(body) > 0 && body[len(body)-1] == "" {
+		body = body[:len(body)-1]
+	}
+	return body, strings.Join(said, " "), keys
+}
+
+func isRule(line string) bool { return strings.HasPrefix(strings.TrimSpace(line), "───") }
+
+// keyLine is the last line of a frame, which is the footer on every
+// screen that draws one.
+func keyLine(lines []string) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(lines[len(lines)-1])
+}
+
+const (
+	doctorDrawing   = "docs/product/screens/adoption/doctor.excalidraw"
+	entryDrawing    = "docs/product/screens/entry.excalidraw"
+	firstRunDrawing = "docs/product/screens/first-run.excalidraw"
+	listDrawing     = "docs/product/screens/tasks/list.excalidraw"
+	configDrawing   = "docs/product/screens/adoption/config.excalidraw"
+)

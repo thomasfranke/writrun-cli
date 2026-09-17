@@ -32,6 +32,7 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
 	"github.com/thomasfranke/writrun-cli/internal/kit"
 	"github.com/thomasfranke/writrun-cli/internal/kitfetch"
+	"github.com/thomasfranke/writrun-cli/internal/requirements"
 	"github.com/thomasfranke/writrun-cli/internal/screen"
 	"github.com/thomasfranke/writrun-cli/internal/term"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
@@ -73,6 +74,7 @@ func main() {
 		Getenv:     os.Getenv,
 		Getwd:      os.Getwd,
 		Screen:     openScreen,
+		FirstRun:   openFirstRun,
 		Again:      again,
 	}, os.Args[1:]))
 }
@@ -150,6 +152,7 @@ func commands() []command.Command {
 		configcmd.New(configcmd.Deps{
 			Scripts: kit.Run,
 			Files:   disk,
+			Header:  headerLine,
 			// The preview a stage raise shows is doctor's own answer, so
 			// the checks are wired once and `config` keeps no copy of one
 			// (spec-0041).
@@ -279,7 +282,7 @@ func entryScreen(ctx *command.Ctx) screen.Entry {
 		summaries[c.Name] = c.Summary
 		asks[c.Name] = c.AsksNothing
 	}
-	e := screen.Entry{Header: header(ctx)}
+	e := screen.Entry{Identity: header(ctx)}
 	for _, g := range entryGroups {
 		group := screen.Group{Name: g.name}
 		for _, n := range g.names {
@@ -291,8 +294,124 @@ func entryScreen(ctx *command.Ctx) screen.Entry {
 			e.Groups = append(e.Groups, group)
 		}
 	}
-	e.Stage = stageLines(ctx)
+	e.Context, e.Conduct = stageLines(ctx)
+	if e.Context != "" {
+		e.Source = kit.Settings
+	}
 	return e
+}
+
+// openFirstRun is the frame's first-run port in production: the screen
+// `writrun` opens where `.writrun/` is absent, built from the same
+// probe `doctor`'s stage 0 uses. It answers the command a key chose,
+// empty where the reader left without choosing one.
+func openFirstRun(ctx *command.Ctx) (string, error) {
+	return screen.OpenFirstRun(
+		func() (screen.FirstRun, error) { return firstRunScreen(ctx), nil },
+		os.Stdin,
+		os.Stdout,
+	)
+}
+
+// firstRunScreen fills the first-run screen: the environment as the
+// probe answers it now, `init` offered or held out of reach, and the
+// two flags that run anywhere.
+//
+// It is read on every `r`, so a requirement installed while the screen
+// is open is met the moment the reader asks again.
+func firstRunScreen(ctx *command.Ctx) screen.FirstRun {
+	missing := requirements.Missing(exec.LookPath)
+	unmet := map[string]bool{}
+	for _, name := range missing {
+		unmet[name] = true
+	}
+	all := requirements.All()
+	ready := len(missing) == 0
+
+	env := screen.FirstRunGroup{
+		Name: fmt.Sprintf("ENVIRONMENT — %d of %d met", len(all)-len(missing), len(all)),
+	}
+	for _, name := range all {
+		row := screen.FirstRunRow{Mark: metMark, Name: name, Selects: true}
+		row.Explain = name + " — " + requirements.Reason(name) + "."
+		if unmet[name] {
+			row.Mark = unmetMark
+			row.Text = "the kit's scripts require it"
+			row.Explain = name + " — " + requirements.Reason(name) +
+				", and it is not on the PATH. Install it, then press `r` to read " +
+				"the PATH again. `init` is out of reach until all four are met: " +
+				"every flow it installs runs through these four, so adopting " +
+				"without them installs a kit that cannot run."
+		}
+		env.Rows = append(env.Rows, row)
+	}
+
+	adopt := screen.FirstRunRow{
+		Name: "init",
+		// The row's words are the command table's own — the same string
+		// `--help` and the entry screen show. A second description of one
+		// command is a second answer about it (report-0042).
+		Text:    summaryOf("init"),
+		Runs:    "init",
+		Selects: true,
+		Explain: "init — installs the WritRun kit into this repository. It asks " +
+			"the stage, extracts this repository's own conventions, grafts an " +
+			"existing AGENTS.md, and leaves the queue empty.",
+	}
+	if !ready {
+		adopt.Runs = ""
+		adopt.Text = fmt.Sprintf("out of reach — %d environment requirement%s unmet",
+			len(missing), plural(len(missing)))
+	}
+
+	return screen.FirstRun{
+		Identity: header(ctx),
+		Context:  "NO KIT HERE · this repository has no " + wrepo.Marker + "/",
+		Ready:    ready,
+		Groups: []screen.FirstRunGroup{
+			env,
+			{Name: "ADOPTION", Rows: []screen.FirstRunRow{adopt}},
+			{Name: "THIS BINARY", Rows: []screen.FirstRunRow{
+				{
+					Name: "--version",
+					Text: "the product, its version, and the tag it pins",
+					Explain: "--version — the product, the version of this binary, and " +
+						"the WritRun tag it pins. It runs anywhere, adopted or not.",
+				},
+				{
+					Name: "--help",
+					Text: "one line per command, and where the docs live",
+					Explain: "--help — every command with the one line that says what it " +
+						"is for, and the address of the docs. It runs anywhere.",
+				},
+			}},
+		},
+	}
+}
+
+// summaryOf is one command's one-liner, read from the table.
+func summaryOf(name string) string {
+	for _, c := range commands() {
+		if c.Name == name {
+			return c.Summary
+		}
+	}
+	return ""
+}
+
+// The two marks this screen uses, which are `doctor`'s own: a
+// requirement is met or it is not, and the glyph is the state
+// (docs/product/screens/adoption/doctor.excalidraw).
+const (
+	metMark   = "✓"
+	unmetMark = "✗"
+)
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // exitCode reads the script's own verdict off the error the runner
@@ -329,11 +448,12 @@ func headerLine(root string) string {
 	return line
 }
 
-// stageLines are the declared stage and the conduct flags that decide
-// what the commands below will do, read through the kit's own reader.
-// Where a value cannot be read the line is left out: a screen that
-// cannot say the stage says nothing about it rather than guessing.
-func stageLines(ctx *command.Ctx) []string {
+// stageLines are the screen's context line — the declared stage and
+// what that rung is about — and the conduct flags that decide what the
+// commands below will do, read through the kit's own reader. Where a
+// value cannot be read both are left out: a screen that cannot say the
+// stage says nothing about it rather than guessing.
+func stageLines(ctx *command.Ctx) (string, []string) {
 	read := func(key string) string {
 		var out bytes.Buffer
 		if err := kit.Run(ctx.Root, &out, io.Discard, nil, kit.ReadSetting, key); err != nil {
@@ -343,9 +463,12 @@ func stageLines(ctx *command.Ctx) []string {
 	}
 	stage := read("stage")
 	if stage == "" {
-		return nil
+		return "", nil
 	}
-	lines := []string{"STAGE " + stage}
+	context := "STAGE " + stage
+	if name := stageNames[stage]; name != "" {
+		context += " · " + name
+	}
 	// `ask` and `auto` are what the flag means to the reader: a false
 	// conduct flag is a command that composes and waits for a yes.
 	word := func(key string) string {
@@ -357,8 +480,19 @@ func stageLines(ctx *command.Ctx) []string {
 		}
 		return "?"
 	}
-	lines = append(lines, "  commit "+word("stage_2.auto_commit")+
-		" · push "+word("stage_2.auto_push")+
-		" · pull request "+word("stage_2.auto_pr"))
-	return lines
+	conduct := "  commit " + word("stage_2.auto_commit") +
+		" · push " + word("stage_2.auto_push") +
+		" · pull request " + word("stage_2.auto_pr")
+	if style := read("stage_2.pr_title_style"); style != "" {
+		conduct += " · titles " + style
+	}
+	return context, []string{conduct}
+}
+
+// stageNames are the rungs as `init` offers them, which is the only
+// place this binary names them for a person.
+var stageNames = map[string]string{
+	"1": "files",
+	"2": "pull requests",
+	"3": "GitHub issues",
 }

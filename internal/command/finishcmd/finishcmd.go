@@ -478,6 +478,42 @@ func write(ctx *command.Ctx, d Deps, undo *journal, rel string, content []byte, 
 	return nil
 }
 
+// readyPlan is the three facts the confirmation is about, with the act
+// the next key performs on each. The rows are what a run with no
+// terminal prints, line for line (spec-0040).
+func readyPlan(taskID, specs string, pr pullRequest) command.Plan {
+	return command.Plan{
+		Verb:     "mark ready",
+		Question: fmt.Sprintf("Mark pull request #%d ready for review?", pr.Number),
+		Rows: []command.PlanRow{
+			{Text: ""},
+			{Text: "ready for review:"},
+			{
+				Text:    fmt.Sprintf("  task           %s", taskID),
+				Selects: true,
+				Detail: taskID + " — the task this branch carries, read from the " +
+					"branch name. Its `completed` date is what this command wrote; " +
+					"the status line is the machinery's and never this binary's.",
+			},
+			{
+				Text:    fmt.Sprintf("  specs          %s", specs),
+				Selects: true,
+				Detail: "specs " + specs + " — the specs this task references. Their " +
+					"Proposed changes are what the delta check judged this diff " +
+					"against, and each of them is now `implemented`.",
+			},
+			{
+				Text:    fmt.Sprintf("  pull request   #%d %s", pr.Number, pr.Title),
+				Selects: true,
+				Detail: fmt.Sprintf("pull request #%d — the draft this branch opened. "+
+					"Confirming marks it ready for review, which is the event the "+
+					"machinery answers by writing `in-review` on the task. The merge "+
+					"stays the maintainer's: no command walks through that gate.", pr.Number),
+			},
+		},
+	}
+}
+
 // pullRequest is the part of `gh pr view` this command reads.
 type pullRequest struct {
 	Number  int    `json:"number"`
@@ -518,11 +554,8 @@ func markReady(ctx *command.Ctx, d Deps, sig *guard, taskID string, specs []spec
 	if shown == "" {
 		shown = "none"
 	}
-	fmt.Fprintf(ctx.Stdout, "\nready for review:\n  task           %s\n  specs          %s\n  pull request   #%d %s\n",
-		taskID, shown, pr.Number, pr.Title)
-
 	err = sig.whileAsking(func() error {
-		return ctx.AskConfirm(fmt.Sprintf("Mark pull request #%d ready for review?", pr.Number))
+		return ctx.AskPlan(readyPlan(taskID, shown, pr))
 	})
 	if err != nil {
 		return err

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/thomasfranke/writrun-cli/internal/command"
 )
 
 // headless runs fn with a deadline: a form that would hang without a
@@ -60,7 +62,7 @@ func TestOverridesCountAsInteractive(t *testing.T) {
 func TestSelectConfirmsTheHighlightedOption(t *testing.T) {
 	got := headless(t, func() answer[int] {
 		tm := Terminal{In: strings.NewReader("\r"), Out: &bytes.Buffer{}}
-		i, err := tm.Select("pick one", []string{"first", "second"})
+		i, err := tm.Select("pick one", []command.Option{{Label: "first"}, {Label: "second"}})
 		return answer[int]{i, err}
 	})
 	if got.err != nil {
@@ -75,7 +77,7 @@ func TestSelectMovesWithArrowKeys(t *testing.T) {
 	got := headless(t, func() answer[int] {
 		// Down arrow (ESC [ B), then enter.
 		tm := Terminal{In: strings.NewReader("\x1b[B\r"), Out: &bytes.Buffer{}}
-		i, err := tm.Select("pick one", []string{"first", "second"})
+		i, err := tm.Select("pick one", []command.Option{{Label: "first"}, {Label: "second"}})
 		return answer[int]{i, err}
 	})
 	if got.err != nil {
@@ -164,7 +166,7 @@ func TestEscLeavesEveryQuestion(t *testing.T) {
 		{"Input", func(tm Terminal) error { _, err := tm.Input("the summary:"); return err }},
 		{"Confirm", func(tm Terminal) error { _, err := tm.Confirm("record it?"); return err }},
 		{"Select", func(tm Terminal) error {
-			_, err := tm.Select("which one?", []string{"a", "b"})
+			_, err := tm.Select("which one?", []command.Option{{Label: "a"}, {Label: "b"}})
 			return err
 		}},
 	} {
@@ -177,5 +179,44 @@ func TestEscLeavesEveryQuestion(t *testing.T) {
 				t.Error("esc did not leave the question")
 			}
 		})
+	}
+}
+
+// The highlighted option's own sentence is rendered under the list.
+// A question that named its options and explained none of them asks a
+// reader to choose by the shape of a word (spec-0040).
+func TestTheDescriptionRendersUnderTheHighlightedOption(t *testing.T) {
+	options := []command.Option{
+		{Label: "1   files", Detail: "1 — files. The queue is the repository's own."},
+		{Label: "2   pull requests", Detail: "2 — pull requests. The flows reach the forge."},
+	}
+	first := strings.Join(QuestionLines("Which stage?", options, 71, 0), "\n")
+	if !strings.Contains(first, "The queue is the repository's own.") {
+		t.Errorf("the first option's sentence is missing:\n%s", first)
+	}
+	if strings.Contains(first, "The flows reach the forge.") {
+		t.Errorf("a sentence for an option that is not highlighted was shown:\n%s", first)
+	}
+	second := strings.Join(QuestionLines("Which stage?", options, 71, 1), "\n")
+	if !strings.Contains(second, "The flows reach the forge.") {
+		t.Errorf("the sentence did not follow the cursor:\n%s", second)
+	}
+	// Under the list, not over it: the title comes first, then the
+	// options, then what the highlighted one means.
+	lines := QuestionLines("Which stage?", options, 71, 0)
+	title, option, said := -1, -1, -1
+	for i, l := range lines {
+		switch {
+		case strings.Contains(l, "Which stage?"):
+			title = i
+		case strings.Contains(l, "1   files") && option < 0:
+			option = i
+		case strings.Contains(l, "The queue is the repository's own."):
+			said = i
+		}
+	}
+	if !(title < option && option < said) {
+		t.Errorf("title %d, option %d, sentence %d — the sentence belongs under the list:\n%s",
+			title, option, said, strings.Join(lines, "\n"))
 	}
 }

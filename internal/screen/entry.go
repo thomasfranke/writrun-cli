@@ -16,14 +16,20 @@ import (
 // this screen alone, because a second copy of a summary is a second
 // answer about one command.
 type Entry struct {
-	// Header is the first line: the product, its version, the tag it
+	// Identity is the first line: the product, its version, the tag it
 	// pins, the branch. The caller composes it, because every fact in it
 	// is one the caller already holds.
-	Header string
-	// Stage is the two lines beneath it, or empty where the settings
-	// could not be read. A screen that cannot say the stage says nothing
-	// about it rather than guessing at one.
-	Stage []string
+	Identity string
+	// Context is the second line: the declared stage and its subject.
+	// Source is the file that answered it, drawn at the right of the
+	// same line. Both are empty where the settings could not be read —
+	// a screen that cannot say the stage says nothing about it rather
+	// than guessing at one.
+	Context string
+	Source  string
+	// Conduct is the line under the header: the flags that decide what
+	// the commands below will do. Empty where they could not be read.
+	Conduct []string
 	// Groups are the rows, in the order they are shown.
 	Groups []Group
 }
@@ -54,11 +60,14 @@ const listCommand = "list"
 // repository state and writes nothing: every key either moves the
 // cursor or ends the screen with an action for the caller to perform.
 type entryModel struct {
-	rows   []entryRow
-	cursor int
-	height int
-	top    int
-	action Action
+	chrome  chrome
+	conduct []string
+	rows    []entryRow
+	cursor  int
+	height  int
+	width   int
+	top     int
+	action  Action
 	// queue says the reader chose the row that opens the queue rather
 	// than a command to run.
 	queue bool
@@ -83,10 +92,6 @@ func newEntry(e Entry) entryModel {
 	var rows []entryRow
 	push := func(text string) { rows = append(rows, entryRow{text: text}) }
 
-	push(" " + e.Header)
-	for _, l := range e.Stage {
-		push(" " + l)
-	}
 	width := 0
 	for _, g := range e.Groups {
 		for _, c := range g.Rows {
@@ -97,25 +102,22 @@ func newEntry(e Entry) entryModel {
 	}
 	for _, g := range e.Groups {
 		push("")
-		push(" " + strings.ToUpper(g.Name))
+		push(strings.ToUpper(g.Name))
 		for _, c := range g.Rows {
 			rows = append(rows, entryRow{
-				text:        "   " + pad(c.Name, width) + "  " + c.Summary,
+				text:        "  " + pad(c.Name, width) + "   " + c.Summary,
 				command:     c.Name,
 				summary:     c.Summary,
 				asksNothing: c.AsksNothing,
 			})
 		}
 	}
-	m := entryModel{rows: rows, cursor: firstEntry(rows)}
-	return m
-}
-
-func pad(s string, width int) string {
-	if len(s) >= width {
-		return s
+	return entryModel{
+		chrome:  chrome{identity: e.Identity, context: e.Context, source: e.Source},
+		conduct: e.Conduct,
+		rows:    rows,
+		cursor:  firstEntry(rows),
 	}
-	return s + strings.Repeat(" ", width-len(s))
 }
 
 func firstEntry(rows []entryRow) int {
@@ -127,22 +129,28 @@ func firstEntry(rows []entryRow) int {
 	return -1
 }
 
+// chromeLines is how many lines the screen keeps above the rows and
+// below them: the header, the conduct line, the blank, the rule, the
+// explanation and the footer.
+func (m entryModel) chromeLines() int {
+	return 2 + len(m.conduct) + 5
+}
+
 func (m entryModel) Init() tea.Cmd { return nil }
 
 func (m entryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Four lines are the separator, the detail's two, and the
-		// footer; one more is the blank above them.
+		m.width = msg.Width
 		// A height of zero is a terminal that has not said how tall it
 		// is, not a terminal with no room: it gets no limit, and the
 		// rows all render. A terminal that did say, and said something
 		// too short to hold the chrome, still gets a line to read.
-		switch {
+		switch chrome := m.chromeLines(); {
 		case msg.Height == 0:
 			m.height = 0
-		case msg.Height > 5:
-			m.height = msg.Height - 5
+		case msg.Height > chrome:
+			m.height = msg.Height - chrome
 		default:
 			m.height = 1
 		}
@@ -163,7 +171,7 @@ func (m entryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, tea.Quit
 			}
-		case keyQuit, "ctrl+c", "esc":
+		case keyQuit, "ctrl+c", keyBack:
 			m.left = true
 			return m, tea.Quit
 		}
@@ -208,27 +216,34 @@ func (m *entryModel) scroll() {
 
 func (m entryModel) View() string {
 	var b strings.Builder
-	end := len(m.rows)
-	if m.height > 0 && m.top+m.height < end {
-		end = m.top + m.height
+	width := contentWidth(m.width)
+	for _, line := range m.chrome.lines(width) {
+		b.WriteString(line + "\n")
 	}
+	for _, line := range m.conduct {
+		b.WriteString(" " + line + "\n")
+	}
+
+	end := window(len(m.rows), m.top, m.height)
 	for i := m.top; i < end; i++ {
-		if i == m.cursor {
-			b.WriteString("›")
-		} else {
-			b.WriteByte(' ')
-		}
-		b.WriteString(m.rows[i].text)
-		b.WriteByte('\n')
+		b.WriteString(cursorBefore(i == m.cursor) + m.rows[i].text + "\n")
 	}
+
 	b.WriteByte('\n')
-	// The detail line is the selected command's whole summary — the row
+	b.WriteString(rule(width) + "\n")
+	// The explanation is the selected command's whole summary — the row
 	// shows what fits, and this shows what the command table says.
 	if m.cursor >= 0 && m.cursor < len(m.rows) {
 		r := m.rows[m.cursor]
-		b.WriteString(" " + r.command + " — " + r.summary + "\n")
+		for _, line := range wrap(r.command+" — "+r.summary, width, " ", "        ") {
+			b.WriteString(line + "\n")
+		}
 	}
 	b.WriteByte('\n')
-	b.WriteString("↑↓ move · enter run · q quit\n")
+	b.WriteString(footer{
+		movement: "↑↓ move",
+		actions:  []string{"enter run"},
+		way:      quitOnly,
+	}.line() + "\n")
 	return b.String()
 }

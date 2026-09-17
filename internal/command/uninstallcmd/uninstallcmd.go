@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/thomasfranke/writrun-cli/internal/command"
 	"github.com/thomasfranke/writrun-cli/internal/gitx"
@@ -86,8 +87,7 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if err != nil {
 		return err
 	}
-	r.render(ctx.Stdout)
-	if err := ctx.AskConfirm("Remove the WritRun kit from this repository?"); err != nil {
+	if err := ctx.AskPlan(r.plan()); err != nil {
 		return err
 	}
 	if err := r.apply(); err != nil {
@@ -175,41 +175,111 @@ func plan(files vfs.FS, root, hookAt string) (*removal, error) {
 	return r, nil
 }
 
-// render shows both sets, because the confirmation is about both: what
-// goes, and what a person is being promised will stay.
-func (r *removal) render(w io.Writer) {
-	fmt.Fprintln(w, "writrun uninstall — the plan; nothing is removed before the confirmation:")
-	fmt.Fprintln(w)
+// plan is both sets as the rows of one screen, because the
+// confirmation is about both: what goes, and what a person is being
+// promised will stay.
+//
+// The screen's row names the act and the path; what the path is moves
+// into the pane under it, where a reader can read it whole. The printed
+// form keeps every clause on the row, because a transcript has no pane
+// (docs/product/screens/adoption/uninstall.excalidraw, spec-0040).
+func (r *removal) plan() command.Plan {
+	p := command.Plan{
+		Verb:     "remove",
+		Question: "Remove the WritRun kit from this repository?",
+	}
+	var printed []string
+	line := func(text string) {
+		p.Rows = append(p.Rows, command.PlanRow{Text: text})
+		printed = append(printed, text)
+	}
+	// shown is the row on the screen, written is the row in a
+	// transcript, and detail is what the pane says about it.
+	row := func(shown, written, detail string) {
+		p.Rows = append(p.Rows, command.PlanRow{Text: shown, Detail: detail, Selects: true})
+		printed = append(printed, written)
+	}
+
+	line("writrun uninstall — the plan; nothing is removed before the confirmation:")
+	line("")
 	for _, dir := range r.dirs {
-		fmt.Fprintf(w, "  remove       %s/ — the kit, whole\n", dir)
+		text := fmt.Sprintf("  remove       %s/ — the kit, whole", dir)
+		row(text, text,
+			dir+"/ — the kit's own tree, whole. Nothing this project wrote lives "+
+				"under it: every file there arrived with a tag and is replaced by one.")
 	}
 	for _, rel := range r.files {
-		fmt.Fprintf(w, "  remove       %s\n", rel)
+		text := fmt.Sprintf("  remove       %s", rel)
+		row(text, text, fileDetail(rel))
 	}
 	switch {
 	case r.agentsWhole:
-		fmt.Fprintln(w, "  remove       AGENTS.md — nothing in it but the kit's own section")
+		text := "  remove       AGENTS.md — nothing in it but the kit's own section"
+		row(text, text,
+			"AGENTS.md — the file holds the kit's section and nothing else, so "+
+				"removing the section removes the file. A line of your own in it "+
+				"would have made this an edit instead.")
 	case r.agents != nil:
-		fmt.Fprintln(w, "  edit         AGENTS.md — WritRun's section only; every byte outside it stays")
+		row("  edit         AGENTS.md — WritRun's section only",
+			"  edit         AGENTS.md — WritRun's section only; every byte outside it stays",
+			"AGENTS.md — WritRun's section only; every byte outside it stays, "+
+				"because the file is the project's and the section is the kit's.")
 	case r.agentsKept:
-		fmt.Fprintln(w, "  kept         AGENTS.md — no WritRun section found; left as the project wrote it")
+		row("  kept         AGENTS.md — no WritRun section found",
+			"  kept         AGENTS.md — no WritRun section found; left as the project wrote it",
+			"AGENTS.md — no WritRun section is in it, so there is nothing of the "+
+				"kit's to cut. The file is left as the project wrote it.")
 	}
 	switch r.hookState {
 	case hook.Ours:
-		fmt.Fprintf(w, "  remove       %s — the commit-msg hook the adoption installed\n", r.hookDisplay())
+		row(fmt.Sprintf("  remove       %s", r.hookDisplay()),
+			fmt.Sprintf("  remove       %s — the commit-msg hook the adoption installed", r.hookDisplay()),
+			r.hookDisplay()+" — the commit-msg hook `init` installed, byte for "+
+				"byte. A hook you wrote is never removed: it is recognised, and kept.")
 	case hook.Foreign:
-		fmt.Fprintf(w, "  kept         %s — the installed hook is not the one init writes; it is another project's to remove\n", r.hookDisplay())
+		row(fmt.Sprintf("  kept         %s", r.hookDisplay()),
+			fmt.Sprintf("  kept         %s — the installed hook is not the one init writes; it is another project's to remove", r.hookDisplay()),
+			r.hookDisplay()+" — the installed hook is not the one `init` writes, "+
+				"so it is another project's to remove and this leaves it alone.")
 	case hook.Absent:
-		fmt.Fprintf(w, "  kept         %s — no commit-msg hook is installed\n", r.hookDisplay())
+		row(fmt.Sprintf("  kept         %s", r.hookDisplay()),
+			fmt.Sprintf("  kept         %s — no commit-msg hook is installed", r.hookDisplay()),
+			r.hookDisplay()+" — no commit-msg hook is installed, so there is "+
+				"nothing here to remove.")
 	}
 	for _, rel := range r.gone {
-		fmt.Fprintf(w, "  already gone %s\n", rel)
+		text := fmt.Sprintf("  already gone %s", rel)
+		row(text, text,
+			rel+" — the kit's inventory names it and this repository does not "+
+				"have it. Nothing is done about a file that is already gone.")
 	}
-	fmt.Fprintln(w)
+	line("")
 	for _, rel := range kitpaths.Keep {
-		fmt.Fprintf(w, "  stays        %s/ — the project's, not the kit's\n", rel)
+		text := fmt.Sprintf("  stays        %s/ — the project's, not the kit's", rel)
+		row(text, text,
+			rel+"/ — the project's, not the kit's. Nothing under it is read, "+
+				"moved or removed: what you wrote through the methodology "+
+				"outlives the tooling.")
 	}
-	fmt.Fprintln(w)
+	line("")
+	p.Printed = printed
+	return p
+}
+
+// fileDetail is what one removed file is. A file in the folders the kit
+// shares with the project is known by the prefix it carries, and that
+// is the fact worth saying: it is why a workflow of your own is never
+// in this list (docs/product/screens/adoption/uninstall.excalidraw).
+func fileDetail(rel string) string {
+	for _, dir := range kitpaths.NamespacedDirs() {
+		if strings.HasPrefix(rel, dir+"/") {
+			return rel + " — the kit's own, known by the `writrun-` prefix it " +
+				"carries. A workflow this project wrote carries no such prefix and " +
+				"is never in this set; one a later tag added always is."
+		}
+	}
+	return rel + " — the kit's own, named in its inventory. Removing it leaves " +
+		"nothing of the kit behind at this address."
 }
 
 func (r *removal) hookDisplay() string {

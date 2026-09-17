@@ -21,43 +21,105 @@ func tty(t *testing.T, adopted bool, screen func(*Ctx, func(string, string, io.W
 
 type strTerm struct{ FakeTerminal }
 
-// The screen is opened only with a terminal at both ends and inside an
-// adopted repository. Every other no-command run prints the help, which
-// is what screens/README.md prescribes rather than a fallback invented here.
-func TestTheScreenOpensOnlyWhereTheRuleSaysItCan(t *testing.T) {
+// Which screen opens is the terminal's answer and the kit's. A
+// terminal at both ends opens one: the entry screen inside an
+// adoption, the first run outside it. Without a terminal there is no
+// screen to open and the help is what the rule prescribes, rather than
+// a fallback invented here (screens/README.md, spec-0038).
+func TestWhichScreenOpensIsTheTerminalsAnswerAndTheKits(t *testing.T) {
 	for _, tc := range []struct {
-		name           string
-		in, out        bool
-		adopted, wired bool
-		wantOpened     bool
+		name      string
+		in, out   bool
+		adopted   bool
+		wired     bool
+		wantEntry bool
+		wantFirst bool
+		wantHelp  bool
 	}{
-		{"a terminal inside an adoption", true, true, true, true, true},
-		{"stdin is not a terminal", false, true, true, true, false},
-		{"stdout is not a terminal", true, false, true, true, false},
-		{"outside an adoption", true, true, false, true, false},
-		{"a binary with no screen", true, true, true, false, false},
+		{"a terminal inside an adoption", true, true, true, true, true, false, false},
+		{"a terminal outside an adoption", true, true, false, true, false, true, false},
+		{"stdin is not a terminal", false, true, true, true, false, false, true},
+		{"stdout is not a terminal", true, false, true, true, false, false, true},
+		{"stdin is not a terminal, outside an adoption", false, true, false, true, false, false, true},
+		{"a binary with no screens", true, true, true, false, false, false, true},
+		{"a binary with no screens, outside an adoption", true, true, false, false, false, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			opened := false
+			entry, first := false, false
 			f, out, _ := frame(t, nil, tc.adopted, nil)
 			f.Terminal = &strTerm{FakeTerminal{In: tc.in, Out: tc.out}}
 			if tc.wired {
 				f.Screen = func(*Ctx, func(string, string, io.Writer)) error {
-					opened = true
+					entry = true
 					return nil
 				}
+				f.FirstRun = func(*Ctx) (string, error) {
+					first = true
+					return "", nil
+				}
 			}
-			code := Run(f, nil)
-			if code != 0 {
+			if code := Run(f, nil); code != 0 {
 				t.Errorf("exit = %d, want 0", code)
 			}
-			if opened != tc.wantOpened {
-				t.Errorf("screen opened = %v, want %v", opened, tc.wantOpened)
+			if entry != tc.wantEntry {
+				t.Errorf("the entry screen opened = %v, want %v", entry, tc.wantEntry)
 			}
-			if !tc.wantOpened && !strings.Contains(out.String(), "run a project by WritRun") {
-				t.Error("the help was not printed where the rule asks for it")
+			if first != tc.wantFirst {
+				t.Errorf("the first run opened = %v, want %v", first, tc.wantFirst)
+			}
+			printed := strings.Contains(out.String(), "run a project by WritRun")
+			if printed != tc.wantHelp {
+				t.Errorf("the help was printed = %v, want %v", printed, tc.wantHelp)
 			}
 		})
+	}
+}
+
+// The command a key chose on the first run is run once the screen has
+// closed — as its own process where the frame can spawn one, because
+// `init` asks questions and a terminal program's reader can outlive it
+// (decision 0015, report-0040).
+func TestTheFirstRunRunsWhatAKeyChose(t *testing.T) {
+	var spawned []string
+	f, _, _ := frame(t, nil, false, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.FirstRun = func(*Ctx) (string, error) { return "init", nil }
+	f.Again = func(args []string) error { spawned = args; return nil }
+	if code := Run(f, nil); code != 0 {
+		t.Fatalf("exit = %d, want 0", code)
+	}
+	if strings.Join(spawned, ",") != "init" {
+		t.Errorf("spawned %v, want the command the key chose", spawned)
+	}
+}
+
+// A reader who left without choosing anything ran nothing, and leaving
+// is not a failure.
+func TestLeavingTheFirstRunRunsNothing(t *testing.T) {
+	ran := false
+	cmd := Command{Name: "init", Summary: "init", Need: NeedAbsent,
+		Run: func(*Ctx, []string) error { ran = true; return nil }}
+	f, _, _ := frame(t, []Command{cmd}, false, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.FirstRun = func(*Ctx) (string, error) { return "", nil }
+	if code := Run(f, nil); code != 0 {
+		t.Errorf("exit = %d, want 0", code)
+	}
+	if ran {
+		t.Error("a reader who chose nothing still ran a command")
+	}
+}
+
+// A screen that could not be built is reported, not swallowed.
+func TestAFirstRunThatCannotOpenIsReported(t *testing.T) {
+	f, _, errOut := frame(t, nil, false, nil)
+	f.Terminal = &strTerm{FakeTerminal{In: true, Out: true}}
+	f.FirstRun = func(*Ctx) (string, error) { return "", errors.New("the PATH could not be read") }
+	if code := Run(f, nil); code != 1 {
+		t.Errorf("exit = %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "the PATH could not be read") {
+		t.Errorf("the failure was not reported: %s", errOut.String())
 	}
 }
 

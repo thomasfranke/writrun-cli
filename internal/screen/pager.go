@@ -16,21 +16,30 @@ import (
 // capturing a question.
 type pager struct {
 	command string
+	chrome  chrome
 	lines   []string
 	top     int
 	height  int
+	width   int
 	// back and left are read by the session, as the other screens'
 	// flags are: this decides nothing about what happens next.
 	back bool
 	left bool
 }
 
-func newPager(command, output string) pager {
+func newPager(identity, command, output string) pager {
 	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
 	if len(lines) == 1 && lines[0] == "" {
 		lines = []string{"  (it said nothing)"}
 	}
-	return pager{command: command, lines: lines}
+	return pager{
+		command: command,
+		chrome: chrome{
+			identity: identity,
+			context:  strings.ToUpper(command) + " · run from the screen — reading its output",
+		},
+		lines: lines,
+	}
 }
 
 func (p pager) Init() tea.Cmd { return nil }
@@ -38,13 +47,14 @@ func (p pager) Init() tea.Cmd { return nil }
 func (p pager) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Two for the heading and the blank under it, two for the footer
-		// and the blank over it.
+		// Three for the header and the blank under it, two for the
+		// footer and the blank over it.
+		p.width = msg.Width
 		switch {
 		case msg.Height == 0:
 			p.height = 0
-		case msg.Height > 4:
-			p.height = msg.Height - 4
+		case msg.Height > pagerChrome:
+			p.height = msg.Height - pagerChrome
 		default:
 			p.height = 1
 		}
@@ -100,24 +110,29 @@ func (p *pager) clamp() {
 	}
 }
 
+// pagerChrome is the lines the pager keeps around the output: the two
+// header lines, the blank under them, the blank over the footer, and
+// the footer.
+const pagerChrome = 5
+
 func (p pager) View() string {
 	var b strings.Builder
-	b.WriteString(" " + p.command + "\n\n")
-
-	end := len(p.lines)
-	if p.height > 0 && p.top+p.height < end {
-		end = p.top + p.height
+	for _, line := range p.chrome.lines(contentWidth(p.width)) {
+		b.WriteString(line + "\n")
 	}
+	b.WriteByte('\n')
+
+	end := window(len(p.lines), p.top, p.height)
 	for i := p.top; i < end; i++ {
 		b.WriteString(p.lines[i])
 		b.WriteByte('\n')
 	}
 
 	b.WriteByte('\n')
+	f := footer{way: backOrQuit}
 	if p.height > 0 && len(p.lines) > p.height {
-		b.WriteString("↑↓ scroll · esc back · q quit\n")
-	} else {
-		b.WriteString("esc back · q quit\n")
+		f.movement = "↑↓ scroll"
 	}
+	b.WriteString(f.line() + "\n")
 	return b.String()
 }

@@ -107,17 +107,20 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		take = append(take, "--slug", *slug)
 	}
 
-	err = d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, takeScript, take...)
+	var composed bytes.Buffer
+	err = d.Scripts(ctx.Root, &composed, ctx.Stderr, nil, takeScript, take...)
 	if exitCode(err) != 2 {
 		// 0 the act is done, 1 a refusal, 3 a git or forge failure with
 		// the resume it named — every one of them already reported in
 		// the script's own words, on the stream it chose.
+		fmt.Fprint(ctx.Stdout, composed.String())
 		return passthrough(err)
 	}
 
-	// 2: composed and waiting. The composition is on stdout already, so
-	// the question is all this adds, and `--yes` answers it.
-	if err := ctx.AskConfirm("Push the branch and open the draft pull request?"); err != nil {
+	// 2: composed and waiting. The composition is the script's, so the
+	// screen shows it as it arrived and adds a cursor, a sentence and
+	// the question; `--yes` prints it and answers (spec-0040).
+	if err := ctx.AskPlan(composedPlan(composed.String())); err != nil {
 		return err
 	}
 	err = d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, takeScript, append(take, "--confirm")...)
@@ -125,6 +128,30 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 		return fmt.Errorf("%s composed again under --confirm — nothing reached the forge", takeScript)
 	}
 	return passthrough(err)
+}
+
+// composedPlan is the script's composition with a cursor on it. Which
+// line means what is the script's answer and not this command's, so
+// every line it wrote is a row and the sentence under them is the one
+// thing this adds: what the next key does (spec-0008, spec-0040).
+func composedPlan(out string) command.Plan {
+	const detail = "The composition above is `take_task.sh`'s own. `enter` pushes " +
+		"the branch and opens the draft pull request, which is the event the " +
+		"machinery answers by writing `in-progress` on the task. Nothing reaches " +
+		"the forge before that yes."
+	p := command.Plan{
+		Verb:     "open the draft",
+		Question: "Push the branch and open the draft pull request?",
+		Printed:  command.Written(out),
+	}
+	for _, line := range command.Written(out) {
+		p.Rows = append(p.Rows, command.PlanRow{
+			Text:    line,
+			Detail:  detail,
+			Selects: strings.TrimSpace(line) != "",
+		})
+	}
+	return p
 }
 
 // split separates the task id from the flags. Go's flag package stops
@@ -172,11 +199,29 @@ func selectTask(ctx *command.Ctx, d Deps) (string, error) {
 		fmt.Fprint(ctx.Stdout, listing.String())
 		return "", errors.New("no task is available to take")
 	}
-	i, err := ctx.AskSelect("Take which task?", labels, "", "the task id as an argument")
+	i, err := ctx.AskSelect("Which task?", options(ids, labels), "", "the task id as an argument")
 	if err != nil {
 		return "", err
 	}
 	return ids[i], nil
+}
+
+// options are the available tasks as the question offers them: the
+// lister's own line, and the act `enter` performs on it. The sentence
+// is one, because what choosing a task does is the same whichever task
+// it is (docs/product/screens/tasks/take.excalidraw).
+func options(ids, labels []string) []command.Option {
+	out := make([]command.Option, 0, len(labels))
+	for i, label := range labels {
+		out = append(out, command.Option{
+			Label: label,
+			Detail: ids[i] + " — available. Choosing it composes the branch, the " +
+				"first commit and the pull request body from this repository's " +
+				"conventions, shows them, and asks. Nothing reaches the forge " +
+				"before that yes.",
+		})
+	}
+	return out
 }
 
 // parseAvailable reads the ids and the lines of the lister's Available

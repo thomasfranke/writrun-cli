@@ -96,10 +96,15 @@ func (c *Ctx) AskInput(question string, preset string, flag string) (string, err
 // AskSelect is the selection flow: a preset answers it, a terminal
 // renders it, and anything else aborts naming the flag that would have
 // answered.
-func (c *Ctx) AskSelect(title string, options []string, preset string, flag string) (int, error) {
+//
+// Every option carries its own sentence, shown under the list while the
+// cursor rests on it. A question that names its options and explains
+// none of them asks a reader to choose by the shape of a word
+// (spec-0040).
+func (c *Ctx) AskSelect(title string, options []Option, preset string, flag string) (int, error) {
 	if preset != "" {
 		for i, o := range options {
-			if o == preset {
+			if o.Label == preset {
 				return i, nil
 			}
 		}
@@ -109,4 +114,29 @@ func (c *Ctx) AskSelect(title string, options []string, preset string, flag stri
 		return -1, fmt.Errorf("no terminal to ask %q — pass %s", title, flag)
 	}
 	return c.Terminal.Select(title, options)
+}
+
+// AskPlan is the confirmation flow for a composed plan: a terminal
+// navigates it, and everything else prints it and answers the question
+// beside it.
+//
+// The printed form is the plan's own rows, so what a run with no
+// terminal writes is what it wrote before there was a screen — the
+// screen is where the rows are read, never where they are composed
+// (spec-0040).
+func (c *Ctx) AskPlan(p Plan) error {
+	if c.Yes || !c.Terminal.InteractiveIn() || !c.Terminal.InteractiveOut() {
+		for _, line := range p.Lines() {
+			fmt.Fprintln(c.Stdout, line)
+		}
+		return c.AskConfirm(p.Question)
+	}
+	ok, err := c.Terminal.Plan(p)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrDeclined
+	}
+	return nil
 }

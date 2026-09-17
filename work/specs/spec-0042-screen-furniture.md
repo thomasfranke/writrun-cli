@@ -1,7 +1,7 @@
 ---
 id: spec-0042
 task_ref: task-0034
-status: approved
+status: implemented
 created: 2026-09-13T22:29:36Z
 ---
 
@@ -92,22 +92,82 @@ the test is written against.
 
 ## Definition of Done
 
-- [ ] The frames named above are asserted against what the binary
+- [x] The frames named above are asserted against what the binary
       renders. Where the two disagree, the binary is what changes.
-- [ ] Header and footer come from one place; no screen writes its own.
-- [ ] `q` quits on every screen, and `esc` is offered only where there
+- [x] Header and footer come from one place; no screen writes its own.
+- [x] `q` quits on every screen, and `esc` is offered only where there
       is somewhere to go.
-- [ ] [report-0035](../reports/report-0035-screen-furniture.md) closed.
+- [x] [report-0035](../reports/report-0035-screen-furniture.md) closed.
 
 ## Proposed product changes
 
-- [`product/screens/README.md`](../../docs/product/screens/README.md) —
-  the furniture every screen carries, stated as a rule.
+- `product/screens/README.md` — the furniture every screen carries,
+  stated as a rule.
+- `product/screens/` — the drawings the rule is checked against. Two of
+  them stated the one-liners the command table replaced, and one drew
+  no `config` row for a command the entry screen lists
+  ([report-0042](../reports/report-0042-stale-drawn-summaries.md)).
 
 ## Proposed technical changes
 
-- none — no machinery change.
+- `technical/layout/tree.md` — what `internal/screen/` holds, which is
+  every screen rather than two of them, and `internal/drawing/` beside
+  it.
 
 ## Outcome
 
-_(fill after execution)_
+Built. `internal/screen/furniture.go` composes the header and the
+footer, and no screen composes either: a screen states its identity
+line, its context line and the file it read, names its movement and its
+actions, and says which of the three ways out it has. The entry screen,
+the queue, the pager, the settings, the doctor screen, the first run,
+the running state and the two unreadable states all go through it, and
+`TestEveryScreenOpensWithTheSameTwoLines` and
+`TestEveryFooterEndsInOneOfTheTwoForms` hold every one of them by name.
+
+`q` quits everywhere and `esc` is offered only where there is somewhere
+to go. The config screen's `q back` is gone: it ends `esc back · q
+quit` like every other screen reached from another, and both keys
+close it, which is what going back means for a screen that is its own
+program.
+
+The pager carries the same two lines and the same way out, and so does
+the terminal a command that asks is handed — that one says whose
+terminal it is and why, where it used to print two words. A failed read
+is a screen now: the failure marked as `doctor` marks one, the message
+under it, and the commands that answer it named.
+
+Nine frames are asserted (`internal/screen/screens_frames_test.go`),
+and `internal/screen/frames_test.go` lost its copy of the drawing
+reader to `internal/drawing`, which grew a `Screen` reading beside
+`Frame`: a transcript frame ends at its divider and a screen frame
+draws its explanation under one, and that is the whole of their
+difference.
+
+[report-0035](../reports/report-0035-screen-furniture.md) is closed by
+this, and
+[report-0042](../reports/report-0042-stale-drawn-summaries.md) was
+fixed on the way: `entry.excalidraw` and `first-run.excalidraw` stated
+the one-liners the command table replaced, drew no `config` row, and
+named the settings file at the address the two homes moved it from.
+
+**What the plan did not foresee.**
+
+The screens needed facts, not only lines. The entry screen's context
+line names the stage and its subject with the settings file at the
+right of it; the queue's counts the lister's own sections; the config
+screen's names the file and the check that judges a change to it. Each
+is a cheap read the caller already makes, and the header is where they
+became visible.
+
+Two of the entry drawing's frames are annotations of the screen rather
+than states of it — the pager's and the two running frames' closing
+paragraphs describe what the frame shows, and one of them names "the
+two lines above and the one below", which is this spec's own step 4.
+Those three are asserted by their header and their keys.
+
+The worked example disagrees with `tasks/list.excalidraw` about the
+same row: its context line counts a queue its rows do not show, and its
+pane is a shorter sentence for the same task. It is captioned as the
+furniture's worked example, so its header and its footer are what the
+case holds — which is what it states.

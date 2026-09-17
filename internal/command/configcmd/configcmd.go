@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -18,6 +19,11 @@ import (
 	"github.com/thomasfranke/writrun-cli/internal/screen"
 	"github.com/thomasfranke/writrun-cli/internal/vfs"
 )
+
+// checkerName is the kit's settings checker, named as a reader sees it
+// on the screen. The path is `internal/kit`'s and is not restated: this
+// is the last segment of it.
+var checkerName = path.Base(kit.CheckSettings)
 
 // Deps is the wiring config needs beyond the frame's Ctx.
 type Deps struct {
@@ -31,6 +37,11 @@ type Deps struct {
 	// is a wiring without it, and the raise then asks as any other
 	// change does.
 	Preview Preview
+	// Header composes the screen's identity line from the repository
+	// root — the same line every other screen opens with, from the same
+	// place (spec-0042). nil is a wiring without one, and the screen
+	// then opens on its context line alone.
+	Header func(root string) string
 }
 
 // New returns the config command wired with its dependencies.
@@ -126,13 +137,20 @@ func browse(ctx *command.Ctx, d Deps, path string) error {
 		if err != nil {
 			return screen.Settings{}, err
 		}
-		s := screen.Settings{Header: "CONFIG · " + kit.Settings + "   checked by " + kit.CheckSettings}
+		s := screen.Settings{
+			Context: "CONFIG · " + kit.Settings,
+			Source:  "checked by " + checkerName,
+			Checker: checkerName,
+		}
+		if d.Header != nil {
+			s.Identity = d.Header(ctx.Root)
+		}
 		var group *screen.SettingGroup
 		section := ""
 		for _, k := range keysOf(string(bytes)) {
 			if k.section != section || group == nil {
 				section = k.section
-				s.Groups = append(s.Groups, screen.SettingGroup{Name: heading(section)})
+				s.Groups = append(s.Groups, screen.SettingGroup{Name: screenHeading(section)})
 				group = &s.Groups[len(s.Groups)-1]
 			}
 			value, err := read(d, ctx.Root, k)
@@ -192,6 +210,28 @@ func one(ctx *command.Ctx, d Deps, path, key string) error {
 
 // heading is the label a section is shown under. The stage sits above
 // them all and the file gives it no section of its own.
+// screenHeading is the section as the screen heads it: the label, and
+// the clause saying what that section is about
+// (docs/product/screens/adoption/config.excalidraw).
+//
+// The clause is per section and not per key: which keys exist is the
+// file's answer, and a section this binary has no clause for is headed
+// by its label alone, as a section a newer kit adds will be.
+func screenHeading(section string) string {
+	label := heading(section)
+	if clause := sectionSubjects[section]; clause != "" {
+		return label + " — " + clause
+	}
+	return label
+}
+
+// sectionSubjects are the two sections the settings file ships with,
+// and what each is for.
+var sectionSubjects = map[string]string{
+	"stage_1": "declared, and read by agents alone",
+	"stage_2": "the conduct flags, and the title style",
+}
+
 func heading(section string) string {
 	if section == "" {
 		return "THE STAGE"

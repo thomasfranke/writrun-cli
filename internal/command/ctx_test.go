@@ -54,7 +54,7 @@ func TestAskConfirmCarriesTheTerminalError(t *testing.T) {
 }
 
 func TestAskSelect(t *testing.T) {
-	options := []string{"one", "two", "three"}
+	options := []Option{{Label: "one"}, {Label: "two"}, {Label: "three"}}
 	cases := []struct {
 		name    string
 		preset  string

@@ -158,20 +158,52 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 // terminal arrow-selects it, and anything else aborts naming the flag
 // (spec-0002).
 func askStage(ctx *command.Ctx, preset string) (int, error) {
-	options := []string{"1 — files", "2 — pull requests", "3 — GitHub issues"}
+	options := stageOptions()
 	presetOption := ""
 	if preset != "" {
 		n, err := strconv.Atoi(preset)
 		if err != nil || n < 1 || n > len(options) {
 			return 0, fmt.Errorf("--stage must be 1, 2 or 3, not %q", preset)
 		}
-		presetOption = options[n-1]
+		presetOption = options[n-1].Label
 	}
-	idx, err := ctx.AskSelect("Adopt at which stage?", options, presetOption, "--stage")
+	idx, err := ctx.AskSelect("Which stage?", options, presetOption, "--stage")
 	if err != nil {
 		return 0, err
 	}
 	return idx + 1, nil
+}
+
+// declaring is the clause every stage's explanation ends with, because
+// it is the one thing a reader picking a rung most often has wrong:
+// a stage is a declaration, and no check on it blocks the adoption
+// (docs/product/adoption/init.md).
+const declaring = "Declaring it installs nothing — `doctor` names what is " +
+	"missing, and adoption is not conditioned on the forge."
+
+// stageOptions are the three rungs and what each one adds, in the words
+// the drawing gives (docs/product/screens/adoption/init.excalidraw).
+func stageOptions() []command.Option {
+	return []command.Option{
+		{
+			Label: "1   files",
+			Detail: "1 — files. The queue, the checks and the documents are the " +
+				"repository's own, and no flow reaches a forge, so this stage " +
+				"adds no check beyond the four the scripts need. " + declaring,
+		},
+		{
+			Label: "2   pull requests",
+			Detail: "2 — pull requests. The flows open and read pull requests, so " +
+				"this stage adds the forge checks: `gh` authenticated, squash " +
+				"merging on, and the recording push able to reach main. " + declaring,
+		},
+		{
+			Label: "3   GitHub issues",
+			Detail: "3 — GitHub issues. The flows mirror what is recorded here " +
+				"into issues, so this stage adds Issues being enabled on this " +
+				"repository. " + declaring,
+		},
+	}
 }
 
 // reportGaps names what the chosen stage's checks found — named, never
