@@ -1,10 +1,10 @@
 ---
 id: report-0045
-status: open
+status: routed
 task_ref: []
 doc_ref: product/screens/README.md
 created: 2026-09-17T13:06:58Z
-triaged: null
+triaged: 2026-09-17T19:33:23Z
 ---
 
 # two panes name facts the lister's row does not carry
@@ -35,3 +35,26 @@ today. task-0034 gave the rows a cursor and a pane and stopped at what
 the rows carry, so both frames are asserted by their rows and their
 keys (`internal/command/takecmd/frames_test.go`,
 `internal/screen/screens_frames_test.go`) and their panes are not.
+
+**Triage — routed.** It became
+[thomasfranke/writrun#270](https://github.com/thomasfranke/writrun/issues/270),
+labelled `writrun:submitted`.
+
+**One correction to the observation above, and it is what decided the
+route.** It reads as though the facts are simply absent, so that
+reaching them costs a second read of the queue. They are not absent:
+`list_tasks.sh` already resolves each task's `spec_ref` and each of
+those specs' status, because `ready` *is* every spec approved or
+implemented — the loops at `:408-412` and `:492-496`. It computes both
+and then drops them at the printf, which writes the id, the priority
+and the title.
+
+So the second read would be this repository re-doing work the kit has
+already done, and `coupling.md` with decision 0013 refuse that outright.
+The row carrying what the lister already knows is the kit's to write,
+and that is the ask.
+
+The two panes stay unbuilt and their frames stay asserted by their rows
+and their keys. Nothing is owed locally: a finding that goes unanswered
+upstream is raised again by a second report, never by reopening this
+one.
