@@ -51,8 +51,9 @@ func TestTheGreenPathRunsTheSequenceInOrder(t *testing.T) {
 	if strings.Join(order, "\n") != strings.Join(want, "\n") {
 		t.Errorf("order =\n%s\nwant\n%s", strings.Join(order, "\n"), strings.Join(want, "\n"))
 	}
-	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010 origin/main...HEAD" {
-		t.Errorf("check_deltas args = %q", got)
+	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010 origin/main" {
+		t.Errorf("check_deltas args = %q; step 1 is given the bare range, whose diff "+
+			"reaches the working tree (spec-0045)", got)
 	}
 	if got, _ := h.scripts.ran(provenanceScript); got != "task-0011" {
 		t.Errorf("record_provenance args = %q; want the task and nothing else", got)
@@ -199,7 +200,7 @@ func TestSeveralSpecsAreOneDeltaCall(t *testing.T) {
 	if err := h.finish(); err != nil {
 		t.Fatalf("finish = %v", err)
 	}
-	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010,spec-0011 origin/main...HEAD" {
+	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010,spec-0011 origin/main" {
 		t.Errorf("check_deltas args = %q; want one call carrying both specs", got)
 	}
 	for _, p := range []string{specPath, "work/specs/spec-0011-another.md"} {
@@ -776,8 +777,9 @@ func TestTheRangeIsResolvedLikePreflightResolvesItsOwn(t *testing.T) {
 	if err := h.finish(); err != nil {
 		t.Fatalf("finish = %v", err)
 	}
-	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010 main...HEAD" {
-		t.Errorf("check_deltas args = %q; the local main was not the fallback", got)
+	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010 main" {
+		t.Errorf("check_deltas args = %q; the local main was not the fallback, or it "+
+			"was not reduced to the bare form", got)
 	}
 
 	h = newHarness(t)
@@ -888,5 +890,63 @@ func TestAnUnknownFlagIsRefused(t *testing.T) {
 	}
 	if len(h.scripts.calls) != 0 {
 		t.Errorf("%d scripts ran under an unknown flag", len(h.scripts.calls))
+	}
+}
+
+// The bare range is step 1's and preflight keeps the two-ended one.
+//
+// Not a preference: `preflight.sh` reads an argument holding `..` as the
+// range and anything else as a task list, so a bare range arrives there
+// as a second task list and the run dies. The asymmetry is the kit's
+// constraint, recorded in report-0046, and it is pinned here so that
+// nobody "tidies" the two calls into agreement and breaks the command.
+func TestStepOneReadsTheTreeAndPreflightKeepsItsShape(t *testing.T) {
+	h := newHarness(t)
+	if err := h.finish(); err != nil {
+		t.Fatalf("finish = %v", err)
+	}
+	deltas, _ := h.scripts.ran(deltasScript)
+	pre, _ := h.scripts.ran(preflightScript)
+	if deltas != "spec-0010 origin/main" {
+		t.Errorf("check_deltas args = %q; want the bare range", deltas)
+	}
+	if pre != "task-0011 origin/main...HEAD" {
+		t.Errorf("preflight args = %q; want the two-ended range — preflight cannot "+
+			"parse a bare one, and giving it one kills the run", pre)
+	}
+}
+
+// A range the caller named travels unreduced, to step 1 as well.
+//
+// spec-0045 step 3: a caller who names a range means it. Reducing it
+// would answer a question they did not ask — and the existing
+// flag-parsing case is what caught this when the reduction was applied
+// to every range rather than to the default.
+func TestACallersRangeIsNotReduced(t *testing.T) {
+	h := newHarness(t)
+	if err := h.finish("--range", "HEAD~2...HEAD", "task-0011"); err != nil {
+		t.Fatalf("finish = %v", err)
+	}
+	if got, _ := h.scripts.ran(deltasScript); got != "spec-0010 HEAD~2...HEAD" {
+		t.Errorf("check_deltas args = %q; a named range is not reduced", got)
+	}
+	if got, _ := h.scripts.ran(preflightScript); got != "task-0011 HEAD~2...HEAD" {
+		t.Errorf("preflight args = %q; a named range reaches preflight as given", got)
+	}
+}
+
+// treeRange reduces only a range with two ends, and never a caller's.
+func TestTreeRangeReducesOnlyWhatItShould(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"origin/main...HEAD", "origin/main"},
+		{"main...HEAD", "main"},
+		{"origin/main..HEAD", "origin/main"},
+		{"origin/main", "origin/main"},
+		{"a1b2c3d", "a1b2c3d"},
+		{"", ""},
+	} {
+		if got := treeRange(tc.in); got != tc.want {
+			t.Errorf("treeRange(%q) = %q, want %q", tc.in, got, tc.want)
+		}
 	}
 }

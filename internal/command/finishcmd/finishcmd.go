@@ -145,20 +145,32 @@ func run(ctx *command.Ctx, d Deps, args []string) error {
 	if taskID == "" {
 		return fmt.Errorf("%s carries no id", taskPath)
 	}
+	// Two ranges, and the asymmetry is the kit's — see baseRange and
+	// treeRange. deltaRange is step 1's: the default reduced to the bare
+	// form, which reaches the working tree. A range the caller named is
+	// theirs and travels to both, unreduced (spec-0045, step 3).
 	diffRange := *rangeFlag
+	deltaRange := diffRange
 	if diffRange == "" {
 		if diffRange, err = baseRange(d.Git, ctx.Root); err != nil {
 			return err
 		}
+		deltaRange = treeRange(diffRange)
 	}
 
 	// 1 — the promised deltas. A non-zero verdict stops the command
 	// here: nothing is written, nothing else runs (spec-0010, step 1).
+	//
+	// The range handed over is the bare one — `origin/main`, whose diff
+	// reaches the working tree — so a promised document edited and not
+	// yet committed is judged rather than skipped. `check_deltas.sh` is
+	// called here directly and reads a bare range the way its own header
+	// describes (spec-0045).
 	specIDs := queue.List(task, "spec_ref")
 	if len(specIDs) == 0 {
 		fmt.Fprintf(ctx.Stdout, "%s carries no spec — no deltas to check.\n", taskID)
 	} else if err := d.Scripts(ctx.Root, ctx.Stdout, ctx.Stderr, nil, deltasScript,
-		strings.Join(specIDs, ","), diffRange); err != nil {
+		strings.Join(specIDs, ","), deltaRange); err != nil {
 		// One call carrying every spec: MISSING is judged per spec and
 		// UNDECLARED against the union, which is the script's own rule
 		// for a multi-spec completion (spec-0010, edge cases).
@@ -586,9 +598,39 @@ func taskOfBranch(git gitx.Runner, root string) (string, error) {
 	return "task-" + m[1], nil
 }
 
+// treeRange turns a two-ended range into the bare one that reaches the
+// working tree, and leaves anything else alone.
+//
+// The kit reads a bare range as "this ref against the working tree":
+// `ql_range_ends` leaves its head end empty for that shape alone, and
+// `check_deltas.sh` honours it deliberately. No other shape does —
+// `origin/main..` and `origin/main...` both resolve their head to HEAD
+// — so the bare form is the only one that reaches an uncommitted edit
+// (spec-0045).
+//
+// A range a caller named through `--range` is theirs and is returned
+// untouched, whatever its shape.
+func treeRange(rng string) string {
+	if i := strings.Index(rng, ".."); i > 0 {
+		return rng[:i]
+	}
+	return rng
+}
+
 // baseRange resolves the range the checks read the change against, the
 // way preflight.sh resolves its own: the pushed main, else the local
 // one, else nothing to read against and the caller is asked to say.
+//
+// **It stays two-ended, and that is not what spec-0045 asked for.**
+// `preflight.sh` decides what is a range by its shape — an argument
+// holding `..` is the range and anything else is a task list — so a
+// bare one arrives as a second task list and the command dies at
+// `PREFLIGHT: two task lists given`. That script is the kit's, and a
+// patch here would not survive the next `writrun update`. So step 4's
+// two later stages still read the branch as committed, and the
+// completion edits are still outside what they judge; report-0046
+// carries it. Step 1 is what this repository could reach, and it reads
+// the tree.
 func baseRange(git gitx.Runner, root string) (string, error) {
 	bases := []struct{ ref, rng string }{
 		{"refs/remotes/origin/main", "origin/main...HEAD"},
