@@ -39,4 +39,17 @@ type Command struct {
 	// here keeps the terminal to itself, which is only ever slower to
 	// read — never a question asked into the dark.
 	AsksNothing bool
+	// Daily says this command does its work bare and is run often, so a
+	// bare run of it explains nothing (spec-0039). An explanation a
+	// person meets every day is read once and skipped after, and
+	// `writrun <command> --help` is where it stays reachable.
+	//
+	// It is not AsksNothing, though the two named the same four commands
+	// until `doctor` became a screen. AsksNothing answers whether the
+	// screen may capture this command's output — `doctor` reads the
+	// terminal now, so it may not. Daily answers whether a person still
+	// needs telling what it is for, and `doctor` is run as often as it
+	// ever was. One field could not answer both without lying about one
+	// of them (report-0044).
+	Daily bool
 }

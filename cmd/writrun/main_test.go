@@ -47,3 +47,26 @@ func TestASpawnThatCannotStartIsAnError(t *testing.T) {
 		t.Error("a binary that does not exist answered nil")
 	}
 }
+
+// The four commands that explain nothing on a bare run are the four that
+// do their work bare.
+//
+// `Daily` and `AsksNothing` named the same set until `doctor` became a
+// screen, and the day they came apart nothing would have said so: a
+// `doctor` left out of this set prints twenty lines into the normal
+// buffer and then enters the alternate one, which wipes them — the
+// reader meets the explanation on the way out, for a command they run
+// every day (report-0044). So the set is asserted by name.
+func TestTheDailyCommandsAreTheOnesRunBare(t *testing.T) {
+	want := map[string]bool{"list": true, "status": true, "doctor": true, "work": true}
+	for _, c := range commands() {
+		if c.Daily != want[c.Name] {
+			if c.Daily {
+				t.Errorf("%s is declared Daily and is not one of the four run bare", c.Name)
+			} else {
+				t.Errorf("%s is run bare and does not declare Daily — a bare run would "+
+					"explain itself to someone who meets it every day", c.Name)
+			}
+		}
+	}
+}

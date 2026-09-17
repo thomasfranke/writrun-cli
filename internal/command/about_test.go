@@ -6,12 +6,14 @@ import (
 )
 
 // explains is one command carrying a long description; asks says
-// whether it is a command that would ask something.
+// whether it is a command that would ask something — a daily one, which
+// does its work bare, is the case that explains nothing.
 func explains(name string, asks bool) Command {
 	return Command{
 		Name:        name,
 		Summary:     "a one-liner",
 		AsksNothing: !asks,
+		Daily:       !asks,
 		Need:        NeedAny,
 		About: About{
 			Sentence: []string{"what it is for", "said on a second line"},
@@ -99,9 +101,12 @@ func TestABareRunExplainsItselfBeforeItAsksAnything(t *testing.T) {
 	}
 }
 
-func TestABareRunOfACommandThatAsksNothingExplainsNothing(t *testing.T) {
+func TestABareRunOfADailyCommandExplainsNothing(t *testing.T) {
 	// `list`, `status`, `doctor` and `work` are run daily, and a daily
-	// explanation is noise (spec-0039, step 4).
+	// explanation is noise (spec-0039, step 4). The set is `Daily`'s to
+	// declare and not `AsksNothing`'s: `doctor` reads the terminal now,
+	// so the screen may not capture it, and it is still run every day
+	// (report-0044).
 	f, out, _ := frame(t, []Command{explains("list", false)}, true, nil)
 	f.Terminal = &FakeTerminal{In: true}
 	if code := Run(f, []string{"list"}); code != 0 {

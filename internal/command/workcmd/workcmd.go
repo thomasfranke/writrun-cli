@@ -77,6 +77,7 @@ func New(d Deps) command.Command {
 		},
 		Need:        command.NeedAdopted,
 		AsksNothing: true,
+		Daily:       true,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

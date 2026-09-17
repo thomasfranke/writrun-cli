@@ -153,14 +153,20 @@ func dispatch(f Frame, noColor, yes bool, name string, rest []string) int {
 	// A command run with nothing to go on says what it is for before it
 	// asks its first question (spec-0039). A command that does its work
 	// bare — `list`, `status`, `doctor`, `work` — is run daily, and a
-	// daily explanation is noise; AsksNothing is that same set, already
-	// declared.
+	// daily explanation is noise; `Daily` is where that set is declared.
+	//
+	// It was `AsksNothing` until `doctor` became a screen, and the two
+	// sets came apart there: `doctor` reads the terminal, so the screen
+	// may not capture it, and it is still run every day. Printing into
+	// the normal buffer before entering the alternate one would not even
+	// be noise — the screen wipes it, and the reader meets it on the way
+	// out (report-0044).
 	//
 	// The terminal that decides it is stdin's, because the description
 	// precedes a question and a question is asked there. Without one
 	// nothing is printed: a script reading this output keeps reading
 	// what it read before.
-	if len(rest) == 0 && !cmd.AsksNothing && !cmd.About.Empty() && f.Terminal.InteractiveIn() {
+	if len(rest) == 0 && !cmd.Daily && !cmd.About.Empty() && f.Terminal.InteractiveIn() {
 		writeAbout(f.Stdout, cmd.Name, cmd.About)
 		fmt.Fprintln(f.Stdout)
 	}
