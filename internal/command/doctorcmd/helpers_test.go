@@ -315,11 +315,6 @@ func (f *fixture) all() []requirement {
 	return append(unreadable, examine(f.root, stage, f.deps())...)
 }
 
-// previewed is one whole run, the rung above the declaration included.
-func (f *fixture) previewed() (declared, examined, preview int, found []requirement) {
-	return examineAll(f.root, f.deps(), 0)
-}
-
 // findings is every requirement that does not hold. A requirement that
 // holds is a row and not a fault, so a case about a fault asks for the
 // faults (spec-0036).

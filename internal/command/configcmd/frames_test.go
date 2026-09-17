@@ -179,13 +179,4 @@ func rendered(out string) []string {
 	return trimmed
 }
 
-// drop removes the shell prompt the drawing puts above a report: it is
-// what the reader typed, not what the binary printed.
-func drop(frame []string, prompt string) []string {
-	if len(frame) > 0 && frame[0] == prompt {
-		return frame[1:]
-	}
-	return frame
-}
-
 const configDrawing = "docs/product/screens/adoption/config.excalidraw"
