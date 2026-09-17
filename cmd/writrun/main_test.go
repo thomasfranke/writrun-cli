@@ -6,9 +6,10 @@ import (
 	"testing"
 )
 
-// menuRow is the width the entry screen's drawing gives a summary,
-// after the name column (docs/product/screens/entry.excalidraw).
-const menuRow = 44
+// menuRow is the width the entry screen's drawing gives a summary: its
+// window is 80 columns and the name field takes the first 14
+// (docs/product/screens/entry.excalidraw).
+const menuRow = 66
 
 // The screen prints a command's Summary and no string written for the
 // screen alone, so one summary serves the menu and `--help` alike. A

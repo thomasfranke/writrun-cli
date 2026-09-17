@@ -48,8 +48,36 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "report",
-		Summary: "record an observation: no triage, no branch",
-		Need:    command.NeedAdopted,
+		Summary: "write down something you noticed, without stopping",
+		About: command.About{
+			Sentence: []string{
+				"write down something you noticed, without stopping to",
+				"act on it",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You found something wrong, or worth changing,",
+					"and it is not what you are working on. Written",
+					"here, it survives the conversation.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Writes one file under work/reports/, with the",
+					"next number in sequence and nothing decided",
+					"about it yet.",
+				}},
+				{Label: "what it leaves", Lines: []string{
+					"No branch, no pull request, no judgement. The",
+					"queue, the statuses and GitHub are exactly as",
+					"they were.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"A person or an agent decides what becomes of",
+					"it: work, a rule, a quick fix, a decline, or an",
+					"issue upstream.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

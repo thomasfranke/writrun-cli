@@ -92,8 +92,34 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "amend",
-		Summary: "return an approved spec to draft",
-		Need:    command.NeedAdopted,
+		Summary: "reopen a spec that turned out wrong",
+		About: command.About{
+			Sentence: []string{
+				"reopen a spec that was approved but turned out wrong",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"The plan was approved and the work began; then",
+					"reality disagreed with the plan. An approved",
+					"spec is not edited quietly \u2014 it goes back to",
+					"draft so the change is reviewed.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Writes `status: draft` on the spec you name,",
+					"and nothing at all on the task.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"A pull request opens ready for review, naming",
+					"the pull request whose work this suspends, so a",
+					"reviewer reads why that work is waiting.",
+				}},
+				{Label: "who re-approves", Lines: []string{
+					"A person, by merging. No command walks back",
+					"through an approval gate.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

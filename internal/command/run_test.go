@@ -47,7 +47,7 @@ func TestHelpAnswersAnywhere(t *testing.T) {
 			t.Fatalf("Run(%v) = %d, want 0", args, code)
 		}
 		got := out.String()
-		if !strings.Contains(got, "noop  does nothing") {
+		if !strings.Contains(got, "noop   does nothing") {
 			t.Fatalf("help = %q; want one line per command", got)
 		}
 		if !strings.Contains(got, docsAddress) {

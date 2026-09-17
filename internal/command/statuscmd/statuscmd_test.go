@@ -18,7 +18,7 @@ import (
 func ask(t *testing.T, files vfs.FS, git gitx.Runner, checks kit.Runner, args ...string) (string, error) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	ctx := &command.Ctx{Stdout: &stdout, Stderr: &stderr, Root: root}
+	ctx := &command.Ctx{Stdout: &stdout, Stderr: &stderr, Root: root, Version: version}
 	if checks == nil {
 		checks = scripts(preflightOK, nil, nil)
 	}
@@ -27,6 +27,26 @@ func ask(t *testing.T, files vfs.FS, git gitx.Runner, checks kit.Runner, args ..
 		t.Errorf("stderr = %q; status answers on stdout", stderr.String())
 	}
 	return stdout.String(), err
+}
+
+// askAll runs it over the two facts a frame states for itself: the
+// client's version and the tag this client pins.
+func askAll(t *testing.T, files vfs.FS, git gitx.Runner, ver, tag string) (string, error) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	ctx := &command.Ctx{Stdout: &stdout, Stderr: &stderr, Root: root, Version: ver}
+	err := run(ctx, Deps{Tag: tag, Git: git, Files: files, Scripts: scripts(preflightOK, nil, nil)}, nil)
+	if stderr.Len() > 0 {
+		t.Errorf("stderr = %q; status answers on stdout", stderr.String())
+	}
+	return stdout.String(), err
+}
+
+// askVersion runs it over the standard fixture, with the version the
+// frame would have handed it.
+func askVersion(t *testing.T, ver string) (string, error) {
+	t.Helper()
+	return askAll(t, fixture(), onBranch("main"), ver, "v0.0.03")
 }
 
 func TestOnATaskBranchTheAnswerNamesTheTaskItsSpecAndTheChecks(t *testing.T) {

@@ -55,8 +55,38 @@ type Deps struct {
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "author",
-		Summary: "send a finished rule's derived work up",
-		Need:    command.NeedAdopted,
+		Summary: "publish a finished rule and the work it created",
+		About: command.About{
+			Sentence: []string{
+				"publish a finished rule together with the work it",
+				"created",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You changed a rule in the docs, and tasks and",
+					"specs were written from it. They belong in one",
+					"pull request, so a reviewer sees the rule and",
+					"its consequences at once.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Runs four checks, composes the branch, the",
+					"title and the body from this project's",
+					"conventions, shows them, and asks.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Decides what work the rule implies. That was",
+					"decided before this ran; the command carries",
+					"it, it does not make it.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"The pull request opens ready for review, never",
+					"as a draft: a draft is how this project says",
+					"work has begun, and an authoring change",
+					"announces none.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

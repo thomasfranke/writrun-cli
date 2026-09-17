@@ -1,7 +1,7 @@
 ---
 id: spec-0039
 task_ref: task-0035
-status: approved
+status: implemented
 created: 2026-09-13T22:08:07Z
 ---
 
@@ -84,16 +84,16 @@ the test is written against.
 
 ## Definition of Done
 
-- [ ] The frames named above are asserted against what the binary
+- [x] The frames named above are asserted against what the binary
       renders. Where the two disagree, the binary is what changes.
-- [ ] Every command carries a long description, checked by a test.
-- [ ] The one-liners are plain, and read from one place.
-- [ ] `--help` is grouped.
+- [x] Every command carries a long description, checked by a test.
+- [x] The one-liners are plain, and read from one place.
+- [x] `--help` is grouped.
 
 ## Proposed product changes
 
-- [`product/rules.md`](../../docs/product/rules.md) — how a command
-  reports, which today says `--help` restates nothing.
+- `product/rules.md` — how a command reports, which today says
+  `--help` restates nothing.
 
 ## Proposed technical changes
 
@@ -101,4 +101,55 @@ the test is written against.
 
 ## Outcome
 
-_(fill after execution)_
+`command.Command` carries an `About`: a sentence and the labelled parts
+under it, each as the lines the drawing draws. `writrun <command>
+--help` prints it for all thirteen, and `dispatch` prints it before the
+work of a command run with no arguments where stdin is a terminal —
+`AsksNothing` is already the set of four that print none, so no second
+list says which commands explain themselves. `--help` is four groups,
+named in `internal/command/run.go`, and every row's text is the
+command table's summary the entry screen also reads.
+
+`internal/drawing` reads a frame out of a drawing at test time, so the
+assertion is the drawing and never a transcription of it.
+`cmd/writrun` compares the production table's `--help` with the
+`help.excalidraw` frame and each command's with its own, line for line.
+
+Six things the plan did not foresee.
+
+The long description is stored as the lines the drawing draws, not as
+paragraphs a wrapper breaks. The drawn wraps are a hand's, at no width
+the code could compute, and the frames are the assertion.
+
+`--help`'s last two lines are drawn below the frame's divider, where
+that drawing puts what the annotation beside it says — so the frame
+assertion covers the header and the rows, and the two lines under them
+are held by a case in `internal/command`.
+
+The terminal that decides a bare run's description is stdin's, not
+stdout's: the description precedes a question, a question is asked on
+stdin, and `WRITRUN_TTY_IN` is the seam the suite already stands a
+terminal up with.
+
+"When a command is added without a long description, the build shall
+fail" is answered by a test over the production table, not by the
+compiler. Go cannot require a struct field, and a constructor that
+could would have rewritten all thirteen command packages to enforce
+what one table test states.
+
+The entry screen's drawing still states the one-liners this change
+replaced, and bounds a summary at 44 characters where its own window
+gives 66 — [report-0042](../reports/report-0042-stale-drawn-summaries.md).
+
+[decision 0010](../../docs/technical/decisions/docs/0010-help-is-one-line-per-command.md)
+records `--help` as one line per command and names full help text among
+what it rejected — [report-0043](../reports/report-0043-decision-rejects-long-help.md).
+This spec promises `product/rules.md` and nothing under
+`technical/decisions/`, so the decision is a report and not an edit
+made here.
+
+The Proposed-changes entry was rewritten from a markdown link to the
+bare backticked path that both gates read
+([report-0041](../reports/report-0041-invisible-promises.md)). In the
+form it carried, `check_deltas.sh` read this spec as promising nothing
+and would have refused `product/rules.md` as undeclared.

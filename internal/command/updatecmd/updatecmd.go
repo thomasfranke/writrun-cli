@@ -46,8 +46,34 @@ func New(d Deps) command.Command {
 	}
 	return command.Command{
 		Name:    "update",
-		Summary: "refresh the kit to the tag this binary pins",
-		Need:    command.NeedAdopted,
+		Summary: "bring WritRun up to the version this binary pins",
+		About: command.About{
+			Sentence: []string{
+				"bring the installed WritRun up to the version this",
+				"binary pins",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"A newer WritRun ships fixed scripts and new",
+					"checks, and your copy is older than the one",
+					"this binary was built against.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Writes what the new version ships, minus",
+					"everything you own, and shows the whole plan",
+					"before writing any of it.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Touches your settings, your gate answers, your",
+					"conventions, your docs or your queue.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"Nothing else changes: the stage you declared",
+					"and the work in flight are untouched.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

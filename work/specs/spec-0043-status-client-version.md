@@ -1,7 +1,7 @@
 ---
 id: spec-0043
 task_ref: task-0035
-status: approved
+status: implemented
 created: 2026-09-13T22:29:38Z
 ---
 
@@ -60,16 +60,15 @@ the test is written against.
 
 ## Definition of Done
 
-- [ ] The frames named above are asserted against what the binary
+- [x] The frames named above are asserted against what the binary
       renders. Where the two disagree, the binary is what changes.
-- [ ] Both rows print, from the sources `--version` and the kit use.
-- [ ] [report-0034](../reports/report-0034-status-client-version.md)
+- [x] Both rows print, from the sources `--version` and the kit use.
+- [x] [report-0034](../reports/report-0034-status-client-version.md)
       closed.
 
 ## Proposed product changes
 
-- [`product/queue/status.md`](../../docs/product/queue/status.md) — the
-  row and what it answers.
+- `product/queue/status.md` — the row and what it answers.
 
 ## Proposed technical changes
 
@@ -77,4 +76,37 @@ the test is written against.
 
 ## Outcome
 
-_(fill after execution)_
+`status` prints `Client   writrun-cli <version>` above `Kit`. The
+version is `command.Ctx.Version`, which the frame fills from the field
+`--version` prints — one value, so the two surfaces cannot answer
+differently about one process. `Kit` is untouched, and a build from
+source still says `dev`.
+
+The unit case compares the whole answer with the frame
+`writrun status — the rows explained, and the client named`, read out
+of the drawing at test time by `internal/drawing`. The fixture takes
+the client and the tag from that frame's own rows rather than spelling
+either: a frame states the facts it was drawn against, and a fixture
+with its own copy would be a second opinion about what the rows say.
+The integration case compares the printed row with what `--version`
+answered in the same run.
+
+Two things the plan did not foresee.
+
+The frame's window is 70 columns, and the drawn `Task` row stops short
+of the whole title: the fixture's task is called `Answer where the work
+stands from the current branch`, and the row carrying it is 86
+characters. The comparison is therefore per row — the frame's row is
+what the printed one opens with — and the row count must match
+exactly.
+
+The drawing's window carries a paragraph under the rows, below the
+frame's divider, explaining `Checks`, `Client` and `Kit`. It reads as
+the drawing's own annotation rather than output: the `--version` frame
+in `help.excalidraw` carries the same kind of grey block under the one
+line that command prints. Nothing here prints it, and this spec's scope
+— one row — is what was built.
+
+The Proposed-changes entry was rewritten from a markdown link to the
+bare backticked path that both gates read
+([report-0041](../reports/report-0041-invisible-promises.md)).

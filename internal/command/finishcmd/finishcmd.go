@@ -77,8 +77,35 @@ var ledgerFlags = []struct{ flag, key string }{
 func New(d Deps) command.Command {
 	return command.Command{
 		Name:    "finish",
-		Summary: "complete a task: deltas checked, PR ready",
-		Need:    command.NeedAdopted,
+		Summary: "close the work and mark the pull request ready",
+		About: command.About{
+			Sentence: []string{
+				"close the work: check the promises were kept, then",
+				"mark the pull request ready",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"A spec promised which documents the change",
+					"would touch. Before review, someone has to",
+					"check the diff kept that promise \u2014 this is that",
+					"someone.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Checks the promised changes against the diff,",
+					"writes the spec's `implemented` and the task's",
+					"completion date, runs the same three checks CI",
+					"runs, and marks the draft ready.",
+				}},
+				{Label: "what it leaves", Lines: []string{
+					"The merge. No command merges, and no command",
+					"approves.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"Review on the forge, by a person.",
+				}},
+			},
+		},
+		Need: command.NeedAdopted,
 		Run: func(ctx *command.Ctx, args []string) error {
 			return run(ctx, d, args)
 		},

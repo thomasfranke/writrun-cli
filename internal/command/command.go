@@ -17,12 +17,19 @@ const (
 )
 
 // Command is one subcommand: its name, the one-line summary --help
-// prints, its need, and the work itself.
+// prints, the long description it explains itself with, its need, and
+// the work itself.
 type Command struct {
 	Name    string
 	Summary string
-	Need    Need
-	Run     func(ctx *Ctx, args []string) error
+	// About is the long description: what the command is for, in plain
+	// words, printed by `writrun <command> --help` and by a bare run of
+	// a command that would otherwise ask (spec-0039). A command without
+	// one is a command a newcomer cannot learn from the binary, which
+	// is what the check over the table refuses.
+	About About
+	Need  Need
+	Run   func(ctx *Ctx, args []string) error
 	// AsksNothing says this command reads the terminal for nothing: it
 	// writes its answer and returns. Only such a command can have its
 	// output captured and paged, because a captured question would wait

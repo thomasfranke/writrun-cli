@@ -7,6 +7,8 @@ Answers where the work stands, from the current branch.
 - Runs the completion checks read-only and names the first that would
   fail — what [`finish`](../pull-requests/finish.md) would stop at.
 - Counts the open reports awaiting triage.
+- Names the client that answered: the product and the version
+  `--version` prints.
 - Compares the kit's recorded tag with the tag this client pins; a
   mismatch is named, never bridged.
 - Reads only — nothing changes, on the repository or the forge.

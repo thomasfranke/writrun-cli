@@ -46,8 +46,35 @@ type Deps struct {
 // New returns the work command wired with its dependencies.
 func New(d Deps) command.Command {
 	return command.Command{
-		Name:        "work",
-		Summary:     "launch the configured agent on a task",
+		Name:    "work",
+		Summary: "hand the next task to your AI agent",
+		About: command.About{
+			Sentence: []string{
+				"hand the next task to your AI agent, already briefed",
+			},
+			Parts: []command.AboutPart{
+				{Label: "why you would", Lines: []string{
+					"You want an agent to do the task, starting from",
+					"the brief the methodology already assembled",
+					"rather than a prompt you retype.",
+				}},
+				{Label: "what it does", Lines: []string{
+					"Takes the next available task \u2014 or the one you",
+					"name \u2014 and launches the agent command you",
+					"configured.",
+				}},
+				{Label: "what it never", Lines: []string{
+					"Guesses which agent you have installed. With",
+					"none configured it aborts and prints the one",
+					"line that sets it.",
+				}},
+				{Label: "what comes next", Lines: []string{
+					"The agent opens the draft itself, exactly as",
+					"you would with `take`. Its exit status becomes",
+					"this command's.",
+				}},
+			},
+		},
 		Need:        command.NeedAdopted,
 		AsksNothing: true,
 		Run: func(ctx *command.Ctx, args []string) error {
