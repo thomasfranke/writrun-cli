@@ -109,6 +109,7 @@ func commands() []command.Command {
 			Gh:       gh.Run,
 			Files:    disk,
 			LookPath: exec.LookPath,
+			Header:   headerLine,
 		}),
 		uninstallcmd.New(uninstallcmd.Deps{Git: gitx.Run, Files: disk}),
 		listcmd.New(listcmd.Deps{Script: kit.Run}),
@@ -146,7 +147,19 @@ func commands() []command.Command {
 			Getenv:  os.Getenv,
 		}),
 		reportcmd.New(reportcmd.Deps{Scripts: kit.Run, Files: disk}),
-		configcmd.New(configcmd.Deps{Scripts: kit.Run, Files: disk}),
+		configcmd.New(configcmd.Deps{
+			Scripts: kit.Run,
+			Files:   disk,
+			// The preview a stage raise shows is doctor's own answer, so
+			// the checks are wired once and `config` keeps no copy of one
+			// (spec-0041).
+			Preview: doctorcmd.Preview(doctorcmd.Deps{
+				Scripts:  kit.Run,
+				Gh:       gh.Run,
+				Files:    disk,
+				LookPath: exec.LookPath,
+			}, false),
+		}),
 	}
 }
 
@@ -301,9 +314,14 @@ const listerScript = kit.ListTasks
 // header is the screen's first line. Every fact in it is a cheap read:
 // no check runs to open this screen, so a version, a pinned tag and the
 // current branch are all it may say.
-func header(ctx *command.Ctx) string {
+func header(ctx *command.Ctx) string { return headerLine(ctx.Root) }
+
+// headerLine is that line composed from a repository root alone, which
+// is the form a command that opens a screen of its own can be handed.
+// The doctor screen shows the same three facts, from the same place.
+func headerLine(root string) string {
 	line := command.Product + " " + buildVersion() + " · pins WritRun " + writrunTag
-	if b, err := gitx.Run(ctx.Root, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
+	if b, err := gitx.Run(root, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		if name := strings.TrimSpace(b); name != "" {
 			line += " · branch " + name
 		}

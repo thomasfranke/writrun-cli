@@ -27,6 +27,10 @@ type Deps struct {
 	// Files is the settings file itself — read to list the keys, and
 	// written when one changes.
 	Files vfs.FS
+	// Preview is what a raise of the stage shows before it writes. nil
+	// is a wiring without it, and the raise then asks as any other
+	// change does.
+	Preview Preview
 }
 
 // New returns the config command wired with its dependencies.
@@ -209,6 +213,10 @@ func set(ctx *command.Ctx, d Deps, path string, before []byte, key, value string
 	}
 
 	fmt.Fprintf(ctx.Stdout, "%s\n  %s → %s\nin %s\n\n", key, was, value, kit.Settings)
+	// A stage raised is a claim about the repository, so what the new
+	// stage would require of it is shown before the question rather than
+	// after the write (spec-0041).
+	preview(ctx, d, k, was, value)
 	if err := ctx.AskConfirm("Write it?"); err != nil {
 		return err
 	}

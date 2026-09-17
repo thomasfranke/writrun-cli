@@ -22,7 +22,7 @@ printf '# Boundaries\n' > "$TARGET/docs/technical/boundaries.md"
 
 rm -rf "$TARGET/work/specs"
 check "the split is named where a queue folder is gone" 1 \
-  "work/specs/ — the docs/ and work/ split" -- "$WRITRUN" doctor
+  "work/specs/ missing, and the docs/ and work/ split" -- "$WRITRUN" doctor
 mkdir -p "$TARGET/work/specs"
 
 rm -f "$TARGET/.writrun/VERSION"
@@ -32,6 +32,6 @@ printf 'main\n' > "$TARGET/.writrun/VERSION"
 check "an unreadable tag is named" 1 "is not a readable tag" -- "$WRITRUN" doctor
 printf '%s\n' "$PINNED" > "$TARGET/.writrun/VERSION"
 
-check "a repaired repository holds again" 0 "Stage 1 — files: all clear." -- "$WRITRUN" doctor
+check "a repaired repository holds again" 0 "Stage 1 — files: 9 of 9 met." -- "$WRITRUN" doctor
 
 finish

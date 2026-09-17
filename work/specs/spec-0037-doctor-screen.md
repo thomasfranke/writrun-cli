@@ -1,7 +1,7 @@
 ---
 id: spec-0037
 task_ref: task-0033
-status: approved
+status: implemented
 created: 2026-09-13T22:08:03Z
 ---
 
@@ -92,15 +92,59 @@ the test is written against.
 
 ## Proposed product changes
 
-- [`product/adoption/doctor.md`](../../docs/product/adoption/doctor.md)
-  — the table of requirements and their explanations.
+- `product/adoption/doctor.md` — the table of requirements and their
+  explanations.
 
 ## Proposed technical changes
 
-- [`technical/engineering/coupling.md`](../../docs/technical/engineering/coupling.md)
-  — a fifth rule: a sentence a product doc states is embedded from that
-  doc, never retyped into Go beside it.
+- `technical/engineering/coupling.md` — a fifth rule: a sentence a
+  product doc states is embedded from that doc, never retyped into Go
+  beside it.
 
 ## Outcome
 
-_(fill after execution)_
+`internal/screen/requirements.go` is the doctor screen: every
+requirement row selectable, the met ones included, with the headings,
+the counts and the blank lines shown and skipped. The footer is a rule,
+`requirement — what it is` under a hanging indent, then the keys. `r`
+re-runs every check and keeps the cursor. `writrun doctor` opens it
+where stdin and stdout are terminals and prints the report otherwise,
+the split `config` already makes.
+
+`adoption/doctor.md` gained the table: one row per requirement — what
+it is, why the stage needs it, what clears it — and
+`internal/command/doctorcmd/explanations.go` holds that table and reads
+it. A requirement the table does not name falls back to the check's own
+sentence and nothing else. Both screen frames are asserted against what
+the model renders; the rows are compared line for line and the footer
+as one paragraph, because where it wraps is the terminal's width.
+
+**What the plan did not foresee.**
+
+- **"Embed that table at build time" is not available here.**
+  `//go:embed` reads only files at or under its own package directory,
+  and the document is three directories above every package. Embedding
+  it would take a Go package at the repository root, which
+  `technical/layout/public-surface.md` forbids and this spec promised no
+  change to. The table is held in `explanations.go` line for line
+  instead, and `TestTheTableInGoIsTheDocumentsOwn` fails unless the
+  document still carries it verbatim — so the two cannot disagree in
+  silence, which is what the step asked for. `coupling.md`'s new rule
+  states the constraint and the substitute.
+- **Two tests keep the document and the checks in step, not one.** Every
+  name the binary reports has a row, and every row names a requirement
+  some check makes — the second catches a row left behind by a renamed
+  check, which the first cannot see.
+- **The drawing disagrees with itself once.** Its footer quotes the
+  selected row as `8 rows, 8 answered` where the row it points at is
+  drawn `8 gates, 8 answered`. The footer quotes the row's note, so the
+  row is the authority; the case says so where it reconciles the word.
+- **The coupling guard fired on the copied table.** `writrun/gates.md`
+  and `writrun/settings.json` appear in it as the document's own words.
+  `internal/kit/coupling_test.go` now passes over a string literal that
+  is a markdown table row: nothing dereferences it, and a tag that moved
+  the file turns the lookup's own test red.
+- **`doctor` no longer declares `AsksNothing`**, because it opens a
+  terminal program. From the entry screen it is spawned as a process of
+  its own, which is what decision 0015 already prescribes for a command
+  that takes the keyboard.

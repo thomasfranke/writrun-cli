@@ -9,7 +9,7 @@ cd "$TARGET" || exit 1
 
 gates "<!-- TODO — default: human writes or reviews before merge -->"
 check "a gate left as a placeholder is named" 1 \
-  "the gate for Writing or changing anything under docs/ is unanswered" \
+  "unanswered: Writing or changing anything under docs/" \
   -- "$WRITRUN" doctor
 check "a placeholder breaks a flow" 1 "breaking a flow" -- "$WRITRUN" doctor
 
@@ -21,12 +21,12 @@ check "a placeholder breaks a flow" 1 "breaking a flow" -- "$WRITRUN" doctor
 gates
 rm -f "$TARGET/writrun/gates.md"
 check "an absent gates file is answered by the kit's default" 0 \
-  "Stage 1 — files: all clear" -- "$WRITRUN" doctor
+  "Stage 1 — files: 9 of 9 met." -- "$WRITRUN" doctor
 
 gates
 legacy_agents
 check "a stale fenced section is named" 0 \
-  "a writrun:begin/writrun:end section is still there" -- "$WRITRUN" doctor
+  "!  AGENTS.md — a writrun:begin/writrun:end section is stale" -- "$WRITRUN" doctor
 check "a stale section breaks nothing" 0 "none breaking a flow" -- "$WRITRUN" doctor
 
 agents
@@ -35,6 +35,6 @@ check "a missing entry point is named" 1 "AGENTS.md — the agents' entry point 
   -- "$WRITRUN" doctor
 
 agents
-check "an answered table holds" 0 "Stage 1 — files: all clear." -- "$WRITRUN" doctor
+check "an answered table holds" 0 "Stage 1 — files: 9 of 9 met." -- "$WRITRUN" doctor
 
 finish
