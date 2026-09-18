@@ -9,6 +9,7 @@ printf '# Changelog\n\nPreamble stays put.\n\n## v0.1.0 — 2026-01-01\n\n### ch
 git add -A >/dev/null && git commit -qm "chore: seed the changelog"
 git tag -a v0.1.0 -m v0.1.0
 git commit -q --allow-empty -m "feat(queue): read the queue"
+release_publish
 out=$(bash "$RELEASE_SH" 2>&1); code=$?
 new=$(grep -n '^## v0.1.1' CHANGELOG.md | cut -d: -f1)
 old=$(grep -n '^## v0.1.0' CHANGELOG.md | cut -d: -f1)

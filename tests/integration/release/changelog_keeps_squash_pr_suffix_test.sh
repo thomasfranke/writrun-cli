@@ -6,6 +6,7 @@
 release_setup
 git tag -a v0.1.0 -m v0.1.0
 git commit -q --allow-empty -m "feat(queue): name the reports (#42)"
+release_publish
 out=$(bash "$RELEASE_SH" 2>&1); code=$?
 if [ "$code" -eq 0 ] &&
    grep -q '^### feat$' CHANGELOG.md &&
