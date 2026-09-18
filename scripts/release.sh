@@ -136,7 +136,13 @@ else
   printf '# Changelog\n\n' > "$tmp"
   changelog_section >> "$tmp"
 fi
-mv "$tmp" CHANGELOG.md
+# Written back through the existing file, never moved over it: mktemp
+# opens 0600 and an `mv` carries that mode onto the destination, so
+# every cut after the first leaves a changelog nobody but its author can
+# read. Git records only the exec bit, which is why the damage stays
+# invisible until somebody reads the working tree.
+cat "$tmp" > CHANGELOG.md
+rm -f "$tmp"
 
 "${MAKE:-make}" tests
 
