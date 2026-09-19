@@ -10,6 +10,60 @@ One writer is the whole point. An entry that is wrong is wrong in the
 subject that produced it, and that is where it is fixed, on the next
 tag. Nothing here is back-filled: the file starts at the first tag cut
 after it shipped.
+## v0.0.3 — 2026-09-19
+
+### docs
+
+- docs(product): finish's gates judge the tree they vouch for (#156)
+- docs(technical): a command explains itself, and 0010 says where it stood (#154)
+
+### fix
+
+- fix(product): the drawings name the tag the binary pins (#139)
+
+### chore
+
+- chore(queue): record what the merge decided
+- chore(queue): record what the forge just did
+- chore(queue): record what the forge just did
+- chore(queue): record what the merge decided
+- chore(queue): triage report-0047 to the queue (#165)
+- chore(queue): route the two reads the kit keeps to itself (#161)
+- chore(queue): record what the merge decided
+- chore(queue): record what the forge just did
+- chore(queue): record what the merge decided
+- chore(queue): record what the forge just did
+- chore(queue): record what the forge just did
+- chore(queue): record what the merge decided
+- chore(queue): route the two kit findings upstream (#155)
+- chore(queue): record what the forge just did
+- chore(queue): record what the merge decided
+- chore(queue): record what the merge decided
+- chore(queue): record what the forge just did
+- chore(queue): record what the forge just did
+- chore(queue): record what the forge just did
+- chore(queue): record what the forge just did
+- chore(queue): record what the merge decided
+- chore(queue): record what the forge just did
+- chore(queue): record what the forge just did
+- chore(queue): record what the merge decided
+- chore(queue): track the key a cancelled question swallows (#142)
+- chore(queue): route report-0034 and report-0035 to the tasks that carry them (#141)
+- chore(setup): pin WritRun v0.0.08 and refresh the kit (#138)
+- chore(queue): record what the merge decided
+
+### Other
+
+- [TASK-0038][Fix][Tests] The list fixture discovers the kit, and a guard refuses a list (#167)
+- [Chore][Setup] Pin WritRun v0.0.09 and refresh the kit (#163)
+- [Fix][Ci] The cut refuses a main that is not what origin has (#162)
+- [TASK-0037][Fix][Product] Make finish's gates read the tree they vouch for (#159)
+- [TASK-0034][Feat][Product] Give every screen its furniture, and every plan a cursor (#153)
+- [TASK-0035][Feat][Product] Make the binary explain itself to someone who has not read the methodology (#149)
+- [TASK-0033][Feat][Product] Answer what each stage requires, and what the next one would (#148)
+- [TASK-0036][Fix][Product] Give a command that asks its own process (#146)
+- [Docs][Product] The screen drawings are the design, and the work derives from them (#129)
+
 ## v0.0.2 — 2026-09-09
 
 ### fix
