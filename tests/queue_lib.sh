@@ -22,7 +22,11 @@
 
 . "$(dirname "${BASH_SOURCE[0]}")/cli_lib.sh"
 
-git_q() { git -c user.name=suite -c user.email=suite@test -c commit.gpgsign=false "$@"; }
+# `gc.auto=0` because this fixture removes the repository between cells.
+# A background `git gc` writing into `.git` while `rm -rf` walks it is
+# the one way that removal fails on a tree nothing else touches, and the
+# fixture needs no packing it will delete seconds later.
+git_q() { git -c user.name=suite -c user.email=suite@test -c commit.gpgsign=false -c gc.auto=0 "$@"; }
 
 TARGET="$WORK/target"
 ORIGIN="$WORK/origin.git"
@@ -199,6 +203,15 @@ STATES="canonical crlf fence-space unclosed no-front-matter duplicate-status spa
 # no file holds.
 IDS="task-0012 spec-0012 0012 12 task/0012-x task-0000 task-abc-0012 report-0020 task-0099"
 
+# torn_down — the fixture could not be rebuilt, named as the fixture's
+# failure and not the binary's. Exit 3 is neither of the harness's two
+# verdicts: the case asserted nothing, so it passed nothing and failed
+# nothing.
+torn_down() {
+  printf 'FAIL  the fixture could not be reset: %s under %s\n' "$1" "$WORK" >&2
+  exit 3
+}
+
 # COMMANDS is every command that reads the queue's front matter, plus
 # `writrun` with no command, which reads none and must stay that way.
 COMMANDS="amend finish author status screen"
@@ -207,7 +220,7 @@ COMMANDS="amend finish author status screen"
 # carrying the kit, the queue and the docs; a task branch for `finish`;
 # an authoring branch for `author`; and a bare origin holding all three.
 build_state() {
-  rm -rf "$PRISTINE"
+  rm -rf "$PRISTINE" || torn_down "rm -rf pristine"
   mkdir -p "$PRISTINE/target/.writrun" "$PRISTINE/target/writrun" \
            "$PRISTINE/target/work/tasks" "$PRISTINE/target/work/specs" \
            "$PRISTINE/target/work/reports" "$PRISTINE/target/docs/product"
@@ -308,10 +321,18 @@ EOF
 
 # reset_repo — the repository as build_state left it. A cell may commit,
 # cut a branch and push, so nothing short of the whole thing is a reset.
+#
+# **The teardown is read, and a failed one stops the case.** An
+# unchecked `rm` that removed half the tree leaves the `cp -R` below
+# merging into what stood, and every cell after it runs against a
+# repository that is neither pristine nor the one the enumeration
+# describes. Its answer then arrives as a diff against `matrix.golden`,
+# which is where a behaviour change is argued for — and a teardown that
+# did not happen is not one (report-0050).
 reset_repo() {
-  rm -rf "$TARGET" "$ORIGIN"
-  cp -R "$PRISTINE/target" "$TARGET"
-  cp -R "$PRISTINE/origin.git" "$ORIGIN"
+  rm -rf "$TARGET" "$ORIGIN" || torn_down "rm -rf"
+  cp -R "$PRISTINE/target" "$TARGET" || torn_down "cp -R target"
+  cp -R "$PRISTINE/origin.git" "$ORIGIN" || torn_down "cp -R origin.git"
   git_q -C "$TARGET" remote set-url origin "$ORIGIN"
   : > "$GH_LOG"
   : > "$GH_BODY"
