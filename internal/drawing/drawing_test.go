@@ -67,12 +67,12 @@ func TestTheFramesLinesAreWhatTheBinaryWouldPrint(t *testing.T) {
 		at{0, 0, "$ writrun status"},
 		at{1, 1, "Branch"},
 		at{1, 10, "main"},
-		at{3, 1, "Kit      WritRun v0.0.08"},
+		at{3, 1, "Kit      WritRun v0.0.09"},
 	)
 	want := []string{
 		"Branch   main",
 		"",
-		"Kit      WritRun v0.0.08",
+		"Kit      WritRun v0.0.09",
 	}
 	if got := frame(t, path, "writrun status — a frame"); !reflect.DeepEqual(got, want) {
 		t.Fatalf("frame =\n%q\nwant\n%q", got, want)
@@ -84,10 +84,10 @@ func TestWhatIsDrawnBelowTheDividerIsNotThisRunsOutput(t *testing.T) {
 	// or from a second scene; neither is what the binary printed here.
 	path := drawn(t, "a frame", 5,
 		at{0, 0, "$ writrun --version"},
-		at{1, 1, "writrun-cli v0.0.2 (pins WritRun v0.0.08)"},
+		at{1, 1, "writrun-cli v0.0.2 (pins WritRun v0.0.09)"},
 		at{6, 1, "Two facts, not one: the binary that answered."},
 	)
-	want := []string{"writrun-cli v0.0.2 (pins WritRun v0.0.08)"}
+	want := []string{"writrun-cli v0.0.2 (pins WritRun v0.0.09)"}
 	if got := frame(t, path, "a frame"); !reflect.DeepEqual(got, want) {
 		t.Fatalf("frame =\n%q\nwant\n%q", got, want)
 	}

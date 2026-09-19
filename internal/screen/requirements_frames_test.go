@@ -21,7 +21,7 @@ import (
 // repository (internal/command/doctorcmd, requirementsScreen).
 func drawnRows() Requirements {
 	return Requirements{
-		Header: "writrun-cli v0.0.2 · pins WritRun v0.0.08 · branch main",
+		Header: "writrun-cli v0.0.2 · pins WritRun v0.0.09 · branch main",
 		Line:   "STAGE 1 · files — stages 0–1 examined, stage 2 previewed",
 		Groups: []RequirementGroup{
 			{Name: "STAGE 0 · ENVIRONMENT — 4 of 4 met", Rows: []Requirement{
@@ -38,7 +38,7 @@ func drawnRows() Requirements {
 				{Mark: "!", Text: "AGENTS.md — a writrun:begin/writrun:end section is stale", Name: "AGENTS.md"},
 				{Mark: "✓", Text: "writrun/gates.md — 8 gates, 8 answered", Name: "writrun/gates.md",
 					Explain: "who operates each gate the methodology names. The rows are that file's own, so a gate a newer kit adds is named without this binary knowing it. Met: 8 gates, 8 answered."},
-				{Mark: "✓", Text: ".writrun/VERSION — v0.0.08", Name: ".writrun/VERSION"},
+				{Mark: "✓", Text: ".writrun/VERSION — v0.0.09", Name: ".writrun/VERSION"},
 				{Mark: "✓", Text: "check_front_matter.sh", Name: "check_front_matter.sh"},
 				{Mark: "✓", Text: "check_settings.sh", Name: "check_settings.sh"},
 			}},

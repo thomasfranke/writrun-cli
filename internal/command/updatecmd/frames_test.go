@@ -19,7 +19,7 @@ func TestTheRefreshPlanFrame(t *testing.T) {
 	}
 	r := &refresh{
 		from: "v0.0.00",
-		to:   "v0.0.08",
+		to:   "v0.0.09",
 		changes: []change{
 			{rel: ".github/ISSUE_TEMPLATE/writrun-report.yml", verb: added},
 			{rel: ".github/workflows/writrun-intake.yml", verb: added},
@@ -30,7 +30,7 @@ func TestTheRefreshPlanFrame(t *testing.T) {
 		},
 	}
 	// The frame selects the second row, which is the workflows.
-	got := term.PlanLines(r.plan("v0.0.08"), 71, 1)
+	got := term.PlanLines(r.plan("v0.0.09"), 71, 1)
 	if d := drawing.Compare(got, drawn); d != "" {
 		t.Error(d)
 	}

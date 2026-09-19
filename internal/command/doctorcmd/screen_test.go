@@ -19,7 +19,7 @@ func TestTheScreenIsGivenTheRowsTheFrameDraws(t *testing.T) {
 	f.forge.fails["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = errBrokenRead{}
 
 	d := f.deps()
-	d.Header = func(string) string { return "writrun-cli v0.0.2 · pins WritRun v0.0.08 · branch main" }
+	d.Header = func(string) string { return "writrun-cli v0.0.2 · pins WritRun v0.0.09 · branch main" }
 	s := requirementsScreen(f.root, d, 0)
 
 	var got []string

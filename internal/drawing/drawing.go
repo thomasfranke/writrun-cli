@@ -62,7 +62,7 @@ type file struct {
 // it, and neither is this run's output. And every drawn output line
 // carries one column of frame padding, which the prompt line does not —
 // the frames transcribed from real runs are what says so, `Branch` and
-// `writrun-cli v0.0.2 (pins WritRun v0.0.08)` among them.
+// `writrun-cli v0.0.2 (pins WritRun v0.0.09)` among them.
 func Frame(path, caption string) ([]string, error) {
 	lines, err := framed(path, caption, framePad, true)
 	if err != nil {
