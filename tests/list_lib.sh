@@ -7,13 +7,16 @@
 # The lister is copied, never restated: it is the eligibility authority
 # the binary wraps, so a case that wrote its own would be checking the
 # fixture instead of the command (docs/about.md).
+#
+# It arrives inside its trees, and `LISTER` below is how a case names it
+# to run it — not a list of what to stage. A kit script sources its
+# neighbours, so a fixture that stages files one at a time ships scripts
+# that cannot run, and learns it from the release that adds the next
+# `source` (technical/testing/suites.md, report-0047).
 
 . "$(dirname "${BASH_SOURCE[0]}")/cli_lib.sh"
 
 LISTER=".writrun/skills/writrun-select-next-task/list_tasks.sh"
-# The lister sources the queue reader from the scripts folder, so the
-# fixture carries both — the kit's own layout, not this file's choice.
-QUEUE_LIB=".writrun/scripts/stage-2-pull-requests/queue_lib.sh"
 
 git_q() { git -c user.name=suite -c user.email=suite@test -c commit.gpgsign=false "$@"; }
 
@@ -22,11 +25,10 @@ TARGET="$WORK/target"
 # make_repo — an adopted repository with the real lister, an empty
 # queue, and one commit, so a case can ask git whether anything changed.
 make_repo() {
-  mkdir -p "$TARGET/.writrun/skills/writrun-select-next-task" \
-           "$TARGET/.writrun/scripts/stage-2-pull-requests" \
+  mkdir -p "$TARGET/.writrun" \
            "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
-  cp "$REPO_ROOT/$LISTER" "$TARGET/$LISTER"
-  cp "$REPO_ROOT/$QUEUE_LIB" "$TARGET/$QUEUE_LIB"
+  cp -R "$REPO_ROOT/.writrun/scripts" "$TARGET/.writrun/scripts"
+  cp -R "$REPO_ROOT/.writrun/skills"  "$TARGET/.writrun/skills"
   printf '# Tasks\n' > "$TARGET/work/tasks/README.md"
   printf '# Specs\n' > "$TARGET/work/specs/README.md"
   printf '# Reports\n' > "$TARGET/work/reports/README.md"

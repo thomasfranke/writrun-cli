@@ -1,7 +1,7 @@
 ---
 id: spec-0046
 task_ref: task-0038
-status: approved
+status: implemented
 created: 2026-09-19T14:23:04Z
 ---
 
@@ -104,4 +104,31 @@ why report-0047 is this repository's and not WritRun's.
 
 ## Outcome
 
-_(fill after execution)_
+Done as specified, with one criterion narrowed and the reason recorded
+here rather than left for a reader to infer.
+
+**The guard reads `.writrun/scripts/` and `.writrun/skills/`, not all of
+`.writrun/`.** The first acceptance criterion said any single file under
+`.writrun/`. Two copies in the suite are that and are not the defect:
+`tests/queue_lib.sh` copies `.writrun/VERSION`, and `tests/init_lib.sh`
+copies a fake old kit's `.writrun/AGENTS.md`. Both are leaves — nothing
+sources them, and neither has a directory of peers to be copied with, so
+a literal reading would have forced `queue_lib.sh` to copy the whole of
+`.writrun/` to satisfy a rule it never broke. What the rule is about is
+a script staged without the neighbours it sources, and those two trees
+are where scripts source each other. The three remaining criteria are
+met as written.
+
+**The guard was seen to fail before it passed.** Against `list_lib.sh`
+as `main` held it, `TestFixturesDiscoverTheKit` named
+`tests/list_lib.sh:28` and `tests/list_lib.sh:29` and quoted both `cp`
+lines — resolving `$LISTER` and `$QUEUE_LIB` to the addresses assigned
+fifteen lines above them, which is the case a check reading only the
+`cp` line's own text would have missed. The ten fixtures that already
+copied trees passed in the same run, as did the two leaf copies above.
+After step 1 the package is green.
+
+`QUEUE_LIB` is gone; `LISTER` stays, because
+`the_output_is_the_skills_own_test.sh` names it to run the lister. That
+is the distinction the guard draws: it reads `cp` and nothing else, so
+naming a kit script to invoke it is untouched.

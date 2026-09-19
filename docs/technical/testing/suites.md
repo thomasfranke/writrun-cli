@@ -14,6 +14,15 @@ case; which one that fixture layers on is the `.` line at the top of
 the fixture. A new suite adds `tests/<subject>_lib.sh` and is listed
 nowhere.
 
+**A fixture discovers the kit it stages, and never lists it.** The
+`.writrun/scripts` and `.writrun/skills` trees are copied whole. Naming
+a file inside either stages a script without the neighbours it sources,
+and the release that adds the next `source` is what reports it.
+`TestFixturesDiscoverTheKit` in
+[`internal/kit`](../../../internal/kit/fixtures_test.go) reads every
+`tests/*_lib.sh` and fails on a `cp` of one file under those two trees.
+A leaf outside them — `.writrun/VERSION` — is copied by name.
+
 Every case also runs standalone:
 
 ```bash
