@@ -27,6 +27,12 @@
 
 set -euo pipefail
 
+# The bullet reader is queue_lib.sh's, shared with the promise gate: one
+# copy, so a bullet that gate refused cannot be read here, and one it
+# never saw cannot pass here (decision 0078). The skills and the scripts
+# ship as one tree, so the path is always there to source.
+. "$(cd "$(dirname "$0")" && pwd)/../../scripts/stage-2-pull-requests/queue_lib.sh"
+
 SPEC_IDS="${1:-}"
 DIFF_RANGE="${2:-HEAD}"
 
@@ -52,37 +58,22 @@ for id in $SPEC_LIST; do
   fi
 done
 
-# Extract bullet paths from the two Proposed changes sections.
-# A bullet line looks like: - `path/to/doc.md#anchor` — note
-#
-# Spec paths are written relative to docs/ (product/..., technical/...,
-# about.md), per the schema in docs/technical/schemas/README.md. `git diff
-# --name-only` reports relative to the repository root. The trailing
-# `sed 's|^|docs/|'` normalises the former to the latter — without it every
-# promised path reports MISSING and every touched doc reports UNDECLARED,
+# The two Proposed-changes sections, as `ql_promised_paths` reads them —
+# a bullet's backticked path, anchor stripped, written relative to docs/
+# (product/..., technical/..., about.md) per the schema in
+# docs/technical/schemas/README.md. `git diff --name-only` reports
+# relative to the repository root, and the trailing `sed 's|^|docs/|'`
+# normalises the former to the latter — without it every promised path
+# reports MISSING and every touched doc reports UNDECLARED,
 # simultaneously.
-extract_paths() {   # extract_paths <spec-file> <section-header>
-  # Portable across BWK awk (macOS default /usr/bin/awk, no gawk-only
-  # 3-arg match) and gawk: only single-arg sub(), captured via sed instead.
-  awk -v hdr="$2" '
-    $0 ~ "^## " hdr { infile=1; next }
-    /^## / && infile { infile=0 }
-    infile && /^- `/ { print }
-  ' "$1" | sed -n 's/^- `\([^`]*\)`.*/\1/p' | sed 's/#.*//' \
-    | sed 's|^|docs/|' | sort -u
-}
-
-# promised_of <spec-id> — both Proposed-changes sections, normalised.
+#
+# promised_of <spec-id> — both sections, normalised.
 promised_of() {
   local f
   f=$(spec_file_of "$1")
-  {
-    extract_paths "$f" "Proposed product changes"
-    extract_paths "$f" "Proposed technical changes"
-  } | sed '/^$/d' | sort -u
+  ql_promised_paths < "$f" | sed 's|^|docs/|'
 }
 
-# The union across every listed spec — what UNDECLARED is judged against.
 ALL_PROMISED=$(for id in $SPEC_LIST; do promised_of "$id"; done | sed '/^$/d' | sort -u)
 
 # A failing git call must not be swallowed: an empty file list is

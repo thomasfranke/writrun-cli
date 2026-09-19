@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # read_setting.sh — prints one value from writrun/settings.json.
 #
-# Usage: read_setting.sh <address> [--origin]
+# Usage: read_setting.sh <address> [--origin | --vocabulary]
 #   Run from the repository root; the path is relative to it.
 #
 #   read_setting.sh stage                     a top-level key, bare
 #   read_setting.sh stage_2.pr_title_style    a key inside its section
 #   read_setting.sh stage --origin            the value, a tab, then
 #                                             `declared` or `default`
+#   read_setting.sh stage --vocabulary        the values the key accepts,
+#                                             one per line
 #
 # **--origin is how a reader tells a choice from a documented default.**
 # Both print identically without it, which is right for a caller that
@@ -16,6 +18,17 @@
 # is what nobody decided" are different sentences (session_card.sh).
 # A value carried over by one of the two rename bridges below is
 # `declared`: the adopter wrote it, under the name of the day.
+#
+# **--vocabulary is how a reader offers the choice before the write.**
+# A closed key's allowed values print one per line, in the schema's
+# order, from the one home check_settings.sh judges by (ql_vocabulary
+# in queue_lib.sh) — so a config screen holds no copy of its own. A
+# free-form key — `commit_types`, `commit_scopes` — prints nothing, and
+# that empty answer means free-form, exactly as an undocumented address
+# prints nothing without the flag. The vocabulary is the key's, never
+# the file's: no file is read, and the two rename bridges play no part.
+# The two flags answer different questions about different things — a
+# value's origin, a key's values — so both at once is a usage error.
 #
 # **The address, not the name, is a key's identity.** The file carries one
 # top-level `stage` and one object per stage holding the keys that stage's
@@ -48,17 +61,35 @@
 
 set -euo pipefail
 
+HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$HERE/queue_lib.sh"
+
+usage() { echo "usage: read_setting.sh <address> [--origin | --vocabulary]" >&2; exit 3; }
+
 KEY=""
 WITH_ORIGIN=""
+WITH_VOCABULARY=""
 for arg in "$@"; do
   case "$arg" in
-    --origin) WITH_ORIGIN=yes ;;
-    -*)       echo "usage: read_setting.sh <address> [--origin]" >&2; exit 3 ;;
-    *)        [ -z "$KEY" ] || { echo "usage: read_setting.sh <address> [--origin]" >&2; exit 3; }
-              KEY="$arg" ;;
+    --origin)     WITH_ORIGIN=yes ;;
+    --vocabulary) WITH_VOCABULARY=yes ;;
+    -*)           usage ;;
+    *)            [ -z "$KEY" ] || usage
+                  KEY="$arg" ;;
   esac
 done
-[ -n "$KEY" ] || { echo "usage: read_setting.sh <address> [--origin]" >&2; exit 3; }
+[ -n "$KEY" ] || usage
+[ -z "$WITH_ORIGIN" ] || [ -z "$WITH_VOCABULARY" ] || usage
+
+# The vocabulary is the key's, not the file's, so it is answered before
+# any file is looked for. One value per line is the shape a caller
+# reads back without splitting; the home keeps them on one line
+# because the checker's case patterns want them that way.
+if [ -n "$WITH_VOCABULARY" ]; then
+  vocab=$(ql_vocabulary "$KEY")
+  [ -z "$vocab" ] || printf '%s\n' "$vocab" | tr ' ' '\n'
+  exit 0
+fi
 
 # emit <value> <declared|default> — the one place the output shape lives,
 # so the two forms can never drift apart.

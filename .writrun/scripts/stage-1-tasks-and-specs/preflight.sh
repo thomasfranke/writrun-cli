@@ -4,6 +4,22 @@
 #   bash .writrun/scripts/stage-1-tasks-and-specs/preflight.sh \
 #     [task-id[,task-id…]] [diff-range]
 #
+# **The two arguments are told apart by what a task list looks like**,
+# never by the range's punctuation. An argument whose every
+# comma-separated entry is a task id — `task-0034`, `0034`,
+# `task/0034-…` — is the task list; anything else is the range. So a
+# bare `origin/main` is a range, and it means to the three stages what
+# it means to every gate they call: the ref against the **working
+# tree**, the one shape whose head end is the checkout rather than a
+# commit. That shape is how a flow that writes the completion edits and
+# commits nothing gets them judged; `origin/main..` and `origin/main...`
+# keep meaning `HEAD`
+# (docs/technical/distribution/preflight.md#a-bare-ref-reaches-the-working-tree).
+#
+# The trade is stated rather than hidden: a ref spelled like a task id —
+# a branch literally named `0034` — reads as a task list, and is named
+# as a range by writing `0034..` instead.
+#
 # Three checks, and they are CI's own three (`writrun-check.yml`), called
 # unmodified and in one order:
 #
@@ -39,16 +55,49 @@ CHECK_STATE="$HERE/../../skills/writrun-check-task-state/check_state.sh"
 
 own_failure() { echo "PREFLIGHT: $*" >&2; exit 4; }
 
+# is_task_id <word> — the three spellings a task id has: `task-NNNN`,
+# the branch form `task/NNNN-…`, and the bare number the queue and every
+# [TASK-NNNN] tag print. Nothing else is one, and that is the whole of
+# the classification below.
+is_task_id() {
+  local rest
+  case "$1" in
+    task/[0-9]*) return 0 ;;
+    task-*)      rest="${1#task-}" ;;
+    *)           rest="$1" ;;
+  esac
+  case "$rest" in
+    ""|*[!0-9]*) return 1 ;;
+    *)           return 0 ;;
+  esac
+}
+
+# is_task_list <argument> — every comma-separated entry is a task id.
+# One entry that is not makes the whole argument a range, because a
+# task list with a ref in it is not a list this run could honour.
+is_task_list() {
+  local one
+  [ -n "$1" ] || return 1
+  for one in $(printf '%s' "$1" | tr ',' ' '); do
+    is_task_id "$one" || return 1
+  done
+  return 0
+}
+
 IDS_ARG=""
 RANGE=""
 for arg in "$@"; do
+  [ -n "$arg" ] || continue
   case "$arg" in
-    -*)    own_failure "unknown option '$arg' — usage: preflight.sh [task-id[,task-id…]] [diff-range]" ;;
-    *..*)  [ -z "$RANGE" ] || own_failure "two diff ranges given ('$RANGE' and '$arg')"
-           RANGE="$arg" ;;
-    *)     [ -z "$IDS_ARG" ] || own_failure "two task lists given ('$IDS_ARG' and '$arg')"
-           IDS_ARG="$arg" ;;
+    -*) own_failure "unknown option '$arg' — usage: preflight.sh [task-id[,task-id…]] [diff-range]" ;;
   esac
+  if is_task_list "$arg"; then
+    [ -z "$IDS_ARG" ] || own_failure "two task lists given ('$IDS_ARG' and '$arg')"
+    IDS_ARG="$arg"
+  else
+    [ -z "$RANGE" ] || own_failure "two diff ranges given ('$RANGE' and '$arg')"
+    RANGE="$arg"
+  fi
 done
 
 # Run from a subdirectory and every path below would resolve against the
@@ -116,14 +165,33 @@ fi
 # A run made before the completion edits passes the state gate by having
 # nothing to judge. That is not a green light, and it is said out loud
 # rather than inferred from a quiet run.
+#
+# **It reads the end the stages read**, never the checkout regardless of
+# range. The bare shape's head *is* the checkout, so there the two are
+# the same file; under a two-ended range the head is a commit, and a
+# task whose `completed` was written but not committed has none there —
+# which is exactly the state the stages are about to read as empty. Read
+# from the checkout instead, this warning would fall silent over a run
+# whose stages saw nothing, and print PREFLIGHT OK on the one input it
+# never had (report-0046).
+ql_range_ends "$RANGE"
+WARN_HEAD="$QL_HEADREF"
+[ -n "$WARN_HEAD" ] && WHERE="${WARN_HEAD}" || WHERE="the working tree"
 
 WARNING=""
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   id=$(ql_fm_field id "$f")
-  done_at=$(ql_fm_field completed "$f")
+  if [ -z "$WARN_HEAD" ]; then
+    done_at=$(ql_fm_field completed "$f")
+  else
+    # A task file the head does not carry — created on this branch and
+    # not yet committed — reads as no completed date, which is what it
+    # is at that end. `git show` failing is that answer, never an error.
+    done_at=$(git show "${WARN_HEAD}:${f}" 2>/dev/null | ql_fm_field_in completed)
+  fi
   if [ -z "$done_at" ] || [ "$done_at" = null ]; then
-    WARNING="${WARNING}${id} has no completed date, so this run precedes the completion edits and does not stand for them; run it again after them."$'\n'
+    WARNING="${WARNING}${id} has no completed date in ${WHERE}, so this run precedes the completion edits and does not stand for them; run it again after them."$'\n'
   fi
 done <<TASKS
 ${TASK_FILES}

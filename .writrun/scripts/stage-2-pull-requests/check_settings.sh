@@ -38,6 +38,9 @@
 
 set -euo pipefail
 
+HERE="$(cd "$(dirname "$0")" && pwd)"
+. "$HERE/queue_lib.sh"
+
 SETTINGS="writrun/settings.json"
 LEGACY=".writrun/settings.json"
 OLDER=".writrun/conventions/settings.json"
@@ -71,13 +74,11 @@ for old in "$LEGACY" "$OLDER"; do
   fault "${old} is left over — ${SETTINGS} is the one address, and it wins; delete the old file rather than leaving two that are free to disagree"
 done
 
-# The vocabularies, as the schema spells them.
-STAGES="1 2 3"
-TITLE_STYLES="conventional bracketed"
-BOOLEANS="true false"
-SPEC_REQUIRED="always when-warranted"
-DECISIONS_STYLES="per-subsystem chronological"
-PRODUCT_LAYOUTS="by-concept by-feature"
+# The vocabularies live in queue_lib.sh's ql_vocabulary, keyed by
+# address, because read_setting.sh --vocabulary prints the same lists
+# and two copies would be free to disagree (decision 0079). This check
+# holds no list of its own; it asks the home, by the key's documented
+# address, and refuses what the home does not name.
 
 # Every documented key and the section it lives in — "" is the top level.
 # This is both the present-always list and the homes the check enforces:
@@ -241,7 +242,13 @@ while IFS= read -r line || [ -n "$line" ]; do
   # A documented key that is not in its documented home is homeless: the
   # address is its identity, so the reader looking there finds nothing and
   # falls back to the default, silently.
+  #
+  # The value is judged by the key's documented address either way — a
+  # homeless key is refused for its address and, if its value is also
+  # outside the vocabulary, for that too, as it always was.
+  documented=""
   if want_section=$(home_of "$key"); then
+    if [ "$want_section" = "" ]; then documented="$key"; else documented="${want_section}.${key}"; fi
     if [ "$want_section" != "$indent" ]; then
       here=${indent:-the top level}
       there=${want_section:-the top level}
@@ -251,26 +258,22 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
   fi
 
+  # A closed key's value is one of the words its vocabulary lists; a
+  # free-form key's vocabulary is empty, and its shape is judged below.
+  vocab=""
+  [ -z "$documented" ] || vocab=$(ql_vocabulary "$documented")
+  if [ -n "$vocab" ]; then
+    case " $vocab " in
+      *" $val "*) ;;
+      *) fault "${key} '${val}' is outside its vocabulary: ${vocab}" ;;
+    esac
+  fi
+
   case "$key" in
     level)
       fault "'level' was renamed: declare 'stage' (1|2|3) instead — the reader honours the old value meanwhile, but only this check will tell you" ;;
     credit_ai)
       fault "'credit_ai' was renamed: declare 'agent_coauthor' (true|false) instead — the key names the artifact it obliges, a Co-Authored-By: trailer naming the model, rather than the platform it came from; the reader honours the old value meanwhile, so it carries over unchanged, but only this check will tell you" ;;
-    stage)
-      case " $STAGES " in
-        *" $val "*) ;;
-        *) fault "stage '${val}' is outside its vocabulary: ${STAGES}" ;;
-      esac ;;
-    pr_title_style)
-      case " $TITLE_STYLES " in
-        *" $val "*) ;;
-        *) fault "pr_title_style '${val}' is outside its vocabulary: ${TITLE_STYLES}" ;;
-      esac ;;
-    agent_coauthor|auto_commit|auto_pr|auto_push|provenance_ledger)
-      case " $BOOLEANS " in
-        *" $val "*) ;;
-        *) fault "${key} '${val}' is outside its vocabulary: ${BOOLEANS}" ;;
-      esac ;;
     commit_types|commit_scopes)
       # The words are the project's — nothing here judges which they are.
       # The shape is the contract: lower-case words separated by single
@@ -290,21 +293,6 @@ while IFS= read -r line || [ -n "$line" ]; do
       case "${key}:${val}" in
         commit_types:*[![:lower:]\ ]*) fault "${key} '${val}' holds something other than lower-case words and single spaces — the subject spells them exactly as declared" ;;
         commit_scopes:*[![:lower:]\ -]*) fault "${key} '${val}' holds something other than lower-case words, hyphens and single spaces — the subject spells them exactly as declared" ;;
-      esac ;;
-    spec_required)
-      case " $SPEC_REQUIRED " in
-        *" $val "*) ;;
-        *) fault "spec_required '${val}' is outside its vocabulary: ${SPEC_REQUIRED}" ;;
-      esac ;;
-    decisions_style)
-      case " $DECISIONS_STYLES " in
-        *" $val "*) ;;
-        *) fault "decisions_style '${val}' is outside its vocabulary: ${DECISIONS_STYLES}" ;;
-      esac ;;
-    product_layout)
-      case " $PRODUCT_LAYOUTS " in
-        *" $val "*) ;;
-        *) fault "product_layout '${val}' is outside its vocabulary: ${PRODUCT_LAYOUTS}" ;;
       esac ;;
   esac
 done < "$SETTINGS"

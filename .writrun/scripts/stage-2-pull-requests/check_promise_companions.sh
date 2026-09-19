@@ -83,25 +83,16 @@ BASE="$QL_BASE"
 # the schema says to read them: a spec writes `technical/…`, relative to
 # `docs/`.
 #
-# Reads stdin rather than a file so the same parser serves the working
+# Reads stdin rather than a file so the same reader serves the working
 # tree and `git show BASE:<spec>` — one promise reader, two revisions.
-#
-# A deliberate second reader of the same two sections, not a call into
-# the completion gate: that script is a Stage 1 skill and must keep
-# running with nothing but `work/` and git, while this one is workflow
-# machinery. The scope of what they share is four lines of awk; the cost
-# of coupling them is a skill that stops working where it is promised to.
-#
-# The empty line is dropped *before* the prefix, or a `none —` bullet's
-# nothing would arrive as the path `docs/`.
+# The reader is queue_lib.sh's, shared with the promise gate and the
+# completion gate (decision 0078): this script once carried its own
+# copy on the argument that the completion gate is a Stage 1 skill and
+# must not couple to workflow machinery — but the lib is what every
+# skill already sources, and three copies of four lines of awk is how
+# one gate refuses a bullet another reads.
 promised_paths() {
-  awk '
-    /^## Proposed (product|technical) changes/ { inp = 1; next }
-    /^## / && inp { inp = 0 }
-    inp && /^- `/ { print }
-  ' \
-    | sed -n 's/^- `\([^`]*\)`.*/\1/p' | sed 's/#.*//' \
-    | sed '/^$/d' | sed 's|^|docs/|' | sort -u
+  ql_promised_paths | sed 's|^|docs/|'
 }
 
 # promise_covers <path> <promise> — the promise names this exact path, or

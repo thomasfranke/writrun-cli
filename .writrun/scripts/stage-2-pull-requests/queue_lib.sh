@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # queue_lib.sh — the helpers both halves of the transition machine share:
 # front-matter reads and writes, the resting derivation, the task-file
-# resolver, the carried-ids parser, and the tab-delimited row reader.
+# resolver, the carried-ids parser, the tab-delimited row reader, and
+# the settings vocabulary the checker and the reader both read.
 # Sourced, never executed; the sourcing script owes `set -euo pipefail`
 # itself.
 #
@@ -259,6 +260,49 @@ ql_doc_is_draft() {
   first=${blob%%$'\n'*}
   first=$(printf '%s' "$first" | sed 's/[[:space:]]*$//')
   [ "$first" = "$QL_DRAFT_MARKER" ]
+}
+
+# --- the Proposed-changes bullet reader -----------------------------------
+#
+# One reader for both gates. `check_promise_paths.sh` and
+# `check_deltas.sh` each carried an awk line reading a bullet only when
+# a backtick followed the dash, so a bullet written any other way — a
+# markdown link around the path, bold before it, prose — was read as no
+# entry at all by both: the promise gate found nothing to judge and
+# passed, and the completion gate later judged every touched document
+# undeclared against an empty set (report-0044, decision 0078). Two
+# copies is how the same silence gets fixed in one and kept in the other.
+#
+# ql_promise_lines — every top-level bullet under either Proposed-changes
+# heading of the spec on stdin, one per line as `<section>TAB<bullet>`,
+# section being `product` or `technical`. Continuation lines of a
+# wrapped bullet are indented and never start with `- `, so a long entry
+# is one bullet.
+ql_promise_lines() {
+  awk '
+    /^## Proposed (product|technical) changes/ { sec = $3; inp = 1; next }
+    /^## / && inp { inp = 0 }
+    inp && /^- / { print sec "\t" $0 }
+  '
+}
+
+# ql_promised_paths — the paths those bullets promise, anchor stripped,
+# **as the spec wrote them** — relative to docs/, never prefixed. The
+# promise gate judges the written form; the completion gate prefixes it.
+# A `none` bullet carries no backtick and so names nothing here; the
+# empty line is dropped before it can arrive as a path.
+ql_promised_paths() {
+  ql_promise_lines \
+    | sed -n 's/^[a-z]*	- `\([^`]*\)`.*/\1/p' | sed 's/#.*//' \
+    | sed '/^$/d' | sort -u
+}
+
+# ql_unreadable_promises — the bullets neither reader above can take: a
+# top-level bullet under either heading that neither opens with a
+# backticked path nor says `none`. Printed as ql_promise_lines prints
+# them, so a refusal can name the section and quote the line.
+ql_unreadable_promises() {
+  ql_promise_lines | awk -F'\t' '$2 !~ /^- `/ && $2 !~ /^- none([^a-z]|$)/ { print }'
 }
 
 # ql_range_ends <range> — the range's two ends, derived once, into
@@ -565,4 +609,40 @@ ql_slugify() {
         }
         print s
       }'
+}
+
+# --- settings -----------------------------------------------------------
+#
+# ql_vocabulary <address> — the values a documented settings key accepts,
+# space-separated on one line, in the order the schema's table lists
+# them (docs/technical/settings/schema.md#settings). Addressed the way
+# read_setting.sh's default_for addresses defaults: a top-level key
+# bare, a sectioned key through its section — the address, not the
+# name, is a key's identity.
+#
+# **One home, two readers.** check_settings.sh refuses a value outside
+# this list and read_setting.sh --vocabulary prints it, so a porcelain
+# offering the choice before the write holds no copy of its own — a
+# copy anywhere but the kit is a second authority that drifts on the
+# next update (decisions/tasks-and-specs/0079). The schema's table is
+# held to this function by the suite, key by key.
+#
+# **Empty means free-form, never unknown.** `commit_types` and
+# `commit_scopes` are shapes — lower-case words, space-separated — and
+# a shape is not a list, so they answer nothing; an address the schema
+# does not document answers nothing for the same reason a value read
+# from it prints nothing. The reader reads, it never judges.
+ql_vocabulary() {
+  case "$1" in
+    stage)                     printf '1 2 3' ;;
+    stage_1.decisions_style)   printf 'per-subsystem chronological' ;;
+    stage_1.product_layout)    printf 'by-concept by-feature' ;;
+    stage_1.provenance_ledger) printf 'true false' ;;
+    stage_1.spec_required)     printf 'always when-warranted' ;;
+    stage_2.agent_coauthor)    printf 'true false' ;;
+    stage_2.auto_commit)       printf 'true false' ;;
+    stage_2.auto_pr)           printf 'true false' ;;
+    stage_2.auto_push)         printf 'true false' ;;
+    stage_2.pr_title_style)    printf 'conventional bracketed' ;;
+  esac
 }

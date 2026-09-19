@@ -96,8 +96,12 @@ Proposed-changes sections with real entries** —
 ```
 
 — every path one the completing diff will actually touch: that list is
-the merge contract `writrun-check-spec-deltas` reads. "none" only where
-genuinely nothing in that category changes. **Leave `status: draft`** —
+the merge contract `writrun-check-spec-deltas` reads. Every path is read
+relative to `docs/`, and the technical section names chapters under
+`docs/technical/` — never the code the change touches, which is what the
+diff changes and not what a spec promises. A bullet opens with the path
+in backticks, or neither gate can read it. "none" only where genuinely
+nothing in that category changes. **Leave `status: draft`** —
 approval is a human gate, never written here.
 
 **A spec drafted for a task already in the queue takes a `report/`

@@ -55,6 +55,18 @@ six sections, and each asks for a different move:
   Naming is not selecting — a report is never in the ordering and never
   moves the exit code.
 
+**Every task row carries the specs it was placed by.** Immediately
+before the row's free text — the title, or the held-back reason — sits
+one space-free token: `spec-NNNN:status`, comma-joined in `spec_ref`
+order when a task references several, and `no-spec` when it references
+none. It is what the lister already read to decide the section, so a
+reader takes what authorized a task from the same line that names it,
+never from a second read of the queue's front matter
+([visibility](https://github.com/thomasfranke/writrun/blob/main/docs/technical/selection/visibility.md#a-row-carries-what-the-lister-read-to-place-it)).
+The fields before it are the section's own: the id, then the priority
+for an available task and the author for one in flight. The `Submitted`
+and `Open reports` rows are not task rows and carry no token.
+
 Without network access the lister says so rather than reporting a task as
 free. Repeat that caveat when you report what you took.
 
