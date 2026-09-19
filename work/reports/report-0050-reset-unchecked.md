@@ -1,10 +1,10 @@
 ---
 id: report-0050
-status: open
+status: fixed
 task_ref: []
 doc_ref: null
 created: 2026-09-19T22:09:03Z
-triaged: null
+triaged: 2026-09-19T22:27:07Z
 ---
 
 # reset_repo does not check its own rm, so a failed teardown reads as a behaviour change
@@ -38,3 +38,21 @@ FAIL  every cell answers as the enumeration says it does
 ```
 
 Re-running the same job on the same commit passed, 16 checks green.
+
+**Triage — fixed.** `reset_repo` and `build_state` read every `rm` and
+`cp` they make, and a teardown that failed exits the case 3 through
+`torn_down`, naming itself and the workspace it could not clear. Exit 3
+is neither of the harness's two verdicts: the case asserted nothing, so
+the golden it never reached cannot be read as a behaviour change.
+
+`git_q` also passes `-c gc.auto=0`. A background `git gc` writing into
+`.git` while `rm -rf` walks it is the one way that removal fails on a
+tree nothing else touches, and this fixture deletes the repository
+between cells. That is the cause the evidence is consistent with and not
+a cause this change proves: the run it was observed on cannot be
+reproduced on demand.
+
+The guard was held against its absence — `rm` shadowed by a stub that
+refuses any path ending `/target`, the case then exiting 3 with
+`FAIL  the fixture could not be reset: rm -rf under <workspace>`
+instead of a `matrix.golden` diff.
