@@ -1,13 +1,15 @@
 ---
 id: report-0052
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0041]
 doc_ref: null
 created: 2026-09-19T22:45:24Z
-triaged: null
+triaged: 2026-09-19T23:36:06Z
 ---
 
 # A signal case can kill the test binary, so an unrelated change goes red
+
+**References:** [task-0041](../tasks/task-0041-signal-keeper.md)
 
 `internal/command/finishcmd/signals_test.go` proves the guard by
 sending real signals to the test binary: `raise()` calls
