@@ -48,7 +48,7 @@ func drawnRows() Requirements {
 				{Mark: "✓", Text: "squash merging is on", Name: "squash merging is on"},
 				{Mark: "✗", Text: "the recording push can write to main", Name: "the recording push can write to main",
 					Explain: "from stage 2 the workflows record the queue's state by pushing to main. Not met: .github/workflows/record.yml pushes to main and raises no `contents: write` of its own. Clear it by setting the Actions workflow permissions to read-and-write, or raising `contents: write` in that file."},
-				{Mark: "?", Text: "main is governed by a ruleset", Name: "main is governed by a ruleset"},
+				{Mark: "?", Text: "main is governed by a protection rule", Name: "main is governed by a protection rule"},
 				{Mark: "?", Text: "no rule over main refuses the recording push", Name: "no rule over main refuses the recording push"},
 			}},
 			{Name: "STAGE 3 · ISSUES — not previewed, one rung at a time", Rows: nil},

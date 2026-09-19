@@ -38,8 +38,8 @@ var requirementsTable = strings.Join([]string{
 	"| `gh authenticated` | a forge client with credentials | an unauthenticated client answers no read | running `gh auth login` |",
 	"| `squash merging is on` | the repository's merge setting | the methodology lands every pull request as one commit | turning squash merging on in the repository settings |",
 	"| `the recording push can write to main` | from stage 2 the workflows record the queue's state by pushing to main | a push with no right to write leaves the queue's state unrecorded | setting the Actions workflow permissions to read-and-write, or raising `contents: write` in that file |",
-	"| `main is governed by a ruleset` | branch protection over the branch every flow lands on | the methodology recommends protecting it | adding a ruleset that targets `main` |",
-	"| `no rule over main refuses the recording push` | whether any rule over main stops the Actions bot | a rule the bot cannot get past stops the recording push | taking the rule off `main`, or putting the Actions bot on the ruleset's bypass list |",
+	"| `main is governed by a protection rule` | a ruleset or a branch protection rule over the branch every flow lands on | the methodology recommends protecting it | adding a ruleset that targets `main`, or protecting the branch |",
+	"| `no rule over main refuses the recording push` | whether any rule over main stops the Actions bot, of either kind | a rule the bot cannot get past stops the recording push | taking the rule off `main`, or putting the Actions bot on the ruleset's bypass list — which a classic rule has none of |",
 	"| `Issues are enabled` | somewhere for the upstream mirror to land | from stage 3 the flows open issues on this repository | enabling Issues in the repository settings |",
 }, "\n")
 

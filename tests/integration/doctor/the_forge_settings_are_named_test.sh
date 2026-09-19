@@ -38,7 +38,7 @@ gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" ""
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id" ""
 "$WRITRUN" doctor > "$WORK/unprotected.out" 2>&1
 check "an unprotected main is a recommendation" 0 \
-  "!  main is governed by a ruleset — no ruleset governs it" -- cat "$WORK/unprotected.out"
+  "!  main is governed by a protection rule — the methodology recommends" -- cat "$WORK/unprotected.out"
 check "a recommendation alone exits 0" 0 "" -- "$WRITRUN" doctor
 
 finish

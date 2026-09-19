@@ -158,6 +158,22 @@ func rulesOnMain(f *fixture, entries ...string) {
 
 // bypass sets one ruleset's bypass list. No actor argument is a ruleset
 // that names none.
+// classicOn puts a branch protection rule over main, answering the
+// payload with the JSON given — the forge's own shape, because which
+// of the four rules it enables is read here and not by a query the fake
+// would have to evaluate.
+func classicOn(f *fixture, payload string) {
+	f.forge.replies["api repos/{owner}/{repo}/branches/main --jq .protection.enabled"] = "true\n"
+	f.forge.replies["api repos/{owner}/{repo}/branches/main/protection"] = payload
+}
+
+// noRulesets is a main no ruleset governs, which the branch may still
+// be protected by a classic rule over.
+func noRulesets(f *fixture) {
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "\n"
+	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "\n"
+}
+
 func bypass(f *fixture, id string, actors ...string) {
 	f.forge.replies["api repos/{owner}/{repo}/rulesets/"+id+" --jq (.bypass_actors // [])[].actor_type"] = strings.Join(actors, "\n") + "\n"
 }
@@ -194,6 +210,7 @@ func healthyForge() map[string]string {
 		"api repos/{owner}/{repo} --jq .has_issues":                                                "true\n",
 		"api repos/{owner}/{repo} --jq .owner.type":                                                "User\n",
 		"api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions": "write\n",
+		"api repos/{owner}/{repo}/branches/main --jq .protection.enabled":                          "false\n",
 		"api repos/{owner}/{repo}/rules/branches/main --jq .[].type":                               "deletion\nnon_fast_forward\n",
 		"api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id":                         "42\n42\n",
 		"api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type":            "Integration\n",

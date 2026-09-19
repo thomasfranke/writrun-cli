@@ -1,7 +1,7 @@
 ---
 id: spec-0047
 task_ref: task-0039
-status: approved
+status: implemented
 created: 2026-09-19T21:42:51Z
 ---
 
@@ -128,11 +128,11 @@ than deleted; the Outcome names each.
 
 ## Definition of Done
 
-- [ ] A classic rule requiring a pull request is one breaking finding on both owner types.
-- [ ] A classic rule alone makes the governance row met.
-- [ ] The `advises` note carries advice and no denial.
-- [ ] `doctor.md`, `explanations.go` and the two drawn frames say the same thing.
-- [ ] `writrun doctor` still reports no stage-2 finding against this repository.
+- [x] A classic rule requiring a pull request is one breaking finding on both owner types.
+- [x] A classic rule alone makes the governance row met.
+- [x] The `advises` note carries advice and no denial.
+- [x] `doctor.md`, `explanations.go` and the two drawn frames say the same thing.
+- [x] `writrun doctor` still reports no stage-2 finding against this repository.
 
 ## Proposed product changes
 
@@ -146,4 +146,65 @@ than deleted; the Outcome names each.
 
 ## Outcome
 
-_(fill after execution)_
+Stage 2 reads both mechanisms the forge keeps over `main`. `classicOver`
+asks the branch object whether a classic rule is on — `.protection.enabled`,
+which answers for an unprotected branch too, so the absence of a rule is
+read from an answer and never from a `404` — and reads the rule itself
+only where that answer says there is one. A branch no classic rule
+protects costs one extra read; a protected one costs two.
+
+**The mapping moved from jq to Go.** Step 2 put it in the `--jq` of one
+read. That query is evaluated by `gh`, which every Go case fakes and
+every integration case stubs, so no case could have reached the
+judgement it encoded — a mapping no test can hold is the shape this
+repository's coupling rule exists against. The payload is asked for
+whole and unmarshalled into `protection`, whose `blocking()` names the
+four rules. What the spec's table says is unchanged; only where it is
+decided.
+
+**`required_signatures` is in the payload.** The edge case left the
+endpoint open between the payload's own field and the sub-endpoint
+`branches/main/protection/required_signatures`. GitHub's documented
+response schema for the protection endpoint carries `required_signatures`
+with its `enabled`, so one read answers and the sub-endpoint is not
+called.
+
+The governance row is `main is governed by a protection rule`, met where
+either mechanism governs the branch, and its `advises` note carries the
+advice alone — the glyph already denies the name. A classic rule earns
+its own refusal sentence, the same on both owner types: the forge
+resolves the Actions token against no bypass list a classic rule keeps,
+and `restrictions` is the one field that clears itself, by naming the
+Actions app.
+
+A rule readable in its existence but not in its fields is one row and
+not the other: `main is governed by a protection rule` is met and `no
+rule over main refuses the recording push` is unread, which is what a
+403 on the protection endpoint looks like to a caller without admin.
+
+**One gap is left standing, and it is the brief's.** `lock_branch`
+makes a branch read-only and refuses the recording push like the four,
+and this spec put the vocabulary out of scope. A locked `main` still
+reports that nothing refuses the push —
+[report-0051](../reports/report-0051-locked-branch.md) records it.
+
+Six cases were added and six amended:
+
+| Case | Why |
+|---|---|
+| `TestAClassicRuleRequiringAPullRequestIsNamedOnEitherOwner` | The finding report-0048 recorded, on both owner types. |
+| `TestAClassicRuleAloneGovernsMain` | Governance is met by either mechanism. |
+| `TestAClassicRuleAFastForwardMeetsIsNoFinding` | A rule enabling only what a fast-forward meets stops nothing. |
+| `TestPushRestrictionsAreClearedOnlyByTheActionsApp` | The one classic bypass, over three allow lists. |
+| `TestARulesetAndAClassicRuleAreBothNamed` | Two sources refusing one push are two lines under one row. |
+| `TestAnUnprotectedBranchIsNotAskedForItsRule` | The payload is read only where there is a rule. |
+| `TestAnUnreadableRuleLeavesTheRefusalUnreadAndTheBranchGoverned` | A failed read is not a failed check, and here it is one row only. |
+| `TestAnUnreadableBranchLeavesBothRowsUnread` | The read both rows depend on. |
+| `TestTheRecommendationDoesNotDenyItsOwnRow` | The sentence that asserted and denied one fact. |
+| `TestAnUnprotectedMainIsARecommendation`, `TestARecommendationAloneExitsZero` | They asserted the old note, denial included. |
+| `TestTheFrameForAStageWithinReach`, `TestTheFrameForAStageOutOfReach`, `TestTheScreenIsGivenTheRowsTheFrameDraws` | They read the drawn frames, which now carry the new row. |
+| `tests/integration/doctor/a_classic_rule_over_main_is_read_test.sh` | The same finding through the compiled binary and a stubbed `gh`. |
+
+Each new case was held against its absence: `classicOver` returning an
+empty rule fails all six by name, and the doctor suite's other twelve
+cases stay green.

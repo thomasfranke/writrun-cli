@@ -30,7 +30,7 @@ func (s *stubPreview) run(_ string, stage int, w io.Writer) (int, int, int, erro
 		{"✓", "gh authenticated"},
 		{"✓", "squash merging is on"},
 		{"✗", "the recording push can write to main"},
-		{"?", "main is governed by a ruleset"},
+		{"?", "main is governed by a protection rule"},
 		{"?", "no rule over main refuses the recording push"},
 	} {
 		fmt.Fprintf(w, "         %s  %s\n", row.mark, row.text)
@@ -69,7 +69,7 @@ func TestARaiseShowsWhatTheStageWouldRequire(t *testing.T) {
 		"        require of this repository:",
 		"         ✓  gh on the PATH",
 		"         ✗  the recording push can write to main",
-		"         ?  main is governed by a ruleset",
+		"         ?  main is governed by a protection rule",
 		"        3 of 6 met, 1 unmet, 2 unread. Declaring it writes",
 		"        `stage: 2` and installs nothing; the flows that read the",
 		"        forge will stop at the unmet one until it is answered.",

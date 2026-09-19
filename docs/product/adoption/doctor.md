@@ -51,12 +51,21 @@ assumes. Reports; it never repairs.
   merging on; the recording push able to reach `main` — Actions
   workflow permissions read-and-write, or read where every workflow
   that pushes to `main` raises `contents: write` of its own; `main`
-  governed by a ruleset; and no rule over `main` refusing the recording
-  push — the four that do are restrict updates, require signed commits,
-  require status checks to pass, and require a pull request before
-  merging, and each is named where the Actions bot has no way past it:
-  always on a user-owned repository, and on an organization-owned one
-  where the ruleset names no bypass actor.
+  governed by a protection rule; and no rule over `main` refusing the
+  recording push — the four that do are restrict updates, require signed
+  commits, require status checks to pass, and require a pull request
+  before merging, and each is named where the Actions bot has no way
+  past it: always on a user-owned repository, and on an organization-owned
+  one where the ruleset names no bypass actor.
+- **Both mechanisms the forge keeps over a branch are read.** Rulesets
+  are read at `rules/branches/main`, a branch protection rule at
+  `branches/main/protection`, and whether one is on at all at
+  `branches/main`. Either kind answers whether `main` is governed.
+- **A classic rule is judged by the same four names**, `restrictions`
+  being its form of restricting updates. It names no bypass list the
+  Actions token resolves against — `restrictions` admits an app, and the
+  rule is cleared only where that list names the Actions app — so a rule
+  it enables is named on both owner types.
 - **Stage 3 — Issues:** enabled, so the mirror has somewhere to land.
 
 ## The rung above is previewed
@@ -120,6 +129,6 @@ disagree ([coupling](../../technical/engineering/coupling.md)).
 | `gh authenticated` | a forge client with credentials | an unauthenticated client answers no read | running `gh auth login` |
 | `squash merging is on` | the repository's merge setting | the methodology lands every pull request as one commit | turning squash merging on in the repository settings |
 | `the recording push can write to main` | from stage 2 the workflows record the queue's state by pushing to main | a push with no right to write leaves the queue's state unrecorded | setting the Actions workflow permissions to read-and-write, or raising `contents: write` in that file |
-| `main is governed by a ruleset` | branch protection over the branch every flow lands on | the methodology recommends protecting it | adding a ruleset that targets `main` |
-| `no rule over main refuses the recording push` | whether any rule over main stops the Actions bot | a rule the bot cannot get past stops the recording push | taking the rule off `main`, or putting the Actions bot on the ruleset's bypass list |
+| `main is governed by a protection rule` | a ruleset or a branch protection rule over the branch every flow lands on | the methodology recommends protecting it | adding a ruleset that targets `main`, or protecting the branch |
+| `no rule over main refuses the recording push` | whether any rule over main stops the Actions bot, of either kind | a rule the bot cannot get past stops the recording push | taking the rule off `main`, or putting the Actions bot on the ruleset's bypass list — which a classic rule has none of |
 | `Issues are enabled` | somewhere for the upstream mirror to land | from stage 3 the flows open issues on this repository | enabling Issues in the repository settings |
