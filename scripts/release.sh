@@ -31,6 +31,33 @@ esac
 [ -z "$(git status --porcelain)" ] || { echo "release: working tree not clean" >&2; exit 1; }
 [ "$(git branch --show-current)" = "main" ] || { echo "release: tags are cut from main" >&2; exit 1; }
 
+# The cut records what origin already has, so main must be exactly it.
+# A main behind origin tags a history the forge never saw, and only
+# finds out at `git push origin main --follow-tags` — which pushes the
+# tag before the branch is refused, leaving a number that names a commit
+# no branch carries. A main ahead of origin puts commits no pull request
+# reviewed inside the tag. Neither is a reconciliation this script
+# should pick, so it names the state and stops.
+#
+# Compared against FETCH_HEAD rather than refs/remotes/origin/main: the
+# tracking ref is only as fresh as the last fetch, and a stale one would
+# let the guard agree with a main that is behind — the exact case it
+# exists for.
+git fetch -q origin main \
+  || { echo "release: cannot reach origin — the cut compares main against it" >&2; exit 1; }
+here="$(git rev-parse HEAD)"
+there="$(git rev-parse FETCH_HEAD)"
+if [ "$here" != "$there" ]; then
+  if git merge-base --is-ancestor "$here" "$there"; then
+    echo "release: main is behind origin/main — pull, then cut" >&2
+  elif git merge-base --is-ancestor "$there" "$here"; then
+    echo "release: main is ahead of origin/main — push what it carries, then cut" >&2
+  else
+    echo "release: main has diverged from origin/main — reconcile, then cut" >&2
+  fi
+  exit 1
+fi
+
 # The cut ends at the forge (`gh release create`), which runs after the
 # push — so an unusable gh must abort here, before anything is mutated,
 # not fail there, after the tag is already public.
@@ -109,7 +136,13 @@ else
   printf '# Changelog\n\n' > "$tmp"
   changelog_section >> "$tmp"
 fi
-mv "$tmp" CHANGELOG.md
+# Written back through the existing file, never moved over it: mktemp
+# opens 0600 and an `mv` carries that mode onto the destination, so
+# every cut after the first leaves a changelog nobody but its author can
+# read. Git records only the exec bit, which is why the damage stays
+# invisible until somebody reads the working tree.
+cat "$tmp" > CHANGELOG.md
+rm -f "$tmp"
 
 "${MAKE:-make}" tests
 

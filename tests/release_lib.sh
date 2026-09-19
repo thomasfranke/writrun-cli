@@ -56,3 +56,11 @@ release_setup() {
   export PATH="$WORK/stub-bin:$PATH"
   export MAKE="$WORK/stub-bin/make"
 }
+
+# A case that commits its own setup lands it on origin with this: the
+# cut refuses a main origin has not seen, and that refusal is a guard of
+# its own, held by its own cases and not by every fixture that happens
+# to need one more commit first.
+release_publish() {
+  git push -q origin main
+}
