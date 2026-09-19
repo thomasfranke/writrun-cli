@@ -1,13 +1,15 @@
 ---
 id: report-0048
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0039]
 doc_ref: null
 created: 2026-09-19T21:28:44Z
-triaged: null
+triaged: 2026-09-19T21:41:29Z
 ---
 
 # doctor reads only rulesets, so a classic branch protection rule reports as no rule at all
+
+**References:** [task-0039](../tasks/task-0039-classic-protection.md)
 
 Issue #168, opened by @thomasfranke.
 
