@@ -1,15 +1,15 @@
 ---
 id: report-0051
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0040]
 doc_ref: product/adoption/doctor.md
 created: 2026-09-19T22:38:47Z
-triaged: null
+triaged: 2026-09-19T23:33:54Z
 ---
 
 # A locked branch refuses every push, and the four blocking rules do not name it
 
-**References:** [product/adoption/doctor.md](../../docs/product/adoption/doctor.md)
+**References:** [product/adoption/doctor.md](../../docs/product/adoption/doctor.md) · [task-0040](../tasks/task-0040-unjudged-rules.md)
 
 `blockers` in `internal/command/doctorcmd/forge.go` names four rules
 that refuse the recording push: restrict updates, require signed
