@@ -94,7 +94,7 @@ func TestARecommendationAloneExitsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run = %v (exit %d), want 0 for a recommendation", err, exitCode(err))
 	}
-	if !strings.Contains(out, "!  main is governed by a ruleset — no ruleset governs it") {
+	if !strings.Contains(out, "!  main is governed by a protection rule — the methodology recommends") {
 		t.Errorf("the recommendation is not reported as one:\n%s", out)
 	}
 	if !strings.Contains(out, "none breaking a flow") {

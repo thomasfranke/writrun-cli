@@ -181,8 +181,9 @@ gh_reply() {
 }
 
 # forge_healthy — every forge assumption met: squash on, workflow
-# permissions read-and-write, main governed by a ruleset that names a
-# bypass actor and none of the four blocking rules, Issues on.
+# permissions read-and-write, no classic rule over main, main governed
+# by a ruleset that names a bypass actor and none of the four blocking
+# rules, Issues on.
 forge_healthy() {
   : > "$GH_DIR/authenticated"
   : > "$GH_DIR/calls"
@@ -190,6 +191,7 @@ forge_healthy() {
   gh_reply "api repos/{owner}/{repo} --jq .has_issues" "true"
   gh_reply "api repos/{owner}/{repo} --jq .owner.type" "User"
   gh_reply "api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions" "write"
+  gh_reply "api repos/{owner}/{repo}/branches/main --jq .protection.enabled" "false"
   gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" "deletion"
   gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id" "42"
   gh_reply "api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type" "Integration"

@@ -1,6 +1,7 @@
 package doctorcmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -12,10 +13,18 @@ import (
 // ruleset's, at whatever level it was configured — so asking it is one
 // read where enumerating the rulesets and matching their conditions
 // would be several and a second opinion on the forge's own matching.
+//
+// It answers for rulesets and for nothing else. The forge keeps a second,
+// older mechanism over the same branch — a branch protection rule — and
+// a branch one of those governs is reported by that endpoint as governed
+// by nothing (report-0048). `branches/main` says whether one is on, and
+// `branches/main/protection` is the rule itself.
 const (
-	repoAPI      = "repos/{owner}/{repo}"
-	workflowAPI  = "repos/{owner}/{repo}/actions/permissions/workflow"
-	mainRulesAPI = "repos/{owner}/{repo}/rules/branches/main"
+	repoAPI           = "repos/{owner}/{repo}"
+	workflowAPI       = "repos/{owner}/{repo}/actions/permissions/workflow"
+	mainRulesAPI      = "repos/{owner}/{repo}/rules/branches/main"
+	mainBranchAPI     = "repos/{owner}/{repo}/branches/main"
+	mainProtectionAPI = "repos/{owner}/{repo}/branches/main/protection"
 )
 
 // workflowsDir holds the workflow files whose own `permissions:` block
@@ -31,7 +40,7 @@ const (
 	ghAuthed      = "gh authenticated"
 	squashOn      = "squash merging is on"
 	pushCanWrite  = "the recording push can write to main"
-	mainGoverned  = "main is governed by a ruleset"
+	mainGoverned  = "main is governed by a protection rule"
 	noRuleRefuses = "no rule over main refuses the recording push"
 )
 
@@ -285,15 +294,18 @@ func want(d Deps, name, path, jq, expected, breakage string) requirement {
 // whether main is governed at all, and whether any rule over it refuses
 // the push.
 //
-// No ruleset over main leaves the branch unprotected with nothing in the
-// bot's way, which is a recommendation. Every ruleset that does govern
-// main is judged on its own, because a rule and the bypass list that
-// would clear it belong to the same ruleset: the rules it contributes
-// say whether it refuses the push, and its own bypass list says whether
-// the bot is past them. A plain fast-forward push meets none of
-// deletion, creation, non_fast_forward or required_linear_history, so a
-// ruleset enabling only those is no finding whatever its bypass list
-// holds (spec-0024).
+// Both mechanisms are read. Nothing governing main leaves the branch
+// unprotected with nothing in the bot's way, which is a recommendation;
+// a rule of either kind answers the first question, and each kind
+// answers the second in its own terms.
+//
+// Every ruleset that governs main is judged on its own, because a rule
+// and the bypass list that would clear it belong to the same ruleset:
+// the rules it contributes say whether it refuses the push, and its own
+// bypass list says whether the bot is past them. A plain fast-forward
+// push meets none of deletion, creation, non_fast_forward or
+// required_linear_history, so a ruleset enabling only those is no
+// finding whatever its bypass list holds (spec-0024).
 func mainReachable(d Deps) []requirement {
 	governed := requirement{stage: 2, name: mainGoverned}
 	refuses := requirement{stage: 2, name: noRuleRefuses}
@@ -306,14 +318,29 @@ func mainReachable(d Deps) []requirement {
 	if err != nil {
 		return unreadPair(governed, refuses, "the rulesets governing main could not be read")
 	}
-	if len(ids) == 0 {
+	c, err := classicOver(d)
+	if err != nil && !c.on {
+		return unreadPair(governed, refuses, "the branch protection over main could not be read")
+	}
+	if len(ids) == 0 && !c.on {
 		governed.mark = advises
-		governed.note = "no ruleset governs it — the methodology recommends protecting it; nothing blocks the recording push meanwhile"
+		governed.note = "the methodology recommends protecting it; nothing blocks the recording push meanwhile"
 		return []requirement{governed, refuses}
 	}
 
 	owner := &ownership{d: d}
 	var refusals []string
+	if err != nil {
+		// The branch is governed and the rule's own fields are not
+		// readable, which is one row unread and not the other: what
+		// governs main answered, what it enables did not.
+		refuses.mark = unread
+		refuses.note = "the branch protection rule over main could not be read"
+		refuses.detail = firstLine(err.Error())
+	}
+	if b, refused := firstOf(c.rules); refused {
+		refusals = append(refusals, classicRefusal(b))
+	}
 	for _, id := range distinct(ids) {
 		actors, err := lines(d, "repos/{owner}/{repo}/rulesets/"+id, "(.bypass_actors // [])[].actor_type")
 		if err != nil {
@@ -350,6 +377,112 @@ func unreadPair(governed, refuses requirement, why string) []requirement {
 	governed.mark = unread
 	refuses.mark, refuses.detail = unread, why
 	return []requirement{governed, refuses}
+}
+
+// classicRule is the branch protection rule over main: whether one is
+// on at all, and which of the four blocking rules it enables.
+type classicRule struct {
+	on    bool
+	rules []string
+}
+
+// actionsApp is what the forge calls the app the recording push runs
+// as. A classic rule's push restrictions are the one list that clears
+// it, and they clear it by naming this.
+const actionsApp = "github-actions"
+
+// protection is the part of a branch protection rule doctor reads. The
+// payload is asked for whole and read here rather than narrowed by a
+// `--jq` the forge would evaluate: which of the four blocking rules a
+// classic rule enables is this binary's judgement, and a judgement made
+// inside a query string is one no case can reach
+// (technical/engineering/coupling.md).
+type protection struct {
+	PullRequest  *struct{} `json:"required_pull_request_reviews"`
+	StatusChecks *struct{} `json:"required_status_checks"`
+	Signatures   *struct {
+		Enabled bool `json:"enabled"`
+	} `json:"required_signatures"`
+	Restrictions *restrictions `json:"restrictions"`
+}
+
+// restrictions is a classic rule's push allow list, which the forge
+// keeps in three: users, teams and apps. Only the apps can be what the
+// recording push runs as.
+type restrictions struct {
+	Apps []struct {
+		Slug string `json:"slug"`
+	} `json:"apps"`
+}
+
+// admits reports whether the allow list names an app by slug.
+func (r restrictions) admits(slug string) bool {
+	for _, a := range r.Apps {
+		if a.Slug == slug {
+			return true
+		}
+	}
+	return false
+}
+
+// blocking is the rules a classic rule enables, named as `blockers`
+// names them. A field the payload omits is the rule not carrying it.
+// `restrictions` is the classic form of restricting updates, and it is
+// the one field that clears itself: a list naming the Actions app lets
+// the recording push through.
+func (p protection) blocking() []string {
+	var rules []string
+	if p.Restrictions != nil && !p.Restrictions.admits(actionsApp) {
+		rules = append(rules, "update")
+	}
+	if p.Signatures != nil && p.Signatures.Enabled {
+		rules = append(rules, "required_signatures")
+	}
+	if p.StatusChecks != nil {
+		rules = append(rules, "required_status_checks")
+	}
+	if p.PullRequest != nil {
+		rules = append(rules, "pull_request")
+	}
+	return rules
+}
+
+// classicOver reads that rule in two steps, and asks the second only
+// where the first says there is something to read.
+//
+// The branch object answers whether a classic rule is on. It is asked
+// rather than the rule itself because it answers for a branch nothing
+// protects too, so the absence of a rule is read from an answer and
+// never from a 404. `.protected` cannot carry the question — a branch a
+// ruleset alone governs answers it `true` — and `.protection.enabled`
+// can.
+func classicOver(d Deps) (classicRule, error) {
+	on, err := d.Gh("api", mainBranchAPI, "--jq", ".protection.enabled")
+	if err != nil {
+		return classicRule{}, err
+	}
+	if strings.TrimSpace(on) != "true" {
+		return classicRule{}, nil
+	}
+	raw, err := d.Gh("api", mainProtectionAPI)
+	if err != nil {
+		return classicRule{on: true}, err
+	}
+	var p protection
+	if err := json.Unmarshal([]byte(raw), &p); err != nil {
+		return classicRule{on: true}, err
+	}
+	return classicRule{on: true, rules: p.blocking()}, nil
+}
+
+// classicRefusal is the sentence a branch protection rule that stops the
+// recording push earns. A classic rule carries no bypass list the forge
+// resolves the Actions token against — `restrictions` is the one that
+// admits an app, and a rule reaching this sentence did not name the
+// Actions app on it — so the remedy is the same on both owner types and
+// the rule itself is what comes off (product/adoption/doctor.md).
+func classicRefusal(b blocker) string {
+	return fmt.Sprintf("the branch protection rule over main enables %s (%s) — the Actions bot has no way past a classic rule, so take the rule off main", b.rule, b.names)
 }
 
 // refusal is the one sentence a ruleset that stops the recording push

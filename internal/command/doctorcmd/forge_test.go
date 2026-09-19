@@ -288,7 +288,7 @@ func TestAnUnprotectedMainIsARecommendation(t *testing.T) {
 	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].type"] = "\n"
 	f.forge.replies["api repos/{owner}/{repo}/rules/branches/main --jq .[].ruleset_id"] = "\n"
 	found := f.findings()
-	only(t, found, 2, advises, "main is governed by a ruleset — no ruleset governs it")
+	only(t, found, 2, advises, "main is governed by a protection rule — the methodology recommends protecting it")
 	if breaking(found) != 0 {
 		t.Errorf("a recommendation broke a flow:\n%s", texts(found))
 	}
@@ -400,4 +400,157 @@ func stageOf(found []requirement, want string) int {
 		}
 	}
 	return 2
+}
+
+// A classic branch protection rule is not a ruleset rule, and
+// `rules/branches/main` reports only the latter. Both rows used to be
+// inverted at once on a branch one of these governs: ungoverned, and
+// nothing refusing the push (report-0048).
+func TestAClassicRuleRequiringAPullRequestIsNamedOnEitherOwner(t *testing.T) {
+	for _, owner := range []string{"User", "Organization"} {
+		t.Run(owner, func(t *testing.T) {
+			f := newFixture(t, "3")
+			noRulesets(f)
+			f.forge.replies["api repos/{owner}/{repo} --jq .owner.type"] = owner + "\n"
+			classicOn(f, `{"required_pull_request_reviews":{"required_approving_review_count":0},"enforce_admins":{"enabled":true}}`)
+			found := f.findings()
+			only(t, found, 2, breaks, "the branch protection rule over main enables pull_request (require a pull request before merging)")
+			if breaking(found) != 1 {
+				t.Errorf("breaking findings = %d, want 1:\n%s", breaking(found), texts(found))
+			}
+		})
+	}
+}
+
+// A classic rule governs the branch, so the recommendation is not owed.
+func TestAClassicRuleAloneGovernsMain(t *testing.T) {
+	f := newFixture(t, "3")
+	noRulesets(f)
+	classicOn(f, `{"required_linear_history":{"enabled":true}}`)
+	for _, r := range f.all() {
+		if r.name == mainGoverned && r.mark != met {
+			t.Errorf("a protected main is %s:\n%s", words[r.mark], texts(f.all()))
+		}
+	}
+}
+
+// A plain fast-forward push meets none of these, so a classic rule
+// carrying only them stops nothing (spec-0047, acceptance criteria).
+func TestAClassicRuleAFastForwardMeetsIsNoFinding(t *testing.T) {
+	f := newFixture(t, "3")
+	noRulesets(f)
+	classicOn(f, `{"required_linear_history":{"enabled":true},"required_conversation_resolution":{"enabled":true},"allow_force_pushes":{"enabled":false},"allow_deletions":{"enabled":false},"enforce_admins":{"enabled":false}}`)
+	if found := f.findings(); len(found) != 0 {
+		t.Errorf("a rule a fast-forward meets was reported:\n%s", texts(found))
+	}
+}
+
+// Push restrictions are the classic form of restricting updates, and
+// the one field that clears itself: the list names what the recording
+// push runs as, or it does not.
+func TestPushRestrictionsAreClearedOnlyByTheActionsApp(t *testing.T) {
+	cases := []struct {
+		name    string
+		apps    string
+		refused bool
+	}{
+		{"no app named", `{"restrictions":{"users":[],"teams":[],"apps":[]}}`, true},
+		{"another app named", `{"restrictions":{"users":[],"teams":[],"apps":[{"slug":"dependabot"}]}}`, true},
+		{"the Actions app named", `{"restrictions":{"users":[],"teams":[],"apps":[{"slug":"github-actions"}]}}`, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFixture(t, "3")
+			noRulesets(f)
+			classicOn(f, c.apps)
+			found := f.findings()
+			if c.refused {
+				only(t, found, 2, breaks, "the branch protection rule over main enables update (restrict updates)")
+				return
+			}
+			if len(found) != 0 {
+				t.Errorf("an allow list naming the Actions app was reported:\n%s", texts(found))
+			}
+		})
+	}
+}
+
+// Both mechanisms over one branch: each source that refuses the push
+// earns its own line, and the branch is governed once.
+func TestARulesetAndAClassicRuleAreBothNamed(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "required_signatures@42")
+	bypass(f, "42")
+	classicOn(f, `{"required_pull_request_reviews":{}}`)
+	found := f.findings()
+	only(t, found, 2, breaks, "the branch protection rule over main enables pull_request")
+	only(t, found, 2, breaks, "ruleset 42 governs main and enables required_signatures")
+	if breaking(found) != 1 {
+		t.Errorf("two sources refusing one push are %d findings, want 1 row:\n%s", breaking(found), texts(found))
+	}
+}
+
+// A branch no classic rule protects costs one read and not two: the
+// payload is asked for only where there is a rule to read.
+func TestAnUnprotectedBranchIsNotAskedForItsRule(t *testing.T) {
+	f := newFixture(t, "3")
+	f.findings()
+	if f.forge.asked("api repos/{owner}/{repo}/branches/main/protection") {
+		t.Errorf("the protection payload was read with no classic rule on: %v", f.forge.calls)
+	}
+}
+
+// A read that fails is not a check that failed, and here it is one row
+// and not the other: what governs main answered, what it enables did
+// not.
+func TestAnUnreadableRuleLeavesTheRefusalUnreadAndTheBranchGoverned(t *testing.T) {
+	f := newFixture(t, "3")
+	noRulesets(f)
+	classicOn(f, "")
+	f.forge.fails["api repos/{owner}/{repo}/branches/main/protection"] = errors.New("gh: HTTP 403 Forbidden")
+	found := f.all()
+	for _, r := range found {
+		switch r.name {
+		case mainGoverned:
+			if r.mark != met {
+				t.Errorf("a protected main is %s:\n%s", words[r.mark], texts(found))
+			}
+		case noRuleRefuses:
+			if r.mark != unread {
+				t.Errorf("an unreadable rule is %s, want unread:\n%s", words[r.mark], texts(found))
+			}
+		}
+	}
+}
+
+// The branch object is the one read both rows depend on, so a forge
+// that will not answer it leaves both unread rather than either met.
+func TestAnUnreadableBranchLeavesBothRowsUnread(t *testing.T) {
+	f := newFixture(t, "3")
+	f.forge.fails["api repos/{owner}/{repo}/branches/main --jq .protection.enabled"] = errors.New("gh: HTTP 500")
+	found := f.all()
+	for _, r := range found {
+		if (r.name == mainGoverned || r.name == noRuleRefuses) && r.mark != unread {
+			t.Errorf("%q is %s, want unread:\n%s", r.name, words[r.mark], texts(found))
+		}
+	}
+}
+
+// The row's note advises; the glyph denies. It used to do both at once
+// — `main is governed by a ruleset — no ruleset governs it` — which
+// asserts and denies one fact before reaching its advice (report-0048).
+func TestTheRecommendationDoesNotDenyItsOwnRow(t *testing.T) {
+	f := newFixture(t, "3")
+	noRulesets(f)
+	for _, r := range f.all() {
+		if r.name != mainGoverned {
+			continue
+		}
+		if r.mark != advises {
+			t.Fatalf("an ungoverned main is %s, want advises", words[r.mark])
+		}
+		if strings.Contains(r.note, "governs it") || strings.Contains(r.note, "no ruleset") {
+			t.Errorf("the note denies the row it sits on: %q", said(r))
+		}
+	}
 }
