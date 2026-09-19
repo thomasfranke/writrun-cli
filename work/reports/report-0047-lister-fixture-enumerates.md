@@ -1,10 +1,10 @@
 ---
 id: report-0047
-status: open
-task_ref: []
+status: tracked
+task_ref: [task-0038]
 doc_ref: null
 created: 2026-09-19T13:36:41Z
-triaged: null
+triaged: 2026-09-19T14:24:31Z
 ---
 
 # list_lib.sh names the two kit files it stages, and the kit's scripts source each other
@@ -40,3 +40,16 @@ not where unrelated fixtures get rewritten.
 What is observed is that one fixture is still one `source` away from the
 same failure, and that nothing checks for the shape: a fixture naming
 kit files passes every gate until a tag disagrees with it.
+
+**Triage — tracked.**
+[task-0038](../tasks/task-0038-fixture-discovers-kit.md) carries it, with
+[spec-0046](../specs/spec-0046-fixture-discovers-kit.md) bounding the
+work: `tests/list_lib.sh` copies the kit's trees like the other ten, and
+a guard beside `internal/kit/coupling_test.go` refuses a fixture that
+goes back to naming kit files. The second half of what was observed —
+that nothing checks for the shape — is why this is a task and not a
+one-line fix.
+
+The finding is this repository's, not WritRun's: a kit script sourcing
+its neighbours is the kit's design, and a clean kit copy carries no
+`tests/list_lib.sh` to reproduce against.
