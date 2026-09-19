@@ -34,7 +34,7 @@ TODO
 
 ## Proposed technical changes
 
-- none — no machinery change
+- none — no technical chapter changes
 
 ## Outcome
 

@@ -58,7 +58,7 @@ func buildVersion() string {
 }
 
 // writrunTag is the WritRun tag this release pins.
-const writrunTag = "v0.0.08"
+const writrunTag = "v0.0.09"
 
 func main() {
 	disk := vfs.OS{}

@@ -14,6 +14,13 @@
 # in the Available list may be taken, and taking a lower one bypasses
 # nothing. That is the whole reason this prints a list instead of an answer.
 #
+# **Every task row carries the specs it was placed by**, as one
+# space-free token before the row's free text — `spec-0002:approved`,
+# comma-joined for several, `no-spec` for none. Deciding the section *is*
+# reading them, so the row says what authorized the task rather than
+# leaving a reader to read the queue a second time
+# (docs/technical/selection/visibility.md#a-row-carries-what-the-lister-read-to-place-it).
+#
 # A task already in flight is reported as such, and reported as *paused*
 # when an amendment has put one of its specs' approval back in question —
 # derived from this checkout and the open pull requests together, never
@@ -129,6 +136,36 @@ task_status() {
   f=$(queue_file "$TASK_DIR" "$1")
   [ -n "$f" ] || { echo "missing"; return; }
   field "$f" status
+}
+
+# spec_token <task-file> — the specs this task references and the status
+# each of them holds, as one space-free token: `spec-0002:approved`,
+# comma-joined in spec_ref order, and `no-spec` for an empty list.
+#
+# **It is what this script already read.** Placing a task *is* reading
+# every spec in its spec_ref and asking whether each is approved or
+# implemented — the loops below do it to decide `ready`, and used to drop
+# it at the printf. A reader built on this output could then say a task's
+# id, priority and section and not what authorized it, and the only way
+# to get it was a second reader of the queue's front matter, per row,
+# which drifts on the next update
+# (technical/selection/visibility.md#a-row-carries-what-the-lister-read-to-place-it).
+#
+# A spec the queue lacks is named with the status the placement judged it
+# by — `missing` — rather than dropped, so the row cannot say less than
+# the decision behind it.
+#
+# No space, because it sits between the id and free text: a title carries
+# spaces and goes last, and a field a reader has to count to find is one
+# they will miscount. `no-spec` is a word for the same reason — an empty
+# column and a missing one look the same.
+spec_token() {
+  local token="" s
+  for s in $(list_field "$1" spec_ref); do
+    [ -n "$s" ] || continue
+    token="${token:+${token},}${s}:$(spec_status "$s")"
+  done
+  printf '%s' "${token:-no-spec}"
 }
 
 rank() {
@@ -458,10 +495,11 @@ for f in "$TASK_DIR"/*.md; do
   if [ "$st" = "in-progress" ] || [ "$st" = "in-review" ]; then
     who=$(taken_by "$id")
     pause=$(suspension "$f")
+    tok=$(spec_token "$f")
     if [ -n "$who" ]; then
-      inflight="${inflight}${id}|${who}|${pause}|${tt}"$'\n'
+      inflight="${inflight}${id}|${who}|${tok}|${pause}|${tt}"$'\n'
     else
-      resumable="${resumable}${id}|${pause}|${tt}"$'\n'
+      resumable="${resumable}${id}|${tok}|${pause}|${tt}"$'\n'
     fi
     continue
   fi
@@ -475,7 +513,10 @@ for f in "$TASK_DIR"/*.md; do
   if [ "$st" != "ready" ] && [ "$st" != "backlog" ]; then
     reason="$st"
     [ "$st" = "blocked" ] && reason="blocked: $(field "$f" blocked_reason)"
-    held="${held}${id}|${reason}"$'\n'
+    # The second packer of a held record, and the one a new field is
+    # likeliest to miss: a record one short slides the reason into the
+    # token's slot and prints it where a reader expects a spec.
+    held="${held}${id}|$(spec_token "$f")|${reason}"$'\n'
     continue
   fi
 
@@ -506,7 +547,7 @@ for f in "$TASK_DIR"/*.md; do
   fi
 
   if [ -n "$why" ]; then
-    held="${held}${id}|${why%; }"$'\n'
+    held="${held}${id}|$(spec_token "$f")|${why%; }"$'\n'
     continue
   fi
 
@@ -514,24 +555,24 @@ for f in "$TASK_DIR"/*.md; do
   # "held back" — nothing is wrong with the task; someone is on it.
   who=$(taken_by "$id")
   if [ -n "$who" ]; then
-    # Four fields, the same shape step 0 packs: a record one field short
+    # Five fields, the same shape step 0 packs: a record one field short
     # would slide the title into the pause slot and print it as a reason
     # nobody derived. The pause is derived here too — this task reads
     # `ready` only because its status commit has not landed yet, and the
     # amendment that suspends it does not wait for that.
     pause=$(suspension "$f")
-    inflight="${inflight}${id}|${who}|${pause}|${tt}"$'\n'
+    inflight="${inflight}${id}|${who}|$(spec_token "$f")|${pause}|${tt}"$'\n'
   else
-    available="${available}$(rank "$pr")|${cr}|${id}|${pr}|${tt}"$'\n'
+    available="${available}$(rank "$pr")|${cr}|${id}|${pr}|$(spec_token "$f")|${tt}"$'\n'
   fi
 done
 
 if [ -n "$resumable" ]; then
   echo "In progress — resume before selecting anything new:"
-  printf '%s' "$resumable" | while IFS='|' read -r id pause tt; do
+  printf '%s' "$resumable" | while IFS='|' read -r id tok pause tt; do
     [ -n "$id" ] || continue
-    printf '  %-10s %s\n' "$id" "$tt"
-    [ -n "$pause" ] && printf '  %-10s paused — %s; the work waits on the re-approval\n' "" "$pause"
+    printf '  %-10s %-21s %s\n' "$id" "$tok" "$tt"
+    [ -n "$pause" ] && printf '  %-10s %-21s paused — %s; the work waits on the re-approval\n' "" "" "$pause"
   done
   echo
 fi
@@ -539,8 +580,8 @@ fi
 if [ -n "$available" ]; then
   echo "Available — any of these may be taken:"
   printf '%s' "$available" | sed '/^$/d' | sort -t'|' -k1,1n -k2,2 -k3,3 \
-    | while IFS='|' read -r _ _ id pr tt; do
-        printf '  %-10s %-7s %s\n' "$id" "$pr" "$tt"
+    | while IFS='|' read -r _ _ id pr tok tt; do
+        printf '  %-10s %-7s %-21s %s\n' "$id" "$pr" "$tok" "$tt"
       done
   echo
   echo "Order is a suggestion for a person and binding for an agent."
@@ -551,17 +592,17 @@ fi
 if [ -n "$inflight" ]; then
   echo
   echo "In flight — an open pull request already exists:"
-  printf '%s' "$inflight" | sed '/^$/d' | sort | while IFS='|' read -r id who pause tt; do
-    printf '  %-10s %-16s %s\n' "$id" "$who" "$tt"
-    [ -n "$pause" ] && printf '  %-10s %-16s paused — %s; the work waits on the re-approval\n' "" "" "$pause"
+  printf '%s' "$inflight" | sed '/^$/d' | sort | while IFS='|' read -r id who tok pause tt; do
+    printf '  %-10s %-16s %-21s %s\n' "$id" "$who" "$tok" "$tt"
+    [ -n "$pause" ] && printf '  %-10s %-16s %-21s paused — %s; the work waits on the re-approval\n' "" "" "" "$pause"
   done
 fi
 
 if [ -n "$held" ]; then
   echo
   echo "Held back:"
-  printf '%s' "$held" | sed '/^$/d' | sort | while IFS='|' read -r id why; do
-    printf '  %-10s %s\n' "$id" "$why"
+  printf '%s' "$held" | sed '/^$/d' | sort | while IFS='|' read -r id tok why; do
+    printf '  %-10s %-21s %s\n' "$id" "$tok" "$why"
   done
 fi
 

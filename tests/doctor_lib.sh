@@ -8,6 +8,15 @@
 # two checks are the authorities the binary wraps, so a case that wrote
 # its own would be checking the fixture instead of the command
 # (docs/about.md).
+#
+# They are copied as whole trees, and the four addresses below are how
+# the cases name them, not a list of what to stage. A kit script sources
+# its neighbours — `read_setting.sh` and `check_settings.sh` both read
+# `queue_lib.sh` from v0.0.09 — so a fixture that copied the four files
+# it knew about shipped scripts that could not run, and did so on the
+# tag that introduced the dependency rather than on the change that
+# would have been looking. The rule is the kit skill's own: discover
+# them, never enumerate them.
 
 . "$(dirname "${BASH_SOURCE[0]}")/cli_lib.sh"
 
@@ -27,19 +36,15 @@ TARGET="$WORK/target"
 # a case can ask git whether anything changed.
 make_repo() {
   local stage="${1:-3}"
-  mkdir -p "$TARGET/.writrun/scripts/stage-2-pull-requests" \
-           "$TARGET/.writrun/skills/writrun-check-front-matter" \
-           "$TARGET/.writrun/scripts/stage-1-tasks-and-specs" \
+  mkdir -p "$TARGET/.writrun" \
            "$TARGET/writrun" \
            "$TARGET/docs/product" "$TARGET/docs/technical" \
            "$TARGET/work/tasks" "$TARGET/work/specs" "$TARGET/work/reports"
-  cp "$REPO_ROOT/$READER" "$TARGET/$READER"
-  cp "$REPO_ROOT/$RESOLVER" "$TARGET/$RESOLVER"
+  cp -R "$REPO_ROOT/.writrun/scripts"  "$TARGET/.writrun/scripts"
+  cp -R "$REPO_ROOT/.writrun/skills"   "$TARGET/.writrun/skills"
   # The defaults are what a deferring file resolves to, so a fixture
   # without them is a repository the resolver cannot answer for.
   cp -R "$REPO_ROOT/.writrun/defaults" "$TARGET/.writrun/defaults"
-  cp "$REPO_ROOT/$SETTINGS_CHECK" "$TARGET/$SETTINGS_CHECK"
-  cp "$REPO_ROOT/$FRONT_MATTER" "$TARGET/$FRONT_MATTER"
 
   printf '# About\n\nWhat this is.\n'   > "$TARGET/docs/about.md"
   printf '# Product\n'                  > "$TARGET/docs/product/README.md"

@@ -16,7 +16,7 @@ import (
 
 // drawnTag is the kit tag the frames show in their `.writrun/VERSION`
 // row.
-const drawnTag = "v0.0.08"
+const drawnTag = "v0.0.09"
 
 func TestTheFrameForAStageWithinReach(t *testing.T) {
 	f := newFixture(t, "1")

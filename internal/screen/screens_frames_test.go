@@ -17,7 +17,7 @@ import (
 // `doctor`'s, and the rows are the lister's own output.
 
 // drawnIdentity is the line every frame opens with.
-const drawnIdentity = "writrun-cli v0.0.2 · pins WritRun v0.0.08 · branch main"
+const drawnIdentity = "writrun-cli v0.0.2 · pins WritRun v0.0.09 · branch main"
 
 // drawnWidth is the terminal the entry, queue and settings frames are
 // drawn at: a 69-column rule and the column of padding either side.
@@ -271,7 +271,7 @@ func TestTheFirstRunFrameWithTheEnvironmentShort(t *testing.T) {
 		"it installs runs through these four, so adopting without them installs a " +
 		"kit that cannot run."
 	f := FirstRun{
-		Identity: "writrun-cli v0.0.2 · pins WritRun v0.0.08",
+		Identity: "writrun-cli v0.0.2 · pins WritRun v0.0.09",
 		Context:  "NO KIT HERE · this repository has no .writrun/",
 		Ready:    false,
 		Groups: []FirstRunGroup{

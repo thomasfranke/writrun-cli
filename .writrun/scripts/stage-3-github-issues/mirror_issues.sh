@@ -45,6 +45,12 @@
 # wrong every time a merge approved the specs it carried
 # (docs/technical/decisions/github-issues/, 0048 and 0060).
 #
+# A report's open window is where that clause is narrowest: its label is
+# read from the base branch this workflow checks out — `status:open`
+# where the branch holds the report, `status:proposed` where it does not
+# — because a diff only proposes a triage, and the close that triage
+# implies is the merge's (0082).
+#
 # The PR's files are read out of the API's own patch text and parsed as
 # data — the PR's code is never checked out and never executed. `gh` must
 # be on PATH and authenticated (GH_TOKEN in CI; a stub in the test suite).
@@ -1066,14 +1072,41 @@ while IFS="$TAB" read -r rid fname rstatus rtitle; do
       echo "${rid}: this diff says nothing about its status — leaving its mirror alone."
       continue ;;
   esac
-  want_close=$(close_reason_of "$rstatus")
-  # `status:proposed` while a pull request only offers the report;
-  # `status:open` once it is on the authority branch and really waiting
-  # for someone to triage it. The second is the state the mirror exists
-  # for — a report nobody is prompted to read is a report that rots.
+  # **A diff proposes; the authority branch is what a mirror projects.**
+  # So the close belongs to the merge, and while the pull request is open
+  # the label is read from the base branch — the checkout this workflow
+  # runs in, and the same reader the reconciliation for a pull request
+  # closed unmerged already uses, giving the same three answers.
+  #
+  # Taking the close from the diff instead retired the one state the
+  # mirror exists for, for the length of the review that had not yet
+  # agreed to the triage: the Issue asking somebody to read the report
+  # was gone while `main` still held it `open`, and the lister listed it
+  # (work/reports/report-0048-mirror-closes-early.md).
+  #
+  # `status:proposed` is still what a report this pull request *offers*
+  # wears, triaged in the same diff or not — that is what the label says,
+  # and the merge is where its triage is read.
+  want_close=""
   want_label=""
-  if [ -z "$want_close" ]; then
-    if [ "$open" = "true" ]; then want_label="status:proposed"; else want_label="status:open"; fi
+  if [ "$open" != "true" ]; then
+    want_close=$(close_reason_of "$rstatus")
+    [ -n "$want_close" ] || want_label="status:open"
+  else
+    branch_status=""
+    branch_file=$(base_file_of "$rid")
+    [ -n "$branch_file" ] && branch_status=$(base_status_of "$branch_file")
+    if [ -z "$branch_status" ]; then
+      want_label="status:proposed"
+    elif [ -n "$(close_reason_of "$branch_status")" ]; then
+      # The branch has it triaged, so its mirror is closed and closed is
+      # where it belongs. Reopening it to `status:open` because this diff
+      # touches the file would ask for a triage that already happened.
+      echo "${rid}: triaged on the branch — its mirror is not this pull request's to move."
+      continue
+    else
+      want_label="status:open"
+    fi
   fi
 
   # **Authority is asked before the mirror is looked up, not after.** The
@@ -1191,14 +1224,15 @@ while IFS="$TAB" read -r rid fname rstatus rtitle; do
     continue
   fi
 
-  # Still open. **This is the path the "triaged while still proposed"
-  # case runs the other way through**, and the reason this loop updates
-  # an existing mirror rather than only creating missing ones: a report
-  # recorded `open` in one commit and triaged in a later one of the same
-  # pull request has a mirror already labelled, and no other reader can
-  # reach it — project_pr_tasks.sh learns its ids from the head branch
-  # name and the title's [TASK-NNNN] tags, and a report has neither by
-  # design.
+  # Still open — which on an open pull request is now every report it
+  # carries, triaged in the diff or not. **This is the path the "triaged
+  # while still proposed" case runs through**, and the reason this loop
+  # updates an existing mirror rather than only creating missing ones: no
+  # other reader can reach a report's mirror while the pull request is
+  # open — project_pr_tasks.sh learns its ids from the head branch name
+  # and the title's [TASK-NNNN] tags, and a report has neither by design.
+  # What reaches it here is the label the branch justifies, never a
+  # close; the close is the merge's.
   # A mirror already open and already wearing the label this pass would
   # write is a mirror this pass has nothing to say about — and saying it
   # anyway costs a label create and a set-replacing PUT on every push of

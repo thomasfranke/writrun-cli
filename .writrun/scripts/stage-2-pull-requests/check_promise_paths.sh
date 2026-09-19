@@ -56,6 +56,18 @@
 #     a rule, so the promise is about a chapter no task was allowed to be
 #     born from (authoring.md#a-chapter-that-is-not-a-rule-yet).
 #
+# The fourth is about the bullet rather than the path:
+#
+#   - **A bullet the gates cannot read.** A top-level bullet under either
+#     heading that neither opens with a backticked path nor says `none`.
+#     Both gates read a promise off the backtick that follows the dash,
+#     so a bullet written any other way — a link around the path, bold
+#     before it, prose — used to be no promise at all: this check found
+#     nothing to judge and passed, and the completion gate later judged
+#     every touched document undeclared against an empty set
+#     (report-0044, decision 0078). It is refused here, by name, where
+#     the fix is one edit.
+#
 # Which condition faulted decides what the refusal's closing advice says.
 # A path already written exactly as the schema reads it must never be
 # answered with "write it as the schema reads it" — that sends the author
@@ -110,23 +122,14 @@ RANGE="$1"
 ql_range_ends "$RANGE"
 BASE="$QL_BASE"
 
-# promised_written — every path both Proposed-changes sections of the
-# spec on stdin name, anchor stripped, **as the spec wrote it**. The
-# `docs/` prefix its siblings add is deliberately not applied: this check
-# judges the written form and prints the prefixed form back, so the
-# author sees the reading that made the promise unkeepable.
-#
-# The empty line is dropped before anything else, or a `none —` bullet's
-# nothing would arrive as a path.
-promised_written() {
-  awk '
-    /^## Proposed (product|technical) changes/ { inp = 1; next }
-    /^## / && inp { inp = 0 }
-    inp && /^- `/ { print }
-  ' \
-    | sed -n 's/^- `\([^`]*\)`.*/\1/p' | sed 's/#.*//' \
-    | sed '/^$/d' | sort -u
-}
+# The bullets are read by queue_lib.sh's one reader — `ql_promised_paths`
+# for the paths **as the spec wrote them** (the `docs/` prefix its sibling
+# adds is deliberately not applied: this check judges the written form
+# and prints the prefixed form back, so the author sees the reading that
+# made the promise unkeepable), and `ql_unreadable_promises` for the
+# bullets no reader can take. One copy, so the completion gate cannot
+# read a bullet this gate refused, nor pass one it never saw.
+TAB=$(printf '\t')
 
 # --- the specs this change enters -----------------------------------------
 
@@ -148,6 +151,7 @@ faults=0
 # worse answer than either wording.
 resolution_faults=0
 draft_faults=0
+unreadable_faults=0
 fault() {
   local kind="$1"
   shift
@@ -156,6 +160,7 @@ fault() {
   case "$kind" in
     resolution) resolution_faults=$((resolution_faults + 1)) ;;
     draft)      draft_faults=$((draft_faults + 1)) ;;
+    unreadable) unreadable_faults=$((unreadable_faults + 1)) ;;
     *) echo "internal: fault kind '${kind}' has no closing advice" >&2; exit 3 ;;
   esac
 }
@@ -182,12 +187,32 @@ while IFS= read -r spec; do
 
   [ -f "$spec" ] || continue        # deleted on the branch: promises nothing
 
-  promised=$(promised_written < "$spec")
-  [ -n "$promised" ] || continue    # a promise of "none" names no path
+  promised=$(ql_promised_paths < "$spec")
+  unreadable=$(ql_unreadable_promises < "$spec")
+  # A promise of "none" names no path and carries no unreadable bullet:
+  # nothing to judge, as before.
+  [ -n "$promised" ] || [ -n "$unreadable" ] || continue
   read_specs=$((read_specs + 1))
 
   id=$(ql_fm_field id "$spec")
   [ -n "$id" ] || id="$spec"
+
+  # Condition four — a bullet the gates cannot read. Judged before the
+  # paths, because a spec whose only bullets are unreadable has no path
+  # to judge and used to pass on exactly that. A bullet the base already
+  # carried is history, as a path already promised there is below.
+  base_unreadable=$(git show "${BASE}:${spec}" 2>/dev/null | ql_unreadable_promises || true)
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    if [ -n "$base_unreadable" ] && printf '%s\n' "$base_unreadable" | grep -qxF -- "$line"; then
+      continue
+    fi
+    sec="${line%%"$TAB"*}"
+    text="${line#*"$TAB"}"
+    fault unreadable "${id}'s Proposed ${sec} changes carries a bullet the gates cannot read — \`${text}\` — so it promises nothing, and a promise that reads as nothing passes here and fails at the completion gate."
+  done <<UNREADABLE
+${unreadable}
+UNREADABLE
 
   # What the same spec already promised at the base. A path in this list
   # is history — refusing it here would offer a one-edit fix for
@@ -195,7 +220,7 @@ while IFS= read -r spec; do
   # spec the base does not have promises nothing there, and `git show`
   # failing is exactly that, so its stderr is dropped rather than read
   # as an unanswered question.
-  base_promised=$(git show "${BASE}:${spec}" 2>/dev/null | promised_written || true)
+  base_promised=$(git show "${BASE}:${spec}" 2>/dev/null | ql_promised_paths || true)
 
   while IFS= read -r p; do
     [ -n "$p" ] || continue
@@ -317,6 +342,16 @@ if [ "$faults" -ne 0 ]; then
     echo "\`product/…\` — here, where it is one edit, rather than at the" >&2
     echo "completion gate, where it is an amendment under a finished" >&2
     echo "branch (docs/product/concepts/spec.md#the-doc-delta-contract)." >&2
+  fi
+  if [ "$unreadable_faults" -ne 0 ]; then
+    echo "" >&2
+    echo "A Proposed-changes bullet is read off the backtick that follows" >&2
+    echo "the dash — \`- \\\`product/…\\\` — note\`. Written any other way — a" >&2
+    echo "link around the path, bold before it, prose — it is no promise to" >&2
+    echo "either gate: this one passes over it and the completion gate then" >&2
+    echo "judges every touched document undeclared against nothing. Open the" >&2
+    echo "bullet with the path in backticks" >&2
+    echo "(docs/product/concepts/spec.md#the-doc-delta-contract)." >&2
   fi
   if [ "$draft_faults" -ne 0 ]; then
     echo "" >&2
