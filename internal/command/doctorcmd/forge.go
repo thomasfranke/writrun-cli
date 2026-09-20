@@ -42,6 +42,7 @@ const (
 	pushCanWrite  = "the recording push can write to main"
 	mainGoverned  = "main is governed by a protection rule"
 	noRuleRefuses = "no rule over main refuses the recording push"
+	rulesJudged   = "every rule over main is one this binary judges"
 )
 
 // issuesOn is stage 3's one requirement.
@@ -54,15 +55,44 @@ type blocker struct {
 	names string
 }
 
-// blockers are the four rules that refuse the recording push, in the
-// order a row prefers them. Whether the Actions bot is past one is the
-// enabling ruleset's bypass list and the repository's owner to answer,
-// never the rule's (product/adoption/doctor.md).
+// blockers are the rules this binary judges to refuse the recording
+// push, in the order a row prefers them. Whether the Actions bot is
+// past one is the enabling ruleset's bypass list and the repository's
+// owner to answer, never the rule's (product/adoption/doctor.md).
+//
+// `lock_branch` leads: a read-only branch takes no push at all, and it
+// is a branch protection rule's alone — no ruleset rule locks a branch.
 var blockers = []blocker{
+	{rule: "lock_branch", names: "make the branch read-only"},
 	{rule: "update", names: "restrict updates"},
 	{rule: "required_signatures", names: "require signed commits"},
 	{rule: "required_status_checks", names: "require status checks to pass"},
 	{rule: "pull_request", names: "require a pull request before merging"},
+}
+
+// metByAFastForward are the rules the recording push satisfies by being
+// what it is: one commit appended to main. They are the only rules that
+// pass in silence.
+//
+// The forge's ruleset vocabulary is twenty-five types and grows; this
+// binary judges the five above and these four, and says so about the
+// rest rather than reporting them as refusing nothing (spec-0048).
+var metByAFastForward = []string{"deletion", "creation", "non_fast_forward", "required_linear_history"}
+
+// judged reports whether this binary has an opinion about a rule —
+// either that it refuses the recording push, or that the push meets it.
+func judged(rule string) bool {
+	return blocking(rule) || contains(metByAFastForward, rule)
+}
+
+// blocking reports whether the rule is one of the blockers.
+func blocking(rule string) bool {
+	for _, b := range blockers {
+		if b.rule == rule {
+			return true
+		}
+	}
+	return false
 }
 
 // stage2 is the forge. It reports whether the settings the recording
@@ -92,7 +122,7 @@ func stage2(root string, d Deps) ([]requirement, bool) {
 
 // forgeChecks are stage 2's requirements in the order the report lists
 // them, which is also the order a forge read would have made them.
-var forgeChecks = []string{ghOnPath, ghAuthed, squashOn, pushCanWrite, mainGoverned, noRuleRefuses}
+var forgeChecks = []string{ghOnPath, ghAuthed, squashOn, pushCanWrite, mainGoverned, noRuleRefuses, rulesJudged}
 
 // silent is the whole of stage 2 when the forge never answered: the
 // requirement that says why, and every one below it unread because no
@@ -309,27 +339,28 @@ func want(d Deps, name, path, jq, expected, breakage string) requirement {
 func mainReachable(d Deps) []requirement {
 	governed := requirement{stage: 2, name: mainGoverned}
 	refuses := requirement{stage: 2, name: noRuleRefuses}
+	judges := requirement{stage: 2, name: rulesJudged}
 
 	types, err := lines(d, mainRulesAPI, ".[].type")
 	if err != nil {
-		return unreadPair(governed, refuses, "the rules governing main could not be read")
+		return unread3(governed, refuses, judges, "the rules governing main could not be read")
 	}
 	ids, err := lines(d, mainRulesAPI, ".[].ruleset_id")
 	if err != nil {
-		return unreadPair(governed, refuses, "the rulesets governing main could not be read")
+		return unread3(governed, refuses, judges, "the rulesets governing main could not be read")
 	}
 	c, err := classicOver(d)
 	if err != nil && !c.on {
-		return unreadPair(governed, refuses, "the branch protection over main could not be read")
+		return unread3(governed, refuses, judges, "the branch protection over main could not be read")
 	}
 	if len(ids) == 0 && !c.on {
 		governed.mark = advises
 		governed.note = "the methodology recommends protecting it; nothing blocks the recording push meanwhile"
-		return []requirement{governed, refuses}
+		return []requirement{governed, refuses, judges}
 	}
 
 	owner := &ownership{d: d}
-	var refusals []string
+	var refusals, unjudged []string
 	if err != nil {
 		// The branch is governed and the rule's own fields are not
 		// readable, which is one row unread and not the other: what
@@ -342,6 +373,11 @@ func mainReachable(d Deps) []requirement {
 		refusals = append(refusals, classicRefusal(b))
 	}
 	for _, id := range distinct(ids) {
+		for _, rule := range rulesOf(types, ids, id) {
+			if !judged(rule) {
+				unjudged = append(unjudged, fmt.Sprintf("ruleset %s enables %s — this binary does not judge it", id, rule))
+			}
+		}
 		actors, err := lines(d, "repos/{owner}/{repo}/rulesets/"+id, "(.bypass_actors // [])[].actor_type")
 		if err != nil {
 			refuses.mark = unread
@@ -367,16 +403,21 @@ func mainReachable(d Deps) []requirement {
 		refuses.note = ""
 		refuses.detail = strings.Join(refusals, "\n")
 	}
-	return []requirement{governed, refuses}
+	if len(unjudged) > 0 {
+		judges.mark = advises
+		judges.detail = strings.Join(unjudged, "\n")
+	}
+	return []requirement{governed, refuses, judges}
 }
 
-// unreadPair is both rules requirements where the one read they share
-// did not answer. The reason sits under the second of them, once: it is
-// the pair's, and printing it twice would read as two faults.
-func unreadPair(governed, refuses requirement, why string) []requirement {
+// unread3 is all three rules requirements where the one read they share
+// did not answer. The reason sits under the last of them, once: it is
+// the three's, and printing it three times would read as three faults.
+func unread3(governed, refuses, judges requirement, why string) []requirement {
 	governed.mark = unread
-	refuses.mark, refuses.detail = unread, why
-	return []requirement{governed, refuses}
+	refuses.mark = unread
+	judges.mark, judges.detail = unread, why
+	return []requirement{governed, refuses, judges}
 }
 
 // classicRule is the branch protection rule over main: whether one is
@@ -404,6 +445,9 @@ type protection struct {
 		Enabled bool `json:"enabled"`
 	} `json:"required_signatures"`
 	Restrictions *restrictions `json:"restrictions"`
+	Lock         *struct {
+		Enabled bool `json:"enabled"`
+	} `json:"lock_branch"`
 }
 
 // restrictions is a classic rule's push allow list, which the forge
@@ -432,6 +476,9 @@ func (r restrictions) admits(slug string) bool {
 // the recording push through.
 func (p protection) blocking() []string {
 	var rules []string
+	if p.Lock != nil && p.Lock.Enabled {
+		rules = append(rules, "lock_branch")
+	}
 	if p.Restrictions != nil && !p.Restrictions.admits(actionsApp) {
 		rules = append(rules, "update")
 	}

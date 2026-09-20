@@ -21,7 +21,7 @@ check "the preview opens by naming the stage" 0 \
 check "the requirements are shown in doctor's marks" 0 \
   "✓  gh on the PATH" -- cat "$WORK/raise.out"
 check "the counts are the preview's own" 0 \
-  "6 of 6 met, 0 unmet, 0 unread." -- cat "$WORK/raise.out"
+  "7 of 7 met, 0 unmet, 0 unread." -- cat "$WORK/raise.out"
 check "the stage was written" 0 "stage is 2." -- cat "$WORK/raise.out"
 check "the settings file holds the new stage" 0 '"stage": 2' \
   -- cat "$TARGET/writrun/settings.json"

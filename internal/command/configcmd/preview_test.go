@@ -32,10 +32,11 @@ func (s *stubPreview) run(_ string, stage int, w io.Writer) (int, int, int, erro
 		{"✗", "the recording push can write to main"},
 		{"?", "main is governed by a protection rule"},
 		{"?", "no rule over main refuses the recording push"},
+		{"?", "every rule over main is one this binary judges"},
 	} {
 		fmt.Fprintf(w, "         %s  %s\n", row.mark, row.text)
 	}
-	return 3, 1, 2, nil
+	return 3, 1, 3, nil
 }
 
 // raise runs `config stage <value>` against a repository declaring
@@ -70,7 +71,7 @@ func TestARaiseShowsWhatTheStageWouldRequire(t *testing.T) {
 		"         ✓  gh on the PATH",
 		"         ✗  the recording push can write to main",
 		"         ?  main is governed by a protection rule",
-		"        3 of 6 met, 1 unmet, 2 unread. Declaring it writes",
+		"        3 of 7 met, 1 unmet, 3 unread. Declaring it writes",
 		"        `stage: 2` and installs nothing; the flows that read the",
 		"        forge will stop at the unmet one until it is answered.",
 	} {

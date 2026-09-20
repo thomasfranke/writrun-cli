@@ -60,7 +60,7 @@ func TestEveryAssumptionHoldingExitsZero(t *testing.T) {
 		"Stage 3 is declared — stages 0–3 examined; there is no rung above it.",
 		"Stage 0 — environment: 4 of 4 met.",
 		"Stage 1 — files: 9 of 9 met.",
-		"Stage 2 — the forge: 6 of 6 met.",
+		"Stage 2 — the forge: 7 of 7 met.",
 		"Stage 3 — Issues: 1 of 1 met.",
 		"Every assumption up to stage 3 holds.",
 		"Stage 3 is the top rung — there is nothing above it to preview.",
@@ -128,9 +128,9 @@ func TestTheRungAboveTheDeclarationIsPreviewed(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Stage 1 is declared — stages 0–1 examined, stage 2 previewed.",
-		"Stage 2 — the forge, previewed: 6 of 6 met.",
+		"Stage 2 — the forge, previewed: 7 of 7 met.",
 		"Stage 3 — Issues: not previewed — one rung at a time.",
-		"Stage 2 is within reach: its 6 requirements are met.",
+		"Stage 2 is within reach: its 7 requirements are met.",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)
