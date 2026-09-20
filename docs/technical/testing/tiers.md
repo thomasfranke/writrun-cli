@@ -10,6 +10,24 @@
 where each tier is on disk, why the unit tier is not under `tests/`, and
 what each tier can prove that the others cannot.
 
+## Signals
+
+- **A unit case may raise a real signal at the test binary only where
+  the package holds a registration no case owns.** A Go process takes
+  the disposition that kills once nothing is registered for a signal,
+  and both `signal.Stop` on the last channel and `signal.Reset` put it
+  back there.
+- **Delivery is asynchronous**, so a signal raised before a teardown can
+  arrive after it — which is why the registration a case makes for
+  itself is not enough.
+- **A binary that dies of its own fixture reports the package `FAIL`
+  with no case named**, on whichever pull request was running.
+- `internal/command/finishcmd` holds that registration in `TestMain` and
+  re-arms it wherever a case resets a signal.
+- **The cases keep raising real signals.** What they prove is that a
+  signal arriving between the completion writes and the confirmation
+  puts the writes back, and a faked signal proves a faked window.
+
 ## Coverage
 
 - **Coverage gates the pipeline**, over `internal/`, on two floors: the
