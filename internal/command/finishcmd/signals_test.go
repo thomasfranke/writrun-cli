@@ -2,16 +2,93 @@ package finishcmd
 
 import (
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 )
 
-// raise sends the signal to this process. Every case that calls it has
-// something registered for that signal first — the guard's own channel
-// or a probe — so the test binary is never killed by its own fixture.
+// keeper is this package's own registration for every signal the guard
+// answers, armed before the first case and stopped by nothing.
+//
+// The cases prove the guard with real signals, so the binary's own
+// disposition for them is fixture state. A process kills itself on
+// SIGTERM only where no channel is registered for it, and both
+// `signal.Stop` on the last channel and `signal.Reset` put it back
+// there — asynchronously delivered, a signal raised before either can
+// arrive after it, and the package then dies with `signal: terminated`
+// and no case named (report-0052). A second registration nothing owns
+// closes that: an individual Stop is no longer the last.
+//
+// kept counts what reached it, which is how a case can tell a signal
+// that was delivered from one that killed nothing because it never
+// arrived.
+var (
+	keeper chan os.Signal
+	kept   atomic.Int32
+)
+
+// TestMain arms the keeper for the life of the run.
+func TestMain(m *testing.M) {
+	keeper = make(chan os.Signal, 8)
+	keep()
+	go func() {
+		for range keeper {
+			kept.Add(1)
+		}
+	}()
+	os.Exit(m.Run())
+}
+
+// keep arms the keeper. It is called again wherever a case resets a
+// signal, because `signal.Reset` undoes every registration for it —
+// the keeper's included.
+func keep() { signal.Notify(keeper, caught...) }
+
+// A signal a case raises may not depend on that case having registered
+// for it. This is the whole invariant: with the keeper armed the raise
+// is delivered and reported; without it the process takes the
+// disposition that kills, and this case fails by killing the binary
+// (spec-0049).
+//
+// **It runs in a child of this binary, and the reason is the bug it
+// would otherwise be.** A raise in the test process is still in flight
+// while the next case's guard is armed, and a guard that catches it
+// undoes that case's writes — a first attempt turned nine unrelated
+// cases red that way, all of them reporting a spec left `approved`.
+// The child runs this case alone, so the only signal its keeper can
+// count is the one raised here, and nothing it leaks outlives it.
+const signalChild = "WRITRUN_FINISH_SIGNAL_CHILD"
+
+func TestARaiseNoCaseRegisteredForDoesNotKillTheBinary(t *testing.T) {
+	if os.Getenv(signalChild) == "1" {
+		before := kept.Load()
+		raise(t, syscall.SIGTERM)
+		deadline := time.After(10 * time.Second)
+		for kept.Load() == before {
+			select {
+			case <-deadline:
+				t.Fatal("the signal was never delivered — nothing held the disposition")
+			default:
+				time.Sleep(time.Millisecond)
+			}
+		}
+		return
+	}
+	child := exec.Command(os.Args[0], "-test.run", "^"+t.Name()+"$")
+	child.Env = append(os.Environ(), signalChild+"=1")
+	if out, err := child.CombinedOutput(); err != nil {
+		t.Fatalf("the binary did not survive a raise nothing of the case's own was registered for: %v\n%s", err, out)
+	}
+}
+
+// raise sends the signal to this process. The keeper above is what
+// makes that safe: it is registered for the life of the run, so no
+// case's own teardown can put the signal back to the disposition that
+// kills.
 func raise(t *testing.T, sig syscall.Signal) {
 	t.Helper()
 	self, err := os.FindProcess(os.Getpid())
@@ -202,6 +279,10 @@ func unignore(t *testing.T, sigs ...os.Signal) {
 			t.Fatalf("%v is still ignored — every case after this one would wait for a death that cannot come", sig)
 		}
 	}
+	// After the check, never before it: `signal.Notify` un-ignores what
+	// it registers, so arming the keeper first would make the check
+	// above pass on a signal that is still ignored.
+	keep()
 }
 
 // A signal this process ignores is not armed for. It cannot end the

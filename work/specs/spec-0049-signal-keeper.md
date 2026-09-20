@@ -1,7 +1,7 @@
 ---
 id: spec-0049
 task_ref: task-0041
-status: approved
+status: implemented
 created: 2026-09-19T23:36:42Z
 ---
 
@@ -79,10 +79,10 @@ the flake.
 
 ## Definition of Done
 
-- [ ] A raise with no case-level registration does not kill the binary.
-- [ ] `unignore` leaves the keeper armed.
-- [ ] The existing signal cases pass unchanged.
-- [ ] `technical/testing/tiers.md` states the rule.
+- [x] A raise with no case-level registration does not kill the binary.
+- [x] `unignore` leaves the keeper armed.
+- [x] The existing signal cases pass unchanged.
+- [x] `technical/testing/tiers.md` states the rule.
 
 ## Proposed product changes
 
@@ -94,4 +94,43 @@ the flake.
 
 ## Outcome
 
-_(fill after execution)_
+`TestMain` arms a keeper channel for `caught` before the first case and
+a goroutine drains it for the life of the run. `keep()` is that arming,
+called again at the end of `unignore` — after its `Ignored` check, never
+before it, because `signal.Notify` un-ignores what it registers and
+would have made that check pass on a signal still ignored.
+
+**The premise was not left as one.** `TestARaiseNoCaseRegisteredForDoesNotKillTheBinary`
+raises SIGTERM having registered nothing of its own and waits for the
+keeper's counter to move. Held against its absence — `keep()` emptied —
+the run answers:
+
+```
+signal: terminated
+FAIL    github.com/thomasfranke/writrun-cli/internal/command/finishcmd  0.256s
+```
+
+which is the report's evidence reproduced on demand, and the mechanism
+the spec asked a reviewer to attack, demonstrated rather than assumed:
+with nothing registered the process takes the disposition that kills.
+Armed again, the same case passes.
+
+**One divergence, and it is the case's shape.** Step 3 put the raise in
+the test process. Written that way it passed on its own and turned nine
+unrelated cases red under `-shuffle=on`, each reporting a spec left
+`approved`: the raise is still in flight when the next case's guard is
+armed, that guard catches it, and its undo takes the next case's writes
+back. So the case runs in a child of the test binary, alone —
+`WRITRUN_FINISH_SIGNAL_CHILD=1`, one `-test.run` — and the parent
+asserts the child exited 0. Nothing it raises outlives it, and the
+child's keeper can only be counting the one signal raised there.
+
+The existing signal cases are untouched. They still raise real signals,
+which is what makes them proof of the window rather than of a fixture.
+
+`technical/testing/tiers.md` gains a **Signals** section: the rule, why
+a case's own registration is not enough, what a death costs a reader,
+and where this package holds its registration.
+
+The hundred shuffled runs the acceptance criterion asks for were made
+with `-race`; no run reported `signal: terminated`.
