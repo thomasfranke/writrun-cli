@@ -42,7 +42,7 @@ func drawnRows() Requirements {
 				{Mark: "✓", Text: "check_front_matter.sh", Name: "check_front_matter.sh"},
 				{Mark: "✓", Text: "check_settings.sh", Name: "check_settings.sh"},
 			}},
-			{Name: "STAGE 2 · THE FORGE, PREVIEWED — 3 of 6 met", Rows: []Requirement{
+			{Name: "STAGE 2 · THE FORGE, PREVIEWED — 3 of 7 met", Rows: []Requirement{
 				{Mark: "✓", Text: "gh on the PATH", Name: "gh on the PATH"},
 				{Mark: "✓", Text: "gh authenticated", Name: "gh authenticated"},
 				{Mark: "✓", Text: "squash merging is on", Name: "squash merging is on"},
@@ -50,6 +50,7 @@ func drawnRows() Requirements {
 					Explain: "from stage 2 the workflows record the queue's state by pushing to main. Not met: .github/workflows/record.yml pushes to main and raises no `contents: write` of its own. Clear it by setting the Actions workflow permissions to read-and-write, or raising `contents: write` in that file."},
 				{Mark: "?", Text: "main is governed by a protection rule", Name: "main is governed by a protection rule"},
 				{Mark: "?", Text: "no rule over main refuses the recording push", Name: "no rule over main refuses the recording push"},
+				{Mark: "?", Text: "every rule over main is one this binary judges", Name: "every rule over main is one this binary judges"},
 			}},
 			{Name: "STAGE 3 · ISSUES — not previewed, one rung at a time", Rows: nil},
 		},

@@ -1,7 +1,7 @@
 ---
 id: spec-0048
 task_ref: task-0040
-status: approved
+status: implemented
 created: 2026-09-19T23:34:09Z
 ---
 
@@ -92,11 +92,11 @@ and the case named fails.
 
 ## Definition of Done
 
-- [ ] A rule in neither list is named, with its ruleset.
-- [ ] `lock_branch` is a refusal, not a silence.
-- [ ] The refusal row still says only what it examined.
-- [ ] An unjudged rule alone exits 0.
-- [ ] `writrun doctor` reports no stage-2 finding against this repository.
+- [x] A rule in neither list is named, with its ruleset.
+- [x] `lock_branch` is a refusal, not a silence.
+- [x] The refusal row still says only what it examined.
+- [x] An unjudged rule alone exits 0.
+- [x] `writrun doctor` reports no stage-2 finding against this repository.
 
 ## Proposed product changes
 
@@ -110,4 +110,53 @@ and the case named fails.
 
 ## Outcome
 
-_(fill after execution)_
+Stage 2 makes seven requirements. `metByAFastForward` names the four
+rules the recording push satisfies by being one commit appended to
+`main`, `blockers` gained `lock_branch` at its head, and `judged()` is
+the two lists read together: a rule in neither is named under `every
+rule over main is one this binary judges`, one line per ruleset that
+enables it, `advises` and out of the exit status.
+
+**The drawings led and the binary followed.** The seventh row was drawn
+into all five stage-2 frames first — four in
+`adoption/doctor.excalidraw`, one in `adoption/config.excalidraw` —
+with every element below it shifted one line height down, each window
+grown by the same, and the six counts they carry rewritten. Then the
+binary was changed until the frame cases passed against them. Those
+cases needed no edit of their own, which is the check that the two
+agree: they read the drawing at test time rather than a transcription
+of it.
+
+`lock_branch` is judged rather than merely named, on the forge's own
+documentation of it — the branch nobody can push to. No ruleset rule
+locks a branch, so it reaches `blockers` through the classic payload
+alone.
+
+`unreadPair` is `unread3`: the read all three rows depend on is the
+same one, and the reason still sits under the last of them once.
+
+**What the change declines to decide stayed declined.** `merge_queue`
+and `required_deployments` are named as unjudged and nothing more;
+naming them is the whole of the work, and judging them would have been
+a second spec written inside this one.
+
+Six cases were added and the count was followed through eleven
+assertions that carried it:
+
+| Case | Why |
+|---|---|
+| `TestARuleThisBinaryDoesNotJudgeIsNamed` | The row the change exists for. |
+| `TestTheSameUnjudgedTypeInTwoRulesetsIsTwoLines` | The remedy is read per ruleset. |
+| `TestARefusalAndAnUnjudgedRuleAreTwoRows` | Two questions, two rows, each in its own state. |
+| `TestABypassedRulesetStillHasItsUnjudgedRulesNamed` | A bypass list is an answer about a rule, and this row says there is none to have. |
+| `TestTheRulesAFastForwardMeetsPassInSilence` | The only set that passes in silence. |
+| `TestALockedBranchRefusesTheRecordingPush` | report-0051's own finding, end to end. |
+| `TestAnUnusableGhReportsWhatItCouldNotCheck` | Its stand-down counts are 8 and 7 now, not 7 and 6. |
+| `TestEveryAssumptionHoldingExitsZero`, `TestTheRungAboveTheDeclarationIsPreviewed` | They carried `6 of 6`. |
+| `internal/screen`, `internal/command/configcmd` fixtures | The screens' rows and the preview's counts follow the same drawings. |
+| Five integration cases under `tests/integration/doctor/` and `tests/integration/cli/` | The same counts, through the compiled binary. |
+
+The new cases were held against their absence: `metByAFastForward`
+emptied, `TestTheRulesAFastForwardMeetsPassInSilence` fails by name and
+takes ten more with it, because the healthy fixture's own ruleset then
+reads as unjudged.

@@ -42,7 +42,7 @@ forge_healthy
 gh_reply "api repos/{owner}/{repo}/actions/permissions/workflow --jq .default_workflow_permissions" "read"
 workflow record.yml "$RECORDS"
 check "a read default with the right raised per workflow holds" 0 \
-  "Stage 2 — the forge: 6 of 6 met." -- "$WRITRUN" doctor
+  "Stage 2 — the forge: 7 of 7 met." -- "$WRITRUN" doctor
 
 workflow record.yml "$SILENT"
 check "a pushing workflow that raises nothing is named" 1 \
@@ -52,11 +52,11 @@ check "a pushing workflow that raises nothing is named" 1 \
 # write is not stage 2's business.
 workflow record.yml "$ELSEWHERE"
 check "a workflow pushing to another branch is left alone" 0 \
-  "Stage 2 — the forge: 6 of 6 met." -- "$WRITRUN" doctor
+  "Stage 2 — the forge: 7 of 7 met." -- "$WRITRUN" doctor
 
 no_workflows
 check "a read default with nothing that pushes holds" 0 \
-  "Stage 2 — the forge: 6 of 6 met." -- "$WRITRUN" doctor
+  "Stage 2 — the forge: 7 of 7 met." -- "$WRITRUN" doctor
 
 # An empty bypass list denies nothing where the ruleset enables no rule
 # a fast-forward push meets.
@@ -64,7 +64,7 @@ forge_healthy
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" "deletion"
 gh_reply "api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type" ""
 check "an empty bypass list with nothing to bypass holds" 0 \
-  "Stage 2 — the forge: 6 of 6 met." -- "$WRITRUN" doctor
+  "Stage 2 — the forge: 7 of 7 met." -- "$WRITRUN" doctor
 
 gh_reply "api repos/{owner}/{repo}/rules/branches/main --jq .[].type" "update"
 check "a rule the bot has no way past names the ruleset that enables it" 1 \
@@ -77,6 +77,6 @@ check "a rule the bot has no way past names the ruleset that enables it" 1 \
 gh_reply "api repos/{owner}/{repo} --jq .owner.type" "Organization"
 gh_reply "api repos/{owner}/{repo}/rulesets/42 --jq (.bypass_actors // [])[].actor_type" "Integration"
 check "a bypassed rule on an organization holds" 0 \
-  "Stage 2 — the forge: 6 of 6 met." -- "$WRITRUN" doctor
+  "Stage 2 — the forge: 7 of 7 met." -- "$WRITRUN" doctor
 
 finish

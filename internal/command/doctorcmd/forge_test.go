@@ -319,10 +319,10 @@ func TestAnUnusableGhReportsWhatItCouldNotCheck(t *testing.T) {
 		// the forge rows from the one that failed downwards, and Issues.
 		unread int
 	}{
-		{"gh absent", func(f *fixture) { f.path["gh"] = false }, "gh on the PATH — not on the PATH", 7},
+		{"gh absent", func(f *fixture) { f.path["gh"] = false }, "gh on the PATH — not on the PATH", 8},
 		{"gh unauthenticated", func(f *fixture) {
 			f.forge.fails["auth status"] = errors.New("gh auth status: not logged in")
-		}, "gh authenticated — run `gh auth login`", 6},
+		}, "gh authenticated — run `gh auth login`", 7},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -552,5 +552,87 @@ func TestTheRecommendationDoesNotDenyItsOwnRow(t *testing.T) {
 		if strings.Contains(r.note, "governs it") || strings.Contains(r.note, "no ruleset") {
 			t.Errorf("the note denies the row it sits on: %q", said(r))
 		}
+	}
+}
+
+// The forge's ruleset vocabulary is twenty-five types and this binary
+// judges nine of them. A rule outside both lists used to reach no row
+// at all, which read as a rule that refuses nothing (spec-0048).
+func TestARuleThisBinaryDoesNotJudgeIsNamed(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "deletion@42", "workflows@42")
+	bypass(f, "42")
+	found := f.findings()
+	only(t, found, 2, advises, "ruleset 42 enables workflows — this binary does not judge it")
+	if breaking(found) != 0 {
+		t.Errorf("a rule nobody judged broke a flow:\n%s", texts(found))
+	}
+}
+
+// The remedy is read per ruleset, so the same type enabled twice is two
+// lines and not one.
+func TestTheSameUnjudgedTypeInTwoRulesetsIsTwoLines(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "code_scanning@42", "code_scanning@43")
+	bypass(f, "42")
+	bypass(f, "43")
+	found := f.findings()
+	only(t, found, 2, advises, "ruleset 42 enables code_scanning")
+	only(t, found, 2, advises, "ruleset 43 enables code_scanning")
+}
+
+// Two questions, two rows: what refuses the push, and what this binary
+// has no opinion about.
+func TestARefusalAndAnUnjudgedRuleAreTwoRows(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "pull_request@42", "max_file_size@42")
+	bypass(f, "42")
+	found := f.all()
+	for _, r := range found {
+		switch r.name {
+		case noRuleRefuses:
+			if r.mark != breaks {
+				t.Errorf("the refusal row is %s, want breaks:\n%s", words[r.mark], texts(found))
+			}
+		case rulesJudged:
+			if r.mark != advises {
+				t.Errorf("the unjudged row is %s, want advises:\n%s", words[r.mark], texts(found))
+			}
+		}
+	}
+}
+
+// A bypass list is an answer about a rule, and this row says there is
+// no answer to have. So a ruleset the bot is past still has its
+// unjudged rules named.
+func TestABypassedRulesetStillHasItsUnjudgedRulesNamed(t *testing.T) {
+	f := newFixture(t, "3")
+	f.forge.replies["api repos/{owner}/{repo} --jq .owner.type"] = "Organization\n"
+	rulesOnMain(f, "required_deployments@42")
+	bypass(f, "42", "Integration")
+	only(t, f.findings(), 2, advises, "ruleset 42 enables required_deployments")
+}
+
+// The four the recording push meets by being one commit appended to
+// main. A ruleset enabling only these says nothing at all.
+func TestTheRulesAFastForwardMeetsPassInSilence(t *testing.T) {
+	f := newFixture(t, "3")
+	rulesOnMain(f, "deletion@42", "creation@42", "non_fast_forward@42", "required_linear_history@42")
+	bypass(f, "42")
+	if found := f.findings(); len(found) != 0 {
+		t.Errorf("a ruleset a fast-forward meets was reported:\n%s", texts(found))
+	}
+}
+
+// A read-only branch takes no push at all, and no ruleset rule locks a
+// branch — it is the classic rule's own field (report-0051).
+func TestALockedBranchRefusesTheRecordingPush(t *testing.T) {
+	f := newFixture(t, "3")
+	noRulesets(f)
+	classicOn(f, `{"lock_branch":{"enabled":true}}`)
+	found := f.findings()
+	only(t, found, 2, breaks, "the branch protection rule over main enables lock_branch (make the branch read-only)")
+	if breaking(found) != 1 {
+		t.Errorf("a locked branch is %d breaking findings, want 1:\n%s", breaking(found), texts(found))
 	}
 }

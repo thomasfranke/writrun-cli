@@ -40,6 +40,7 @@ var requirementsTable = strings.Join([]string{
 	"| `the recording push can write to main` | from stage 2 the workflows record the queue's state by pushing to main | a push with no right to write leaves the queue's state unrecorded | setting the Actions workflow permissions to read-and-write, or raising `contents: write` in that file |",
 	"| `main is governed by a protection rule` | a ruleset or a branch protection rule over the branch every flow lands on | the methodology recommends protecting it | adding a ruleset that targets `main`, or protecting the branch |",
 	"| `no rule over main refuses the recording push` | whether any rule over main stops the Actions bot, of either kind | a rule the bot cannot get past stops the recording push | taking the rule off `main`, or putting the Actions bot on the ruleset's bypass list — which a classic rule has none of |",
+	"| `every rule over main is one this binary judges` | whether this binary has an opinion about each rule over `main` | a rule it has never heard of would be reported as refusing nothing | reading the rule named under the row, and taking it off `main` where it stops the push |",
 	"| `Issues are enabled` | somewhere for the upstream mirror to land | from stage 3 the flows open issues on this repository | enabling Issues in the repository settings |",
 }, "\n")
 

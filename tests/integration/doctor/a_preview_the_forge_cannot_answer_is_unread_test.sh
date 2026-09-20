@@ -37,14 +37,14 @@ nogh doctor > "$WORK/unread.out" 2>&1
 
 check "a preview nobody could make exits 0" 0 "" -- nogh doctor
 check "the preview still counts six rows" 0 \
-  "Stage 2 — the forge, previewed: 0 of 6 met." -- cat "$WORK/unread.out"
+  "Stage 2 — the forge, previewed: 0 of 7 met." -- cat "$WORK/unread.out"
 check "the requirement that could not be read says why" 0 \
   "?  gh on the PATH — not on the PATH" -- cat "$WORK/unread.out"
 check "every requirement under it is unread" 0 \
   "?  no rule over main refuses the recording push — no forge check was made" \
   -- cat "$WORK/unread.out"
 check "the reach line counts them unread, not unmet" 0 \
-  "Stage 2 is not within reach: 6 unread." -- cat "$WORK/unread.out"
+  "Stage 2 is not within reach: 7 unread." -- cat "$WORK/unread.out"
 check "the declared stage still holds" 0 "Every assumption up to stage 1 holds." \
   -- cat "$WORK/unread.out"
 

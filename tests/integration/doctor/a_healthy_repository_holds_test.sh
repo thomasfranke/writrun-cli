@@ -13,7 +13,7 @@ check "every assumption holding exits 0" 0 "" -- "$WRITRUN" doctor
 check "the declared stage opens the report" 0 "Stage 3 is declared" -- cat "$WORK/out"
 check "the environment counts its rows" 0 "Stage 0 — environment: 4 of 4 met." -- cat "$WORK/out"
 check "the files count their rows" 0 "Stage 1 — files: 9 of 9 met." -- cat "$WORK/out"
-check "the forge counts its rows" 0 "Stage 2 — the forge: 6 of 6 met." -- cat "$WORK/out"
+check "the forge counts its rows" 0 "Stage 2 — the forge: 7 of 7 met." -- cat "$WORK/out"
 check "Issues count their row" 0 "Stage 3 — Issues: 1 of 1 met." -- cat "$WORK/out"
 check "a requirement that holds is a row" 0 "✓  git" -- cat "$WORK/out"
 check "the top rung previews nothing" 0 "Stage 3 is the top rung" -- cat "$WORK/out"

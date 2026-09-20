@@ -52,20 +52,28 @@ assumes. Reports; it never repairs.
   workflow permissions read-and-write, or read where every workflow
   that pushes to `main` raises `contents: write` of its own; `main`
   governed by a protection rule; and no rule over `main` refusing the
-  recording push — the four that do are restrict updates, require signed
-  commits, require status checks to pass, and require a pull request
-  before merging, and each is named where the Actions bot has no way
-  past it: always on a user-owned repository, and on an organization-owned
-  one where the ruleset names no bypass actor.
+  recording push — the five that do are make the branch read-only,
+  restrict updates, require signed commits, require status checks to
+  pass, and require a pull request before merging, and each is named
+  where the Actions bot has no way past it: always on a user-owned
+  repository, and on an organization-owned one where the ruleset names
+  no bypass actor.
 - **Both mechanisms the forge keeps over a branch are read.** Rulesets
   are read at `rules/branches/main`, a branch protection rule at
   `branches/main/protection`, and whether one is on at all at
   `branches/main`. Either kind answers whether `main` is governed.
-- **A classic rule is judged by the same four names**, `restrictions`
-  being its form of restricting updates. It names no bypass list the
-  Actions token resolves against — `restrictions` admits an app, and the
-  rule is cleared only where that list names the Actions app — so a rule
-  it enables is named on both owner types.
+- **A classic rule is judged by the same names**, `restrictions` being
+  its form of restricting updates and `lock_branch` the one no ruleset
+  has. It names no bypass list the Actions token resolves against —
+  `restrictions` admits an app, and the rule is cleared only where that
+  list names the Actions app — so a rule it enables is named on both
+  owner types.
+- **A rule this binary does not judge is named as one.** Four rules the
+  recording push meets by being one commit appended to `main` pass in
+  silence — deletion, creation, non-fast-forward and required linear
+  history. Every other rule over `main` is named with its ruleset, and
+  the row recommends rather than breaks: what it reports is the edge of
+  this binary's knowledge, not a fault in the repository.
 - **Stage 3 — Issues:** enabled, so the mirror has somewhere to land.
 
 ## The rung above is previewed
@@ -131,4 +139,5 @@ disagree ([coupling](../../technical/engineering/coupling.md)).
 | `the recording push can write to main` | from stage 2 the workflows record the queue's state by pushing to main | a push with no right to write leaves the queue's state unrecorded | setting the Actions workflow permissions to read-and-write, or raising `contents: write` in that file |
 | `main is governed by a protection rule` | a ruleset or a branch protection rule over the branch every flow lands on | the methodology recommends protecting it | adding a ruleset that targets `main`, or protecting the branch |
 | `no rule over main refuses the recording push` | whether any rule over main stops the Actions bot, of either kind | a rule the bot cannot get past stops the recording push | taking the rule off `main`, or putting the Actions bot on the ruleset's bypass list — which a classic rule has none of |
+| `every rule over main is one this binary judges` | whether this binary has an opinion about each rule over `main` | a rule it has never heard of would be reported as refusing nothing | reading the rule named under the row, and taking it off `main` where it stops the push |
 | `Issues are enabled` | somewhere for the upstream mirror to land | from stage 3 the flows open issues on this repository | enabling Issues in the repository settings |

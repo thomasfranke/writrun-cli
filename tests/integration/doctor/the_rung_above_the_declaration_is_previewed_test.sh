@@ -15,11 +15,11 @@ check "a previewed stage exits 0" 0 "" -- "$WRITRUN" doctor
 check "the header names the rung previewed" 0 \
   "Stage 1 is declared — stages 0–1 examined, stage 2 previewed." -- cat "$WORK/reach.out"
 check "the previewed group counts its rows" 0 \
-  "Stage 2 — the forge, previewed: 6 of 6 met." -- cat "$WORK/reach.out"
+  "Stage 2 — the forge, previewed: 7 of 7 met." -- cat "$WORK/reach.out"
 check "the rung above the preview says it is not previewed" 0 \
   "Stage 3 — Issues: not previewed — one rung at a time." -- cat "$WORK/reach.out"
 check "the report answers whether the stage is within reach" 0 \
-  "Stage 2 is within reach: its 6 requirements are met." -- cat "$WORK/reach.out"
+  "Stage 2 is within reach: its 7 requirements are met." -- cat "$WORK/reach.out"
 check "the preview is the first forge read the run makes" 0 "" \
   -- grep -q "allow_squash_merge" "$GH_DIR/calls"
 
@@ -30,7 +30,7 @@ gh_reply "api repos/{owner}/{repo} --jq .allow_squash_merge" "false"
 "$WRITRUN" doctor > "$WORK/unmet.out" 2>&1
 check "an unmet previewed requirement does not fail the run" 0 "" -- "$WRITRUN" doctor
 check "the previewed count says what is unmet" 0 \
-  "Stage 2 — the forge, previewed: 5 of 6 met." -- cat "$WORK/unmet.out"
+  "Stage 2 — the forge, previewed: 6 of 7 met." -- cat "$WORK/unmet.out"
 check "the report says the stage is out of reach" 0 \
   "Stage 2 is not within reach: 1 requirement unmet." -- cat "$WORK/unmet.out"
 
